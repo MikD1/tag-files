@@ -2,7 +2,7 @@ using System.Linq.Dynamic.Core;
 using Microsoft.EntityFrameworkCore;
 using TagFilesService.Model;
 
-namespace TagFilesService.Data;
+namespace TagFilesService.Infrastructure;
 
 public class MetadataService(AppDbContext dbContext) : IMetadataService
 {

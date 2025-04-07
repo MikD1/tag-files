@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TagFilesService.Model;
 
-namespace TagFilesService.Data;
+namespace TagFilesService.Infrastructure;
 
 public sealed class AppDbContext : DbContext
 {

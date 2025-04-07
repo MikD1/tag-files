@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using TagFilesService.Data;
+using TagFilesService.Infrastructure;
 using TagFilesService.Model;
 
 namespace TagFilesService.Tests.Integration.Data;

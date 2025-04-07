@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using TagFilesService.Data;
+using TagFilesService.Infrastructure;
 
 namespace TagFilesService.Tests.Integration;
 

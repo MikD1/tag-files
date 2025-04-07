@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace TagFilesService.Data;
+namespace TagFilesService.Infrastructure;
 
 public static class TagQueryConverter
 {

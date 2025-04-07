@@ -1,4 +1,4 @@
-using TagFilesService.Data;
+using TagFilesService.Infrastructure;
 
 namespace TagFilesService.Tests.Unit.Data;
 

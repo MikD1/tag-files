@@ -18,7 +18,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\TagFilesService.Data\TagFilesService.Data.csproj" />
+      <ProjectReference Include="..\TagFilesService.Infrastructure\TagFilesService.Infrastructure.csproj" />
       <ProjectReference Include="..\TagFilesService.Model\TagFilesService.Model.csproj" />
     </ItemGroup>
 

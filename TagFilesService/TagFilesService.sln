@@ -5,7 +5,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.Model", "TagFilesService.Model\TagFilesService.Model.csproj", "{7D471E9C-DB6A-4E09-B56A-0BC7C4490B1E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.Data", "TagFilesService.Data\TagFilesService.Data.csproj", "{AECF9604-CA69-463B-AA66-FBF3F2E507E9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.Infrastructure", "TagFilesService.Infrastructure\TagFilesService.Infrastructure.csproj", "{AECF9604-CA69-463B-AA66-FBF3F2E507E9}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.Tests", "TagFilesService.Tests\TagFilesService.Tests.csproj", "{515C0DEF-9F44-4CCF-B6A3-BCA54D869BA0}"
 EndProject
