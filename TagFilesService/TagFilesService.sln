@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.Data", "Tag
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.Tests", "TagFilesService.Tests\TagFilesService.Tests.csproj", "{515C0DEF-9F44-4CCF-B6A3-BCA54D869BA0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.WebHost", "TagFilesService.WebHost\TagFilesService.WebHost.csproj", "{7948CB59-9737-4F18-A20C-DBEAE13C289B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{515C0DEF-9F44-4CCF-B6A3-BCA54D869BA0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{515C0DEF-9F44-4CCF-B6A3-BCA54D869BA0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{515C0DEF-9F44-4CCF-B6A3-BCA54D869BA0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7948CB59-9737-4F18-A20C-DBEAE13C289B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7948CB59-9737-4F18-A20C-DBEAE13C289B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7948CB59-9737-4F18-A20C-DBEAE13C289B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7948CB59-9737-4F18-A20C-DBEAE13C289B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
