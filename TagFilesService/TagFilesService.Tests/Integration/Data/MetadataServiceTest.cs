@@ -139,10 +139,10 @@ public class MetadataServiceTest : InMemoryDatabaseTestBase
         await service.AssignTags(2u, [1u, 3u]);
         await service.AssignTags(1u, [1u, 2u, 3u]);
 
-        List<FileMetadata> result = await service.Search("tag1 && (tag2 || tag3) && !tag4", 100);
+        IPaginatedList<FileMetadata> result = await service.Search("tag1 && (tag2 || tag3) && !tag4", 1, 20);
 
-        Assert.AreEqual(2, result.Count);
-        Assert.AreEqual("path2", result[0].Path);
-        Assert.AreEqual("path1", result[1].Path);
+        Assert.AreEqual(2, result.Items.Count);
+        Assert.AreEqual("path2", result.Items[0].Path);
+        Assert.AreEqual("path1", result.Items[1].Path);
     }
 }

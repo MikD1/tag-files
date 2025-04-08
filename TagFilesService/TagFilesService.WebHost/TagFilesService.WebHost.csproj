@@ -11,4 +11,9 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\TagFilesService.Infrastructure\TagFilesService.Infrastructure.csproj" />
+    <ProjectReference Include="..\TagFilesService.Model\TagFilesService.Model.csproj" />
+  </ItemGroup>
+
 </Project>

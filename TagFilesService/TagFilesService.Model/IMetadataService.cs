@@ -10,5 +10,5 @@ public interface IMetadataService
 
     Task<FileMetadata> AssignTags(uint metadataId, List<uint> tagIds);
 
-    Task<List<FileMetadata>> Search(string tagQuery, int count);
+    Task<IPaginatedList<FileMetadata>> Search(string tagQuery, int pageIndex, int pageSize);
 }

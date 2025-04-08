@@ -1,6 +1,6 @@
 using TagFilesService.Infrastructure;
 
-namespace TagFilesService.Tests.Unit.Data;
+namespace TagFilesService.Tests.Unit.Infrastructure;
 
 [TestClass]
 public class TagQueryConverterTest
