@@ -56,12 +56,19 @@ public class MetadataService(AppDbContext dbContext) : IMetadataService
 
     public async Task<IPaginatedList<FileMetadata>> Search(string tagQuery, int pageIndex, int pageSize)
     {
-        string dynamicQuery = TagQueryConverter.ConvertToDynamicQuery(tagQuery);
-        IQueryable<FileMetadata> source = dbContext.FilesMetadata
-            .Include(x => x.Tags)
-            .Where(dynamicQuery)
+        IQueryable<FileMetadata> queryable = dbContext.FilesMetadata
+            .Include(x => x.Tags);
+
+        if (!string.IsNullOrWhiteSpace(tagQuery))
+        {
+            string dynamicQuery = TagQueryConverter.ConvertToDynamicQuery(tagQuery);
+            queryable = queryable
+                .Where(dynamicQuery);
+        }
+
+        queryable = queryable
             .OrderByDescending(x => x.UploadedOn);
-        return await PaginatedList<FileMetadata>.CreateAsync(source, pageIndex, pageSize);
+        return await PaginatedList<FileMetadata>.CreateAsync(queryable, pageIndex, pageSize);
     }
 
     private async Task<FileMetadata> GetMetadataByIdOrThrow(uint id)
