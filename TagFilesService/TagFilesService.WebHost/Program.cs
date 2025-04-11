@@ -10,7 +10,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(x => { x.OperationFilter<FileUploadOperationFilter>(); });
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=tag-files.db"));
+    options.UseSqlite("Data Source=./../../data/tag-files.db"));
 builder.Services.AddMinio(configure => configure
     .WithEndpoint("localhost:5010")
     .WithCredentials("admin", "12345678")
