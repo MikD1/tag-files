@@ -11,7 +11,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.Tests", "Ta
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.WebHost", "TagFilesService.WebHost\TagFilesService.WebHost.csproj", "{7948CB59-9737-4F18-A20C-DBEAE13C289B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.ThumbnailService", "TagFilesService.ThumbnailService\TagFilesService.ThumbnailService.csproj", "{DF2B7EEC-B579-4046-A773-490408C8F35A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.Thumbnail", "TagFilesService.Thumbnail\TagFilesService.Thumbnail.csproj", "{DF2B7EEC-B579-4046-A773-490408C8F35A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

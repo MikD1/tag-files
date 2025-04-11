@@ -1,12 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
 using TagFilesService.Model;
+using TagFilesService.Thumbnail;
 using TagFilesService.WebHost.Dto;
 
 namespace TagFilesService.WebHost.Controllers;
 
 [ApiController]
 [Route("api/library")]
-public class LibraryController(FileStorage fileStorage, IMetadataService metadataService) : ControllerBase
+public class LibraryController(
+    IFileStorage fileStorage,
+    IMetadataService metadataService,
+    IThumbnailService thumbnailService) : ControllerBase
 {
     [HttpPost("upload")]
     public async Task<ActionResult<LibraryItemDto>> Upload(IFormFile file)
@@ -16,14 +20,17 @@ public class LibraryController(FileStorage fileStorage, IMetadataService metadat
             return BadRequest("No file uploaded");
         }
 
-        string fileExtension = Path.GetExtension(file.FileName);
+        string fileExtension = Path.GetExtension(file.FileName).ToLower();
+        string fileName = MakeLibraryFileName(fileExtension);
         await using Stream stream = file.OpenReadStream();
-        string fileName =
-            await fileStorage.UploadFile("library", stream, file.Length, file.ContentType, null, fileExtension);
+        await fileStorage.UploadFile("library", fileName, stream, file.Length, file.ContentType);
 
         // TODO: get file type
         FileMetadata metadata = new(fileName, FileType.Unknown, null);
-        await metadataService.SaveMetadata(metadata);
+        metadata = await metadataService.SaveMetadata(metadata);
+
+        thumbnailService.EnqueueThumbnailGeneration(metadata.Id);
+
         return LibraryItemDto.FromMetadata(metadata);
     }
 
@@ -39,5 +46,14 @@ public class LibraryController(FileStorage fileStorage, IMetadataService metadat
             .ToList();
         return Ok(new PaginatedListDto<LibraryItemDto>(itemsDto, searchResults.TotalItems, searchResults.PageIndex,
             searchResults.TotalPages));
+    }
+
+    private string MakeLibraryFileName(string extension)
+    {
+        string fileName = Guid.NewGuid()
+            .ToString()
+            .Replace("-", string.Empty)
+            .ToLower() + extension;
+        return fileName;
     }
 }
