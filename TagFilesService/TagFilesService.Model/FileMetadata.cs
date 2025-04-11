@@ -2,20 +2,22 @@ namespace TagFilesService.Model;
 
 public class FileMetadata
 {
-    public FileMetadata(string path, FileType type, string? description)
-        : this(0u, DateTime.UtcNow, path, type, description, [])
+    public FileMetadata(string fileName, FileType type, string? description)
+        : this(0u, DateTime.UtcNow, fileName, type, description, ThumbnailStatus.NotGenerated, [])
     {
     }
 
     public uint Id { get; private set; }
 
-    public DateTime UploadedOn { get; private set; }
+    public string FileName { get; private set; }
 
-    public string Path { get; private set; }
+    public DateTime UploadedOn { get; private set; }
 
     public FileType Type { get; private set; }
 
     public string? Description { get; private set; }
+
+    public ThumbnailStatus ThumbnailStatus { get; private set; }
 
     public List<Tag> Tags { get; private set; }
 
@@ -23,6 +25,11 @@ public class FileMetadata
     {
         ValidateDescription(description);
         Description = description;
+    }
+
+    public void UpdateThumbnailStatus(ThumbnailStatus thumbnailStatus)
+    {
+        ThumbnailStatus = thumbnailStatus;
     }
 
     private void ValidateDescription(string? description)
@@ -33,14 +40,16 @@ public class FileMetadata
         }
     }
 
-    private FileMetadata(uint id, DateTime uploadedOn, string path, FileType type, string? description, List<Tag> tags)
+    private FileMetadata(uint id, DateTime uploadedOn, string fileName, FileType type, string? description,
+        ThumbnailStatus thumbnailStatus, List<Tag> tags)
     {
         ValidateDescription(description);
         Id = id;
         UploadedOn = uploadedOn;
-        Path = path;
+        FileName = fileName;
         Type = type;
         Description = description;
+        ThumbnailStatus = thumbnailStatus;
         Tags = tags;
     }
 }

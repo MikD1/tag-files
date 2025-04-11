@@ -20,14 +20,14 @@ public class MetadataServiceTest : InMemoryDatabaseTestBase
 
         Assert.AreEqual(1u, savedMetadata.Id);
         Assert.AreNotEqual(default, savedMetadata.UploadedOn);
-        Assert.AreEqual("path1", savedMetadata.Path);
+        Assert.AreEqual("path1", savedMetadata.FileName);
         Assert.AreEqual(FileType.Image, savedMetadata.Type);
         Assert.AreEqual("some desc.", savedMetadata.Description);
         Assert.AreEqual(0, savedMetadata.Tags.Count);
 
         Assert.AreEqual(1u, metadataFromDb.Id);
         Assert.AreNotEqual(default, metadataFromDb.UploadedOn);
-        Assert.AreEqual("path1", metadataFromDb.Path);
+        Assert.AreEqual("path1", metadataFromDb.FileName);
         Assert.AreEqual(FileType.Image, metadataFromDb.Type);
         Assert.AreEqual("some desc.", metadataFromDb.Description);
         Assert.AreEqual(0, metadataFromDb.Tags.Count);
@@ -50,14 +50,14 @@ public class MetadataServiceTest : InMemoryDatabaseTestBase
 
         Assert.AreEqual(1u, updatedMetadata.Id);
         Assert.AreEqual(metadataFromDb.UploadedOn, updatedMetadata.UploadedOn);
-        Assert.AreEqual("path1", updatedMetadata.Path);
+        Assert.AreEqual("path1", updatedMetadata.FileName);
         Assert.AreEqual(FileType.Image, updatedMetadata.Type);
         Assert.AreEqual("new desc.", updatedMetadata.Description);
         Assert.AreEqual(0, updatedMetadata.Tags.Count);
 
         Assert.AreEqual(1u, updatedMetadataFromDb.Id);
         Assert.AreEqual(metadataFromDb.UploadedOn, updatedMetadataFromDb.UploadedOn);
-        Assert.AreEqual("path1", updatedMetadataFromDb.Path);
+        Assert.AreEqual("path1", updatedMetadataFromDb.FileName);
         Assert.AreEqual(FileType.Image, updatedMetadataFromDb.Type);
         Assert.AreEqual("new desc.", updatedMetadataFromDb.Description);
         Assert.AreEqual(0, updatedMetadataFromDb.Tags.Count);
@@ -74,7 +74,7 @@ public class MetadataServiceTest : InMemoryDatabaseTestBase
 
         Assert.AreEqual(1u, metadata.Id);
         Assert.AreNotEqual(default, metadata.UploadedOn);
-        Assert.AreEqual("path1", metadata.Path);
+        Assert.AreEqual("path1", metadata.FileName);
         Assert.AreEqual(FileType.Image, metadata.Type);
         Assert.AreEqual("some desc.", metadata.Description);
     }
@@ -94,13 +94,13 @@ public class MetadataServiceTest : InMemoryDatabaseTestBase
         List<FileMetadata> metadataList2 = await service.GetLastMetadataItems(5);
 
         Assert.AreEqual(2, metadataList1.Count);
-        Assert.AreEqual("path3", metadataList1[0].Path);
-        Assert.AreEqual("path2", metadataList1[1].Path);
+        Assert.AreEqual("path3", metadataList1[0].FileName);
+        Assert.AreEqual("path2", metadataList1[1].FileName);
 
         Assert.AreEqual(3, metadataList2.Count);
-        Assert.AreEqual("path3", metadataList2[0].Path);
-        Assert.AreEqual("path2", metadataList2[1].Path);
-        Assert.AreEqual("path1", metadataList2[2].Path);
+        Assert.AreEqual("path3", metadataList2[0].FileName);
+        Assert.AreEqual("path2", metadataList2[1].FileName);
+        Assert.AreEqual("path1", metadataList2[2].FileName);
     }
 
     [TestMethod]
@@ -142,8 +142,8 @@ public class MetadataServiceTest : InMemoryDatabaseTestBase
         IPaginatedList<FileMetadata> result = await service.Search("tag1 && (tag2 || tag3) && !tag4", 1, 20);
 
         Assert.AreEqual(2, result.Items.Count);
-        Assert.AreEqual("path2", result.Items[0].Path);
-        Assert.AreEqual("path1", result.Items[1].Path);
+        Assert.AreEqual("path2", result.Items[0].FileName);
+        Assert.AreEqual("path1", result.Items[1].FileName);
     }
 
     [TestMethod]
@@ -158,8 +158,8 @@ public class MetadataServiceTest : InMemoryDatabaseTestBase
         IPaginatedList<FileMetadata> result = await service.Search(string.Empty, 1, 20);
 
         Assert.AreEqual(3, result.Items.Count);
-        Assert.AreEqual("path3", result.Items[0].Path);
-        Assert.AreEqual("path2", result.Items[1].Path);
-        Assert.AreEqual("path1", result.Items[2].Path);
+        Assert.AreEqual("path3", result.Items[0].FileName);
+        Assert.AreEqual("path2", result.Items[1].FileName);
+        Assert.AreEqual("path1", result.Items[2].FileName);
     }
 }

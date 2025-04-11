@@ -9,7 +9,7 @@ public class FileStorage(IMinioClient minioClient)
         string? fileName, string fileExtension)
     {
         // TODO: Validate fileName, fileExtension
-        string objectName = (fileName ?? Guid.NewGuid().ToString().ToLower()) + fileExtension;
+        string objectName = (fileName ?? Guid.NewGuid().ToString().ToLower()) + fileExtension.ToLower();
         PutObjectArgs args = new PutObjectArgs()
             .WithBucket(bucketName)
             .WithObject(objectName)

@@ -21,11 +21,8 @@ public class LibraryController(FileStorage fileStorage, IMetadataService metadat
         string fileName =
             await fileStorage.UploadFile("library", stream, file.Length, file.ContentType, null, fileExtension);
 
-        // TODO: Make thumbnail from the file
-        await fileStorage.UploadFile("thumbnail", stream, file.Length, file.ContentType, null, fileExtension);
-
         // TODO: get file type
-        FileMetadata metadata = new(fileName, FileType.Image, null);
+        FileMetadata metadata = new(fileName, FileType.Unknown, null);
         await metadataService.SaveMetadata(metadata);
         return LibraryItemDto.FromMetadata(metadata);
     }
