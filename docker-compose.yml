@@ -1,13 +1,33 @@
+version: '3.8'
+
 services:
+  webapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tagfiles-service
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data/webapp:/app/data
+    depends_on:
+      - minio
+    environment:
+      - ASPNETCORE_S3Option_Host=localhost:5010
+      - ASPNETCORE_S3Option_AccessKey=admin
+      - ASPNETCORE_S3Option_SecretKey=12345678
+      - ASPNETCORE_ENVIRONMENT=Development
+      - DOTNET_EnableDiagnostics=1
+
   minio:
     image: quay.io/minio/minio
     command: server --console-address ":9001" /data
     container_name: minio
     ports:
-      - '5010:9000'
-      - '5011:9001'
+      - "5010:9000"
+      - "5011:9001"
     volumes:
-      - './data/minio_data:/data'
+      - ./data/minio_data:/data
     environment:
       - MINIO_ROOT_USER=admin
       - MINIO_ROOT_PASSWORD=12345678

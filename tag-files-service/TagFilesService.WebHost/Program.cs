@@ -5,6 +5,7 @@ using TagFilesService.Infrastructure;
 using TagFilesService.Library;
 using TagFilesService.Model;
 using TagFilesService.WebHost;
+using TagFilesService.WebHost.Options;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services
@@ -22,14 +23,24 @@ builder.Services.AddCors(x => x.AddPolicy("AllowAll", policy =>
 }));
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=./../../data/tag-files.db"));
-builder.Services.AddMinio(configure => configure
-    .WithEndpoint("localhost:5010")
-    .WithCredentials("admin", "12345678")
-    .WithSSL(false)
-    .Build());
-builder.Services.AddScoped<MetadataService>();
-builder.Services.AddScoped<FilesProcessing>();
+    options.UseSqlite("Data Source=tag-files.db"));
+
+S3Option? s3Options = builder.Configuration.GetSection(nameof(S3Option)).Get<S3Option>();
+builder.Services.AddMinio(configure =>
+{
+    if (s3Options == null)
+    {
+        throw new ArgumentNullException(nameof(s3Options));
+    }
+
+    configure
+        .WithEndpoint(s3Options!.Host)
+        .WithCredentials(s3Options.AccessKey, s3Options.SecretKey)
+        .WithSSL(false)
+        .Build();
+});
+builder.Services.AddScoped<IFileStorage, FileStorage>();
+builder.Services.AddScoped<IThumbnailService, ThumbnailService>();
 builder.Services.AddScoped<ITagsRepository, TagsRepository>();
 builder.Services.AddHostedService<TemporaryBucketWatcher>();
 
