@@ -13,25 +13,33 @@ public class LibraryController(
     IThumbnailService thumbnailService) : ControllerBase
 {
     [HttpPost("upload")]
-    public async Task<ActionResult<LibraryItemDto>> Upload(IFormFile file)
+    public async Task<ActionResult<LibraryItemDto>> Upload(List<IFormFile> files)
     {
-        if (file.Length == 0)
+        // TOTO: use presigned urls for upload
+        if (files.Count == 0)
         {
-            return BadRequest("No file uploaded");
+            return BadRequest("No files selected");
         }
 
-        string fileExtension = Path.GetExtension(file.FileName).ToLower();
-        string fileName = MakeLibraryFileName(fileExtension);
-        await using Stream stream = file.OpenReadStream();
-        await fileStorage.UploadFile("library", fileName, stream, file.Length, file.ContentType);
+        foreach (IFormFile file in files)
+        {
+            if (file.Length == 0)
+            {
+                continue;
+            }
 
-        // TODO: get file type
-        FileMetadata metadata = new(fileName, FileType.Unknown, null);
-        metadata = await metadataService.SaveMetadata(metadata);
+            string fileExtension = Path.GetExtension(file.FileName).ToLower();
+            string fileName = MakeLibraryFileName(fileExtension);
+            await using Stream stream = file.OpenReadStream();
+            await fileStorage.UploadFile("library", fileName, stream, file.Length, file.ContentType);
 
-        thumbnailService.EnqueueThumbnailGeneration(metadata.Id);
+            // TODO: get file type
+            FileMetadata metadata = new(fileName, FileType.Unknown, null);
+            await metadataService.SaveMetadata(metadata);
+        }
 
-        return LibraryItemDto.FromMetadata(metadata);
+        thumbnailService.StartThumbnailsGeneration();
+        return Ok();
     }
 
     [HttpPost("search")]

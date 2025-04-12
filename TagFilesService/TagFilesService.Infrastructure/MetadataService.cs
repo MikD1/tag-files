@@ -35,6 +35,13 @@ public class MetadataService(AppDbContext dbContext) : IMetadataService
             .ToListAsync();
     }
 
+    public async Task<List<FileMetadata>> GetUnprocessedMetadata()
+    {
+        return await dbContext.FilesMetadata
+            .Where(x => x.ThumbnailStatus != ThumbnailStatus.Generated)
+            .ToListAsync();
+    }
+
     public async Task<FileMetadata> AssignTags(uint metadataId, List<uint> tagIds)
     {
         FileMetadata metadata = await GetMetadataByIdOrThrow(metadataId);
