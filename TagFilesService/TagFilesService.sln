@@ -11,7 +11,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.Tests", "Ta
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.WebHost", "TagFilesService.WebHost\TagFilesService.WebHost.csproj", "{7948CB59-9737-4F18-A20C-DBEAE13C289B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.Thumbnail", "TagFilesService.Thumbnail\TagFilesService.Thumbnail.csproj", "{DF2B7EEC-B579-4046-A773-490408C8F35A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.Library", "TagFilesService.Library\TagFilesService.Library.csproj", "{2F8EE5FF-BB82-4F1C-8843-D99C9BF3FDBB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -38,9 +38,9 @@ Global
 		{7948CB59-9737-4F18-A20C-DBEAE13C289B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7948CB59-9737-4F18-A20C-DBEAE13C289B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7948CB59-9737-4F18-A20C-DBEAE13C289B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{DF2B7EEC-B579-4046-A773-490408C8F35A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{DF2B7EEC-B579-4046-A773-490408C8F35A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{DF2B7EEC-B579-4046-A773-490408C8F35A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{DF2B7EEC-B579-4046-A773-490408C8F35A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F8EE5FF-BB82-4F1C-8843-D99C9BF3FDBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F8EE5FF-BB82-4F1C-8843-D99C9BF3FDBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F8EE5FF-BB82-4F1C-8843-D99C9BF3FDBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F8EE5FF-BB82-4F1C-8843-D99C9BF3FDBB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

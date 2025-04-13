@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using TagFilesService.Model;
-using TagFilesService.Thumbnail;
 using TagFilesService.WebHost.Dto;
 
 namespace TagFilesService.WebHost.Controllers;
@@ -9,38 +8,8 @@ namespace TagFilesService.WebHost.Controllers;
 [Route("api/library")]
 public class LibraryController(
     IFileStorage fileStorage,
-    IMetadataService metadataService,
-    IThumbnailService thumbnailService) : ControllerBase
+    IMetadataService metadataService) : ControllerBase
 {
-    [HttpPost("upload")]
-    public async Task<ActionResult<LibraryItemDto>> Upload(List<IFormFile> files)
-    {
-        // TOTO: use presigned urls for upload
-        if (files.Count == 0)
-        {
-            return BadRequest("No files selected");
-        }
-
-        foreach (IFormFile file in files)
-        {
-            if (file.Length == 0)
-            {
-                continue;
-            }
-
-            string fileName = MakeLibraryFileName(file.FileName);
-            await using Stream stream = file.OpenReadStream();
-            await fileStorage.UploadFile("library", fileName, stream, file.Length, file.ContentType);
-
-            // TODO: get file type
-            FileMetadata metadata = new(fileName, FileType.Unknown, null);
-            await metadataService.SaveMetadata(metadata);
-        }
-
-        thumbnailService.StartThumbnailsGeneration();
-        return Ok();
-    }
-
     [HttpPost("search")]
     public async Task<ActionResult<IPaginatedList<LibraryItemDto>>> Search(
         [FromBody] SearchParametersDto searchParameters)
@@ -67,15 +36,6 @@ public class LibraryController(
         }
 
         return Ok(result);
-    }
-
-    [HttpPost("upload-complete")]
-    public ActionResult UploadComplete()
-    {
-        // move files from temporary bucket to library bucket
-        // add metadata
-        // generate thumbnails
-        return Ok();
     }
 
     private string MakeLibraryFileName(string originalName)

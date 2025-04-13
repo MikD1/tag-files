@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Minio;
 using TagFilesService.Infrastructure;
+using TagFilesService.Library;
 using TagFilesService.Model;
-using TagFilesService.Thumbnail;
+using TagFilesService.WebHost;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
@@ -16,10 +17,11 @@ builder.Services.AddMinio(configure => configure
     .WithCredentials("admin", "12345678")
     .WithSSL(false)
     .Build());
+builder.Services.AddScoped<FilesProcessing>();
 builder.Services.AddScoped<IFileStorage, FileStorage>();
-builder.Services.AddScoped<IThumbnailService, ThumbnailService>();
 builder.Services.AddScoped<ITagsRepository, TagsRepository>();
 builder.Services.AddScoped<IMetadataService, MetadataService>();
+builder.Services.AddHostedService<TemporaryBucketWatcher>();
 
 WebApplication app = builder.Build();
 app.MapControllers();

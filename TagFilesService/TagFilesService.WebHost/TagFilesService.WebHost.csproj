@@ -15,8 +15,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TagFilesService.Infrastructure\TagFilesService.Infrastructure.csproj" />
+    <ProjectReference Include="..\TagFilesService.Library\TagFilesService.Library.csproj" />
     <ProjectReference Include="..\TagFilesService.Model\TagFilesService.Model.csproj" />
-    <ProjectReference Include="..\TagFilesService.Thumbnail\TagFilesService.Thumbnail.csproj" />
   </ItemGroup>
 
 </Project>
