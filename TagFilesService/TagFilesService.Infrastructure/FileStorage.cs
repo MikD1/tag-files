@@ -1,4 +1,5 @@
 using Minio;
+using Minio.DataModel;
 using Minio.DataModel.Args;
 using TagFilesService.Model;
 
@@ -17,5 +18,35 @@ public class FileStorage(IMinioClient minioClient) : IFileStorage
             .WithContentType(contentType);
 
         await minioClient.PutObjectAsync(args);
+    }
+
+    public async Task<string> GeneratePresignedUrl(string bucketName, string fileName, TimeSpan expirationTime)
+    {
+        PresignedPutObjectArgs args = new PresignedPutObjectArgs()
+            .WithBucket(bucketName)
+            .WithObject(fileName)
+            .WithExpiry((int)expirationTime.TotalSeconds);
+
+        return await minioClient.PresignedPutObjectAsync(args);
+    }
+
+    public async Task<List<string>> ListFiles(string bucketName)
+    {
+        ListObjectsArgs args = new ListObjectsArgs()
+            .WithBucket(bucketName)
+            .WithPrefix(string.Empty);
+
+        List<string> result = [];
+        await foreach (Item item in minioClient.ListObjectsEnumAsync(args))
+        {
+            result.Add(item.Key);
+        }
+
+        return result;
+    }
+
+    public Task MoveFile(string sourceBucketName, string sourceFileName, string destinationBucketName)
+    {
+        throw new NotImplementedException();
     }
 }

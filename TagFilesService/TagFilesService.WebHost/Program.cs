@@ -3,12 +3,11 @@ using Minio;
 using TagFilesService.Infrastructure;
 using TagFilesService.Model;
 using TagFilesService.Thumbnail;
-using TagFilesService.WebHost;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(x => { x.OperationFilter<FileUploadOperationFilter>(); });
+builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=./../../data/tag-files.db"));

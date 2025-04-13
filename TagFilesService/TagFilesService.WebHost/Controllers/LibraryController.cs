@@ -28,8 +28,7 @@ public class LibraryController(
                 continue;
             }
 
-            string fileExtension = Path.GetExtension(file.FileName).ToLower();
-            string fileName = MakeLibraryFileName(fileExtension);
+            string fileName = MakeLibraryFileName(file.FileName);
             await using Stream stream = file.OpenReadStream();
             await fileStorage.UploadFile("library", fileName, stream, file.Length, file.ContentType);
 
@@ -56,8 +55,32 @@ public class LibraryController(
             searchResults.TotalPages));
     }
 
-    private string MakeLibraryFileName(string extension)
+    [HttpPost("generate-upload-urls")]
+    public async Task<ActionResult<List<string>>> GenerateUploadUrls([FromBody] List<string> fileNames)
     {
+        List<string> result = [];
+        foreach (string fileName in fileNames)
+        {
+            string libraryFileName = MakeLibraryFileName(fileName);
+            string url = await fileStorage.GeneratePresignedUrl("temporary", libraryFileName, TimeSpan.FromHours(1));
+            result.Add(url);
+        }
+
+        return Ok(result);
+    }
+
+    [HttpPost("upload-complete")]
+    public ActionResult UploadComplete()
+    {
+        // move files from temporary bucket to library bucket
+        // add metadata
+        // generate thumbnails
+        return Ok();
+    }
+
+    private string MakeLibraryFileName(string originalName)
+    {
+        string extension = Path.GetExtension(originalName).ToLower();
         string fileName = Guid.NewGuid()
             .ToString()
             .Replace("-", string.Empty)
