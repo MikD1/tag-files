@@ -12,8 +12,8 @@ public record LibraryItemDto(
     public static LibraryItemDto FromMetadata(FileMetadata metadata)
     {
         return new(
-            $"library/{metadata.FileName}",
-            $"thumbnail/{metadata.FileName}",
+            $"{Buckets.Library}/{metadata.FileName}",
+            $"{Buckets.Thumbnail}/{metadata.FileName}",
             metadata.Description,
             metadata.UploadedOn,
             metadata.Tags.Select(t => t.Name).ToList());
