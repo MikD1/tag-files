@@ -9,6 +9,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(FilesProcessing).Assembly));
 builder.Services.AddCors(x => x.AddPolicy("AllowAll", policy =>
 {
     policy
@@ -24,10 +25,9 @@ builder.Services.AddMinio(configure => configure
     .WithCredentials("admin", "12345678")
     .WithSSL(false)
     .Build());
+builder.Services.AddScoped<MetadataService>();
 builder.Services.AddScoped<FilesProcessing>();
-builder.Services.AddScoped<IFileStorage, FileStorage>();
 builder.Services.AddScoped<ITagsRepository, TagsRepository>();
-builder.Services.AddScoped<IMetadataService, MetadataService>();
 builder.Services.AddHostedService<TemporaryBucketWatcher>();
 
 WebApplication app = builder.Build();

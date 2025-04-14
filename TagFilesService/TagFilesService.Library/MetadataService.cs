@@ -1,10 +1,10 @@
-using System.Linq.Dynamic.Core;
 using Microsoft.EntityFrameworkCore;
+using TagFilesService.Infrastructure;
 using TagFilesService.Model;
 
-namespace TagFilesService.Infrastructure;
+namespace TagFilesService.Library;
 
-public class MetadataService(AppDbContext dbContext) : IMetadataService
+public class MetadataService(AppDbContext dbContext)
 {
     public async Task<FileMetadata> SaveMetadata(FileMetadata metadata)
     {
@@ -35,13 +35,6 @@ public class MetadataService(AppDbContext dbContext) : IMetadataService
             .ToListAsync();
     }
 
-    public async Task<List<FileMetadata>> GetUnprocessedMetadata()
-    {
-        return await dbContext.FilesMetadata
-            .Where(x => x.ThumbnailStatus != ThumbnailStatus.Generated)
-            .ToListAsync();
-    }
-
     public async Task<FileMetadata> AssignTags(uint metadataId, List<uint> tagIds)
     {
         FileMetadata metadata = await GetMetadataByIdOrThrow(metadataId);
@@ -59,23 +52,6 @@ public class MetadataService(AppDbContext dbContext) : IMetadataService
 
         await dbContext.SaveChangesAsync();
         return metadata;
-    }
-
-    public async Task<IPaginatedList<FileMetadata>> Search(string tagQuery, int pageIndex, int pageSize)
-    {
-        IQueryable<FileMetadata> queryable = dbContext.FilesMetadata
-            .Include(x => x.Tags);
-
-        if (!string.IsNullOrWhiteSpace(tagQuery))
-        {
-            string dynamicQuery = TagQueryConverter.ConvertToDynamicQuery(tagQuery);
-            queryable = queryable
-                .Where(dynamicQuery);
-        }
-
-        queryable = queryable
-            .OrderByDescending(x => x.UploadedOn);
-        return await PaginatedList<FileMetadata>.CreateAsync(queryable, pageIndex, pageSize);
     }
 
     private async Task<FileMetadata> GetMetadataByIdOrThrow(uint id)

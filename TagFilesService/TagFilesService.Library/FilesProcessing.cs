@@ -7,7 +7,7 @@ using TagFilesService.Model;
 
 namespace TagFilesService.Library;
 
-public class FilesProcessing(ILogger<FilesProcessing> logger, IMinioClient minio, IMetadataService metadataService)
+public class FilesProcessing(ILogger<FilesProcessing> logger, IMinioClient minio, MetadataService metadataService)
 {
     public async Task ProcessFile(string fileName)
     {

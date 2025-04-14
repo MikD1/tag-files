@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using TagFilesService.Infrastructure;
+using TagFilesService.Library;
 using TagFilesService.Model;
 
-namespace TagFilesService.Tests.Integration.Data;
+namespace TagFilesService.Tests.Integration.Library;
 
 [TestClass]
 public class MetadataServiceTest : InMemoryDatabaseTestBase
@@ -120,46 +120,5 @@ public class MetadataServiceTest : InMemoryDatabaseTestBase
 
         Assert.AreEqual(2, metadata.Tags.Count);
         Assert.AreEqual(2, metadataFromDb.Tags.Count);
-    }
-
-    [TestMethod]
-    public async Task Search_ShouldReturnCorrectMetadata()
-    {
-        DbContext.Tags.Add(new("tag1"));
-        DbContext.Tags.Add(new("tag2"));
-        DbContext.Tags.Add(new("tag3"));
-        DbContext.Tags.Add(new("tag4"));
-        DbContext.FilesMetadata.Add(new("path1", FileType.Image, null));
-        DbContext.FilesMetadata.Add(new("path2", FileType.Image, null));
-        DbContext.FilesMetadata.Add(new("path3", FileType.Image, null));
-        await DbContext.SaveChangesAsync();
-
-        MetadataService service = new(DbContext);
-        await service.AssignTags(1u, [1u, 2u]);
-        await service.AssignTags(2u, [1u, 3u]);
-        await service.AssignTags(1u, [1u, 2u, 3u]);
-
-        IPaginatedList<FileMetadata> result = await service.Search("tag1 && (tag2 || tag3) && !tag4", 1, 20);
-
-        Assert.AreEqual(2, result.Items.Count);
-        Assert.AreEqual("path2", result.Items[0].FileName);
-        Assert.AreEqual("path1", result.Items[1].FileName);
-    }
-
-    [TestMethod]
-    public async Task Search_ShouldReturnLastMetadata_WhenEmptyQuery()
-    {
-        DbContext.FilesMetadata.Add(new("path1", FileType.Image, null));
-        DbContext.FilesMetadata.Add(new("path2", FileType.Image, null));
-        DbContext.FilesMetadata.Add(new("path3", FileType.Image, null));
-        await DbContext.SaveChangesAsync();
-
-        MetadataService service = new(DbContext);
-        IPaginatedList<FileMetadata> result = await service.Search(string.Empty, 1, 20);
-
-        Assert.AreEqual(3, result.Items.Count);
-        Assert.AreEqual("path3", result.Items[0].FileName);
-        Assert.AreEqual("path2", result.Items[1].FileName);
-        Assert.AreEqual("path1", result.Items[2].FileName);
     }
 }

@@ -1,9 +1,10 @@
 using TagFilesService.Infrastructure;
+using TagFilesService.Model;
 
 namespace TagFilesService.Tests.Unit.Infrastructure
 {
     [TestClass]
-    public class PaginatedListTest
+    public class QueryablePaginatedListTest
     {
         [DataTestMethod]
         [DataRow(1, 10, 50, 5, new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 })]
@@ -17,9 +18,9 @@ namespace TagFilesService.Tests.Unit.Infrastructure
         {
             IQueryable<int> source = Enumerable.Range(1, totalItems).AsQueryable();
 
-            PaginatedList<int> paginatedList = PaginatedList<int>.Create(source, pageIndex, pageSize);
+            PaginatedList<int> paginatedList = QueryablePaginatedList<int>.Create(source, pageIndex, pageSize);
 
-            Assert.AreEqual(expectedItems.Length, paginatedList.Items.Count());
+            Assert.AreEqual(expectedItems.Length, paginatedList.Items.Count);
             Assert.AreEqual(totalItems, paginatedList.TotalItems);
             Assert.AreEqual(pageIndex, paginatedList.PageIndex);
             Assert.AreEqual(totalPages, paginatedList.TotalPages);
@@ -33,9 +34,9 @@ namespace TagFilesService.Tests.Unit.Infrastructure
             int pageIndex = 1;
             int pageSize = 10;
 
-            PaginatedList<int> paginatedList = PaginatedList<int>.Create(source, pageIndex, pageSize);
+            PaginatedList<int> paginatedList = QueryablePaginatedList<int>.Create(source, pageIndex, pageSize);
 
-            Assert.AreEqual(0, paginatedList.Items.Count());
+            Assert.AreEqual(0, paginatedList.Items.Count);
             Assert.AreEqual(0, paginatedList.TotalItems);
             Assert.AreEqual(1, paginatedList.PageIndex);
             Assert.AreEqual(0, paginatedList.TotalPages);

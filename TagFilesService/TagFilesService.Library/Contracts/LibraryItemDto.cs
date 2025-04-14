@@ -1,6 +1,6 @@
 using TagFilesService.Model;
 
-namespace TagFilesService.WebHost.Dto;
+namespace TagFilesService.Library.Contracts;
 
 public record LibraryItemDto(
     string Path,
