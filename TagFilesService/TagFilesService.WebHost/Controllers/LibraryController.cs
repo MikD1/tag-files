@@ -16,6 +16,14 @@ public class LibraryController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("{id}/tags")]
+    public async Task<ActionResult<LibraryItemDto>> PostTags(uint id, [FromBody] List<string> tags)
+    {
+        AssignTagsRequest request = new(id, tags);
+        LibraryItemDto result = await mediator.Send(request);
+        return Ok(result);
+    }
+
     [HttpPost("generate-upload-urls")]
     public async Task<ActionResult<List<string>>> GenerateUploadUrls([FromBody] GeneratePresignedUrlsRequest request)
     {

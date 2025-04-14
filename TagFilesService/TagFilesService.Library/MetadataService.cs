@@ -35,25 +35,6 @@ public class MetadataService(AppDbContext dbContext)
             .ToListAsync();
     }
 
-    public async Task<FileMetadata> AssignTags(uint metadataId, List<uint> tagIds)
-    {
-        FileMetadata metadata = await GetMetadataByIdOrThrow(metadataId);
-        List<Tag> tags = await dbContext.Tags
-            .Where(x => tagIds.Contains(x.Id))
-            .ToListAsync();
-
-        if (tags.Count != tagIds.Count)
-        {
-            throw new ApplicationException("Some tags not found");
-        }
-
-        metadata.Tags.Clear();
-        metadata.Tags.AddRange(tags);
-
-        await dbContext.SaveChangesAsync();
-        return metadata;
-    }
-
     private async Task<FileMetadata> GetMetadataByIdOrThrow(uint id)
     {
         FileMetadata? metadata = await dbContext.FilesMetadata

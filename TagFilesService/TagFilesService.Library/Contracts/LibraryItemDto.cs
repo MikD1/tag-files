@@ -3,6 +3,7 @@ using TagFilesService.Model;
 namespace TagFilesService.Library.Contracts;
 
 public record LibraryItemDto(
+    uint Id,
     string Path,
     string? ThumbnailPath,
     string? Description,
@@ -12,6 +13,7 @@ public record LibraryItemDto(
     public static LibraryItemDto FromMetadata(FileMetadata metadata)
     {
         return new(
+            metadata.Id,
             $"{Buckets.Library}/{metadata.FileName}",
             $"{Buckets.Thumbnail}/{metadata.FileName}",
             metadata.Description,

@@ -1,4 +1,3 @@
-using TagFilesService.Library;
 using TagFilesService.Library.Contracts;
 using TagFilesService.Library.Handlers;
 using TagFilesService.Model;
@@ -11,19 +10,24 @@ public class SearchRequestHandlerTest : InMemoryDatabaseTestBase
     [TestMethod]
     public async Task SearchRequest_ShouldReturnCorrectMetadata()
     {
-        DbContext.Tags.Add(new("tag1"));
-        DbContext.Tags.Add(new("tag2"));
-        DbContext.Tags.Add(new("tag3"));
-        DbContext.Tags.Add(new("tag4"));
-        DbContext.FilesMetadata.Add(new("file1", FileType.Unknown, null));
-        DbContext.FilesMetadata.Add(new("file2", FileType.Unknown, null));
-        DbContext.FilesMetadata.Add(new("file3", FileType.Unknown, null));
+        List<Tag> tags =
+        [
+            new("tag1"),
+            new("tag2"),
+            new("tag3"),
+            new("tag4")
+        ];
+        DbContext.Tags.AddRange(tags);
         await DbContext.SaveChangesAsync();
 
-        MetadataService service = new(DbContext);
-        await service.AssignTags(1u, [1u, 2u]);
-        await service.AssignTags(2u, [1u, 3u]);
-        await service.AssignTags(1u, [1u, 2u, 3u]);
+        FileMetadata metadata1 = new("file1", FileType.Image, null);
+        metadata1.Tags.AddRange(tags[0], tags[1]);
+        FileMetadata metadata2 = new("file2", FileType.Image, null);
+        metadata2.Tags.AddRange(tags[0], tags[2]);
+        FileMetadata metadata3 = new("file3", FileType.Image, null);
+        metadata3.Tags.AddRange(tags[0], tags[2], tags[3]);
+        DbContext.FilesMetadata.AddRange(metadata1, metadata2, metadata3);
+        await DbContext.SaveChangesAsync();
 
         SearchRequestHandler handler = new(DbContext);
         const string tagQuery = "tag1 && (tag2 || tag3) && !tag4";

@@ -102,23 +102,4 @@ public class MetadataServiceTest : InMemoryDatabaseTestBase
         Assert.AreEqual("path2", metadataList2[1].FileName);
         Assert.AreEqual("path1", metadataList2[2].FileName);
     }
-
-    [TestMethod]
-    public async Task AssignTags_ShouldAssignTagsToMetadata_WhenMetadataAndTagsExist()
-    {
-        DbContext.Tags.Add(new("tag1"));
-        DbContext.Tags.Add(new("tag2"));
-        DbContext.Tags.Add(new("tag3"));
-        DbContext.FilesMetadata.Add(new("path1", FileType.Image, "some desc."));
-        await DbContext.SaveChangesAsync();
-
-        MetadataService service = new(DbContext);
-        FileMetadata metadata = await service.AssignTags(1u, [1u, 2u]);
-        FileMetadata metadataFromDb = await DbContext.FilesMetadata
-            .Include(x => x.Tags)
-            .FirstAsync(x => x.Id == 1u);
-
-        Assert.AreEqual(2, metadata.Tags.Count);
-        Assert.AreEqual(2, metadataFromDb.Tags.Count);
-    }
 }
