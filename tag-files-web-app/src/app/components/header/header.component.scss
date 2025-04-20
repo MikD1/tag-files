@@ -1,5 +1,12 @@
 .header {
-    padding: 0 5px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 0 7px;
     color: var(--mat-sys-primary);
     background: var(--mat-sys-primary-container);
+}
+
+.spacer {
+    flex: 1 1 auto;
 }

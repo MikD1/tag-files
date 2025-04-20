@@ -1,0 +1,5 @@
+<mat-grid-list class="grid" [cols]="cols" gutterSize="5px" rowHeight="1:1">
+    <mat-grid-tile *ngFor="let metadata of filesMetadata" [colspan]="1" [rowspan]="1">
+        <app-image-card [metadata]="metadata"></app-image-card>
+    </mat-grid-tile>
+</mat-grid-list>
