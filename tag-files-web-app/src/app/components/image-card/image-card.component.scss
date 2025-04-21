@@ -1,7 +1,11 @@
-.card {
+:host {
     max-width: 300px;
 }
 
+:host:hover {
+    cursor: pointer;
+    opacity: 0.9;
+}
 
 .card-image {
     width: 100%;
