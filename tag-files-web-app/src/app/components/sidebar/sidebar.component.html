@@ -1,1 +1,19 @@
 <h2 class="header-text">Tag Files</h2>
+
+<mat-accordion>
+    <mat-expansion-panel class="tags-panel" [expanded]="true">
+        <mat-expansion-panel-header>
+            <mat-panel-title>
+                <mat-icon>label</mat-icon>
+                <span class="tags-panel-header-text">Tags</span>
+            </mat-panel-title>
+        </mat-expansion-panel-header>
+        @if (tags | async; as tags) {
+        <mat-list role="list">
+            @for (tag of tags; track $index) {
+            <mat-list-item role="listitem">{{tag}}</mat-list-item>
+            }
+        </mat-list>
+        }
+    </mat-expansion-panel>
+</mat-accordion>
