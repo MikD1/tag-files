@@ -1,15 +1,15 @@
 <mat-toolbar class="header" color="primary">
-    <button mat-icon-button (click)="toggleSidenav()">
+    <button mat-icon-button (click)="toggleSidebar()">
         <mat-icon>menu</mat-icon>
     </button>
     <mat-form-field class="search-field" appearance="outline" subscriptSizing="dynamic">
         <input matInput placeholder="Search">
     </mat-form-field>
     <div>
-        <button mat-icon-button (click)="onZoomIn()">
+        <button mat-icon-button (click)="onAddClick()">
             <mat-icon>add</mat-icon>
         </button>
-        <button mat-icon-button (click)="onZoomOut()">
+        <button mat-icon-button (click)="onRemoveClick()">
             <mat-icon>remove</mat-icon>
         </button>
     </div>

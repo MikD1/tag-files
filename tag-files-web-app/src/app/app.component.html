@@ -1,13 +1,11 @@
 <mat-sidenav-container>
-    <mat-sidenav #sidenav mode="side" opened class="sidenav" fixedInViewport="true">
+    <mat-sidenav class="sidebar" mode="side" [opened]="isSidebarOpen()" fixedInViewport="true">
         <app-sidebar></app-sidebar>
     </mat-sidenav>
-
     <mat-sidenav-content>
-        <app-header [sidenav]="sidenav" (zoomIn)="imageGrid.decreaseCols()"
-            (zoomOut)="imageGrid.increaseCols()"></app-header>
+        <app-header></app-header>
         <div class="main-content">
-            <app-image-grid #imageGrid></app-image-grid>
+            <app-image-grid></app-image-grid>
         </div>
         <router-outlet />
     </mat-sidenav-content>

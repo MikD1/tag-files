@@ -1,10 +1,11 @@
-import { Component } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { AppSidebarComponent } from "./components/sidebar/sidebar.component";
 import { AppHeaderComponent } from "./components/header/header.component";
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { ImageGridComponent } from "./components/image-grid/image-grid.component";
+import { AppStateService } from './services/app-state.service';
 
 @Component({
   selector: 'app-root',
@@ -13,4 +14,9 @@ import { ImageGridComponent } from "./components/image-grid/image-grid.component
   styleUrl: './app.component.scss'
 })
 export class AppComponent {
+  protected readonly isSidebarOpen = computed(() => {
+    return this.appStateService.getIsSidebarOpen();
+  })
+
+  private readonly appStateService = inject(AppStateService);
 }

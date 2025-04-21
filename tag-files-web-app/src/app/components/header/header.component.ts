@@ -1,10 +1,10 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { MatSidenav } from '@angular/material/sidenav';
+import { Component, inject, output } from '@angular/core';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { AppStateService } from '../../services/app-state.service';
 
 @Component({
   selector: 'app-header',
@@ -13,19 +13,17 @@ import { MatInputModule } from '@angular/material/input';
   styleUrl: './header.component.scss'
 })
 export class AppHeaderComponent {
-  @Input() sidenav!: MatSidenav;
-  @Output() zoomIn = new EventEmitter<void>();
-  @Output() zoomOut = new EventEmitter<void>();
-
-  onZoomIn() {
-    this.zoomIn.emit();
+  onAddClick() {
+    this.appStateService.increaseMainGridColumns();
   }
 
-  onZoomOut() {
-    this.zoomOut.emit();
+  onRemoveClick() {
+    this.appStateService.decreaseMainGridColumns();
   }
 
-  toggleSidenav() {
-    this.sidenav.toggle();
+  toggleSidebar() {
+    this.appStateService.toggleSidebar();
   }
+
+  private readonly appStateService = inject(AppStateService);
 }

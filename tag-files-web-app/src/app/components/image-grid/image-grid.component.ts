@@ -1,8 +1,9 @@
 import { NgFor } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { ImageCardComponent } from "../image-card/image-card.component";
 import { FileMetadata } from '../../model/file-metadata';
+import { AppStateService } from '../../services/app-state.service';
 
 @Component({
   selector: 'app-image-grid',
@@ -11,20 +12,13 @@ import { FileMetadata } from '../../model/file-metadata';
   styleUrl: './image-grid.component.scss'
 })
 export class ImageGridComponent {
-  cols: number = 8;
-  filesMetadata: FileMetadata[] = Array(21).fill({
+  protected filesMetadata: FileMetadata[] = Array(21).fill({
     url: 'https://images.pexels.com/photos/2014422/pexels-photo-2014422.jpeg'
   });
 
-  increaseCols() {
-    if (this.cols < 12) {
-      this.cols++;
-    }
-  }
+  protected readonly getGridColumns = computed(() => {
+    return this.appStateService.getMainGridColumns();
+  })
 
-  decreaseCols() {
-    if (this.cols > 4) {
-      this.cols--;
-    }
-  }
+  private readonly appStateService = inject(AppStateService);
 }
