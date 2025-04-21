@@ -2,6 +2,7 @@ import { Component, Input, } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { FileMetadata } from '../../model/file-metadata';
+import { LibraryItem } from '../../services/library.service';
 
 @Component({
   selector: 'app-image-card',
@@ -10,5 +11,5 @@ import { FileMetadata } from '../../model/file-metadata';
   styleUrl: './image-card.component.scss'
 })
 export class ImageCardComponent {
-  @Input() metadata!: FileMetadata;
+  @Input() libraryItem!: LibraryItem;
 }

@@ -1,1 +1,3 @@
-<img class="card-image" [src]="metadata.url">
+@if (libraryItem.thumbnailPath) {
+<img class="card-image" [src]="'http://localhost:5010/'+libraryItem.thumbnailPath">
+}

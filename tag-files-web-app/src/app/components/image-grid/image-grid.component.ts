@@ -1,24 +1,28 @@
-import { NgFor } from '@angular/common';
+import { AsyncPipe } from '@angular/common';
 import { Component, computed, inject } from '@angular/core';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { ImageCardComponent } from "../image-card/image-card.component";
-import { FileMetadata } from '../../model/file-metadata';
 import { AppStateService } from '../../services/app-state.service';
+import { LibraryItemPaginatedList, LibraryService } from '../../services/library.service';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-image-grid',
-  imports: [NgFor, MatGridListModule, ImageCardComponent],
+  imports: [MatGridListModule, ImageCardComponent, AsyncPipe],
   templateUrl: './image-grid.component.html',
   styleUrl: './image-grid.component.scss'
 })
 export class ImageGridComponent {
-  protected filesMetadata: FileMetadata[] = Array(21).fill({
-    url: 'https://images.pexels.com/photos/2014422/pexels-photo-2014422.jpeg'
-  });
+  constructor() {
+    this.libraryItemsList = this.libraryService.search({ tagQuery: "", pageIndex: 1, pageSize: 100 })
+  }
+
+  libraryItemsList: Observable<LibraryItemPaginatedList>;
 
   protected readonly getGridColumns = computed(() => {
     return this.appStateService.getMainGridColumns();
   })
 
   private readonly appStateService = inject(AppStateService);
+  private readonly libraryService = inject(LibraryService);
 }

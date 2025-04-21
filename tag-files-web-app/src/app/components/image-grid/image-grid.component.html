@@ -1,5 +1,9 @@
+@if (libraryItemsList | async; as libraryItemsList) {
 <mat-grid-list class="grid" [cols]="getGridColumns()" gutterSize="3px" rowHeight="1:1">
-    <mat-grid-tile *ngFor="let metadata of filesMetadata" [colspan]="1" [rowspan]="1">
-        <app-image-card [metadata]="metadata"></app-image-card>
+    @for (libraryItem of libraryItemsList.items; track $index) {
+    <mat-grid-tile [colspan]="1" [rowspan]="1">
+        <app-image-card [libraryItem]="libraryItem"></app-image-card>
     </mat-grid-tile>
+    }
 </mat-grid-list>
+}

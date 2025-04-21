@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { AsyncPipe } from '@angular/common';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { LibraryService } from '../../services/library.service';
@@ -13,15 +13,12 @@ import { MatIconModule } from '@angular/material/icon';
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.scss'
 })
-export class AppSidebarComponent implements OnInit {
+export class AppSidebarComponent {
   constructor() {
     this.tags = this.libraryService.getTags();
   }
 
   tags: Observable<string[]>;
-
-  ngOnInit(): void {
-  }
 
   private readonly libraryService = inject(LibraryService);
 }
