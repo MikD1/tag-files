@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { AppSidebarComponent } from "./components/sidebar/sidebar.component";
 import { AppHeaderComponent } from "./components/header/header.component";
@@ -11,10 +11,11 @@ import { AppStateService } from './services/app-state.service';
   selector: 'app-root',
   imports: [RouterOutlet, AppSidebarComponent, AppHeaderComponent, MatSidenavModule, MatToolbarModule, ImageGridComponent],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+  styleUrl: './app.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppComponent {
-  protected readonly isSidebarOpen = computed(() => {
+  protected readonly isSidebarOpen = computed<boolean>(() => {
     return this.appStateService.getIsSidebarOpen();
   })
 

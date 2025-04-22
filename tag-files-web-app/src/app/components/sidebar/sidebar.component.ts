@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { AsyncPipe } from '@angular/common';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { LibraryService } from '../../services/library.service';
@@ -11,14 +11,15 @@ import { MatIconModule } from '@angular/material/icon';
   selector: 'app-sidebar',
   imports: [MatSidenavModule, AsyncPipe, MatExpansionModule, MatListModule, MatIconModule],
   templateUrl: './sidebar.component.html',
-  styleUrl: './sidebar.component.scss'
+  styleUrl: './sidebar.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppSidebarComponent {
   constructor() {
     this.tags = this.libraryService.getTags();
   }
 
-  tags: Observable<string[]>;
+  protected tags: Observable<string[]>;
 
   private readonly libraryService = inject(LibraryService);
 }
