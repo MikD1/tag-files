@@ -1,9 +1,9 @@
 @if (libraryItemsList | async; as libraryItemsList) {
-<mat-grid-list class="grid" [cols]="getGridColumns()" gutterSize="3px" rowHeight="1:1">
+<lightgallery class="gallery" [settings]="gallerySettings">
     @for (libraryItem of libraryItemsList.items; track $index) {
-    <mat-grid-tile>
-        <app-image-card [libraryItem]="libraryItem"></app-image-card>
-    </mat-grid-tile>
+    <a class="gallery-item" [href]="'http://localhost:5010/' + libraryItem.path">
+        <img [src]="'http://localhost:5010/' + libraryItem.thumbnailPath" />
+    </a>
     }
-</mat-grid-list>
+</lightgallery>
 }

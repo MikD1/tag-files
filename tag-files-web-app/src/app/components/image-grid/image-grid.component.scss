@@ -1,3 +1,16 @@
-.grid {
-    margin: 3px;
+.gallery {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 3px 0;
+}
+
+.gallery a {
+    margin: 0 3px;
+}
+
+.gallery img {
+    width: auto;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 0.5rem;
 }
