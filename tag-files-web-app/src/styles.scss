@@ -2,9 +2,11 @@
 @use 'lightgallery/scss/lg-zoom';
 @use 'lightgallery/scss/lg-rotate';
 
-html,
-body {
-    height: 100%;
+@use '@angular/material' as mat;
+
+html {
+    color-scheme: dark;
+    @include mat.theme((color: mat.$azure-palette, typography: Roboto, density: -2));
 }
 
 body {
