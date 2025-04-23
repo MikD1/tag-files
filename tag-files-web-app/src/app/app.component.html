@@ -1,12 +1,10 @@
+<app-header class="header"></app-header>
 <mat-sidenav-container>
     <mat-sidenav class="sidebar" mode="side" [opened]="isSidebarOpen()" fixedInViewport="true">
         <app-sidebar></app-sidebar>
     </mat-sidenav>
-    <mat-sidenav-content>
-        <app-header></app-header>
-        <div>
-            <app-image-grid></app-image-grid>
-        </div>
+    <mat-sidenav-content class="content-container">
+        <app-image-grid></app-image-grid>
         <router-outlet />
     </mat-sidenav-content>
 </mat-sidenav-container>

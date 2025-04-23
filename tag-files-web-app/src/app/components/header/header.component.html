@@ -1,7 +1,10 @@
 <mat-toolbar class="header" color="primary">
-    <button mat-icon-button (click)="toggleSidebar()">
-        <mat-icon>more_vert</mat-icon>
-    </button>
+    <div class="title">
+        <button mat-icon-button (click)="toggleSidebar()">
+            <mat-icon>more_vert</mat-icon>
+        </button>
+        <h2>Tag Files</h2>
+    </div>
     <mat-form-field class="search-field" appearance="outline" subscriptSizing="dynamic">
         <input matInput placeholder="Search">
     </mat-form-field>

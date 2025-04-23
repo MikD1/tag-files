@@ -8,9 +8,14 @@
     background: var(--mat-sys-primary-container);
 }
 
+.title {
+    display: flex;
+    gap: 10px;
+    width: 330px;
+}
+
 .search-field {
     width: 100%;
-    border-radius: 48px;
 }
 
 mat-form-field {
