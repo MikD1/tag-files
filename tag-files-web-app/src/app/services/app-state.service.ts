@@ -8,8 +8,8 @@ export class AppStateService {
     return this.isSidebarOpen()
   }
 
-  getMainGridColumns() {
-    return this.mainGridColumns()
+  getGalleryThumbnailSize() {
+    return this.galleryThumbnailSize()
   }
 
   toggleSidebar() {
@@ -18,13 +18,13 @@ export class AppStateService {
 
 
   increaseMainGridColumns() {
-    this.mainGridColumns.update(prev => prev < 12 ? prev + 1 : prev);
+    this.galleryThumbnailSize.update(prev => prev < 5 ? prev + 1 : prev);
   }
 
   decreaseMainGridColumns() {
-    this.mainGridColumns.update(prev => prev > 4 ? prev - 1 : prev);
+    this.galleryThumbnailSize.update(prev => prev > 1 ? prev - 1 : prev);
   }
 
   private readonly isSidebarOpen = signal<boolean>(true);
-  private readonly mainGridColumns = signal<number>(8);
+  private readonly galleryThumbnailSize = signal<number>(3);
 }

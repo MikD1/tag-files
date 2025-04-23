@@ -1,6 +1,8 @@
 .gallery {
     display: flex;
     flex-wrap: wrap;
+    // display: grid;
+    // grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
     margin: 3px 0;
 }
 
@@ -9,8 +11,6 @@
 }
 
 .gallery img {
-    width: auto;
-    height: 200px;
     object-fit: cover;
     border-radius: 0.5rem;
 }

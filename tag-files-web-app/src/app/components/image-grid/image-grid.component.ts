@@ -31,8 +31,12 @@ export class ImageGridComponent {
     rotateLeft: false
   };
 
-  protected readonly getGridColumns = computed(() => {
-    return this.appStateService.getMainGridColumns();
+  protected readonly getImageSize = computed(() => {
+    const min = 50;
+    const max = 200;
+    const levels = 5;
+    const i = this.appStateService.getGalleryThumbnailSize();
+    return min + (i - 1) * ((max - min) / (levels - 1));
   })
 
   private readonly appStateService = inject(AppStateService);

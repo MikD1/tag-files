@@ -2,7 +2,8 @@
 <lightgallery class="gallery" [settings]="gallerySettings">
     @for (libraryItem of libraryItemsList.items; track $index) {
     <a class="gallery-item" [href]="'http://localhost:5010/' + libraryItem.path">
-        <img [src]="'http://localhost:5010/' + libraryItem.thumbnailPath" />
+        <img [src]="'http://localhost:5010/' + libraryItem.thumbnailPath" [style.width.px]="getImageSize() * 1.5"
+            [style.height.px]="getImageSize()" />
     </a>
     }
 </lightgallery>
