@@ -1,26 +1,22 @@
-@use '@angular/material' as mat;
-
-.header {
-    display: flex;
-    gap: 10px;
-    padding: 0 7px;
-    color: var(--mat-sys-primary);
-    background: var(--mat-sys-primary-container);
+.form-control::placeholder {
+    color: #ffffff;
 }
 
-.title {
+.header-container {
     display: flex;
+    gap: 30px;
+}
+
+.header-title {
+    display: flex;
+    gap: 5px;
     align-items: center;
-    gap: 10px;
-    width: 330px;
 }
 
-.search-field {
+.header-search-field {
     width: 100%;
 }
 
-mat-form-field {
-    @include mat.form-field-overrides((container-height: 2.5em,
-            container-vertical-padding: .6em,
-        ));
+.header-controls {
+    display: flex;
 }

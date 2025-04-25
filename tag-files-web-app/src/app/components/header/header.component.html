@@ -1,19 +1,25 @@
-<mat-toolbar class="header" color="primary">
-    <div class="title">
-        <button mat-icon-button (click)="toggleSidebar()">
-            <mat-icon>menu</mat-icon>
-        </button>
-        <h2>Tag Files</h2>
+<header class="p-2 text-bg-dark">
+    <div class="container-fluid">
+        <div class="header-container">
+            <div class="header-title">
+                <button class="btn btn-dark" (click)="toggleSidebar()">
+                    <i class="bi bi-list"></i>
+                </button>
+                <a class="navbar-brand" href="#">Tag Files</a>
+            </div>
+
+            <form class="header-search-field" role="search">
+                <input type="search" class="form-control form-control-dark text-bg-dark" placeholder="Search...">
+            </form>
+
+            <div class="header-controls">
+                <button class="btn btn-dark" (click)="onAddClick()">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+                <button class="btn btn-dark" (click)="onRemoveClick()">
+                    <i class="bi bi-dash-lg"></i>
+                </button>
+            </div>
+        </div>
     </div>
-    <mat-form-field class="search-field" appearance="outline" subscriptSizing="dynamic">
-        <input matInput placeholder="Search">
-    </mat-form-field>
-    <div>
-        <button mat-icon-button (click)="onAddClick()">
-            <mat-icon>add</mat-icon>
-        </button>
-        <button mat-icon-button (click)="onRemoveClick()">
-            <mat-icon>remove</mat-icon>
-        </button>
-    </div>
-</mat-toolbar>
+</header>
