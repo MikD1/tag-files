@@ -1,9 +1,9 @@
 @if (libraryItemsList | async; as libraryItemsList) {
-<lightgallery class="gallery" [settings]="gallerySettings">
+<lightgallery class="gallery" [settings]="gallerySettings"
+    [style.grid-template-columns]="'repeat(' + getGridColumns() + ', 1fr)'">
     @for (libraryItem of libraryItemsList.items; track $index) {
-    <a class="gallery-item" [href]="'http://localhost:5010/' + libraryItem.path">
-        <img [src]="'http://localhost:5010/' + libraryItem.thumbnailPath" [style.width.px]="getImageSize() * 1.5"
-            [style.height.px]="getImageSize()" />
+    <a [href]="'http://localhost:5010/' + libraryItem.path">
+        <img class="gallery-item-image" [src]="'http://localhost:5010/' + libraryItem.thumbnailPath" />
     </a>
     }
 </lightgallery>

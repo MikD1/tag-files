@@ -1,5 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 
+const maxGalleryThumbnailSize = 7; // // TODO: configure in settings
+
 @Injectable({
   providedIn: 'root'
 })
@@ -18,7 +20,7 @@ export class AppStateService {
 
 
   increaseMainGridColumns() {
-    this.galleryThumbnailSize.update(prev => prev < 5 ? prev + 1 : prev);
+    this.galleryThumbnailSize.update(prev => prev < maxGalleryThumbnailSize ? prev + 1 : prev);
   }
 
   decreaseMainGridColumns() {

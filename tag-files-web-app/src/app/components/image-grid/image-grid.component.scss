@@ -1,13 +1,12 @@
 .gallery {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
 }
 
-.gallery a {
-    margin: 0 3px;
-}
-
-.gallery img {
+.gallery-item-image {
     object-fit: cover;
     border-radius: 0.5rem;
+    width: 100%;
+    aspect-ratio: 3/2; // TODO: configure in settings
 }
