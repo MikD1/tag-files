@@ -1,11 +1,16 @@
 :host {
     display: block;
+    margin: 0 12px;
 }
 
-.tags-panel {
-    margin: 10px;
+a {
+    all: unset;
 }
 
-.tags-panel-header-text {
-    margin-left: 10px;
+mat-selection-list {
+    padding: 7px 0;
+}
+
+mat-list-item {
+    border-radius: 0.2rem;
 }

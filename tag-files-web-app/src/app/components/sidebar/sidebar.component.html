@@ -1,26 +1,35 @@
-<mat-accordion>
-    <mat-expansion-panel class="tags-panel" [expanded]="true">
-        <mat-expansion-panel-header>
-            <mat-panel-title>
-                <mat-icon>label</mat-icon>
-                <span class="tags-panel-header-text">Tags</span>
-            </mat-panel-title>
-        </mat-expansion-panel-header>
-        @if (tags | async; as tags) {
-        <mat-list role="list">
-            @for (tag of tags; track $index) {
-            <mat-list-item role="listitem">{{tag}}</mat-list-item>
-            }
-        </mat-list>
-        }
-    </mat-expansion-panel>
-</mat-accordion>
+<mat-selection-list>
+    <a routerLink="/gallery">
+        <mat-list-item>
+            <mat-icon matListItemIcon>imagesmode</mat-icon>
+            <span>Gallery</span>
+        </mat-list-item>
+    </a>
+</mat-selection-list>
 
-<ul>
-    <li>
-        <a class="button" routerLink="/gallery">Gallery</a>
-    </li>
-    <li>
-        <a class="button" routerLink="/tags">Tags</a>
-    </li>
-</ul>
+<mat-selection-list>
+    <a routerLink="/tags">
+        <mat-list-item>
+            <mat-icon matListItemIcon>folder</mat-icon>
+            <span matListItemTitle>Tags</span>
+        </mat-list-item>
+    </a>
+    @if (tags | async; as tags) {
+    @for (tag of tags; track $index) {
+    <mat-list-item>{{tag}}</mat-list-item>
+    }}
+</mat-selection-list>
+
+<mat-selection-list>
+    <mat-list-item>
+        <mat-icon matListItemIcon>list_alt</mat-icon>
+        <span>Categories</span>
+    </mat-list-item>
+</mat-selection-list>
+
+<mat-selection-list>
+    <mat-list-item>
+        <mat-icon matListItemIcon>library_books</mat-icon>
+        <span>Collections</span>
+    </mat-list-item>
+</mat-selection-list>
