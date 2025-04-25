@@ -1,9 +1,9 @@
 <app-header class="header"></app-header>
-<mat-sidenav-container>
+<mat-sidenav-container class="container">
     <mat-sidenav class="sidebar" mode="side" [opened]="isSidebarOpen()" fixedInViewport="true">
         <app-sidebar></app-sidebar>
     </mat-sidenav>
-    <mat-sidenav-content class="content-container">
+    <mat-sidenav-content class="content">
         <router-outlet />
     </mat-sidenav-content>
 </mat-sidenav-container>

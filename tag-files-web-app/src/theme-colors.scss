@@ -6,8 +6,7 @@
 
 // Note: Color palettes are generated from primary: abc7ff
 $_palettes: (
-  primary: (
-    0: #000000,
+  primary: (0: #000000,
     10: #001b3f,
     20: #0e305e,
     25: #1c3b6a,
@@ -24,8 +23,7 @@ $_palettes: (
     99: #fdfbff,
     100: #ffffff,
   ),
-  secondary: (
-    0: #000000,
+  secondary: (0: #000000,
     10: #111c2e,
     20: #273044,
     25: #323c4f,
@@ -42,8 +40,7 @@ $_palettes: (
     99: #fdfbff,
     100: #ffffff,
   ),
-  tertiary: (
-    0: #000000,
+  tertiary: (0: #000000,
     10: #310a37,
     20: #48204d,
     25: #552c59,
@@ -60,10 +57,9 @@ $_palettes: (
     99: #fffbff,
     100: #ffffff,
   ),
-  neutral: (
-    0: #000000,
-    10: #1a1b1f,
-    20: #2f3034,
+  neutral: (0: #000000,
+    10: #2a2b2c,
+    20: #3b3c3e,
     25: #3a3b3f,
     30: #46474a,
     35: #515256,
@@ -77,19 +73,18 @@ $_palettes: (
     98: #faf9fd,
     99: #fdfbff,
     100: #ffffff,
-    4: #0d0e11,
-    6: #121317,
-    12: #1e1f23,
-    17: #292a2d,
-    22: #343538,
-    24: #38393d,
+    4: #1f2021,
+    6: #252526,
+    12: #303132,
+    17: #353637,
+    22: #404142,
+    24: #454647,
     87: #dad9de,
     92: #e9e7ec,
     94: #eeedf2,
     96: #f4f3f8,
   ),
-  neutral-variant: (
-    0: #000000,
+  neutral-variant: (0: #000000,
     10: #181c23,
     20: #2d3038,
     25: #383b43,
@@ -106,8 +101,7 @@ $_palettes: (
     99: #fdfbff,
     100: #ffffff,
   ),
-  error: (
-    0: #000000,
+  error: (0: #000000,
     10: #410002,
     20: #690005,
     25: #7e0007,
@@ -129,7 +123,7 @@ $_palettes: (
 $_rest: (
   secondary: map.get($_palettes, secondary),
   neutral: map.get($_palettes, neutral),
-  neutral-variant: map.get($_palettes,  neutral-variant),
+  neutral-variant: map.get($_palettes, neutral-variant),
   error: map.get($_palettes, error),
 );
 
