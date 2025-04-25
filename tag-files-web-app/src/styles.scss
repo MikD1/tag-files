@@ -2,12 +2,12 @@
 @use 'lightgallery/scss/lg-zoom';
 @use 'lightgallery/scss/lg-rotate';
 
-// @use '@angular/material' as mat;
+@use '@angular/material' as mat;
 
-// html {
-//     color-scheme: dark;
-//     @include mat.theme((color: mat.$azure-palette, typography: Roboto, density: -2));
-// }
+html {
+    color-scheme: dark;
+    @include mat.theme((color: mat.$azure-palette, typography: Roboto, density: -2));
+}
 
 body {
     margin: 0;
