@@ -1,6 +1,6 @@
 <mat-toolbar class="header" color="primary">
     <div class="title">
-        <button mat-icon-button (click)="toggleSidebar()">
+        <button mat-icon-button (click)="this.appStateService.toggleSidebar()">
             <mat-icon>menu</mat-icon>
         </button>
         <h2>Tag Files</h2>
@@ -9,10 +9,20 @@
         <input matInput placeholder="Search">
     </mat-form-field>
     <div>
-        <button mat-icon-button (click)="onAddClick()">
+        @if (galleryViewType() != galleryViewTypes.List) {
+        <button mat-icon-button title="List view" (click)="this.appStateService.setListGalleryView()">
+            <mat-icon>format_list_bulleted</mat-icon>
+        </button>
+        }
+        @if (galleryViewType() != galleryViewTypes.Grid) {
+        <button mat-icon-button title="Grid view" (click)="this.appStateService.setGridGalleryView()">
+            <mat-icon>grid_view</mat-icon>
+        </button>
+        }
+        <button mat-icon-button (click)="this.appStateService.increaseMainGridColumns()">
             <mat-icon>add</mat-icon>
         </button>
-        <button mat-icon-button (click)="onRemoveClick()">
+        <button mat-icon-button (click)="this.appStateService.decreaseMainGridColumns()">
             <mat-icon>remove</mat-icon>
         </button>
     </div>

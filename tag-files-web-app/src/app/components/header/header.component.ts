@@ -1,10 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { AppStateService } from '../../services/app-state.service';
+import { AppStateService, GalleryViewType } from '../../services/app-state.service';
 
 @Component({
   selector: 'app-header',
@@ -14,17 +14,11 @@ import { AppStateService } from '../../services/app-state.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppHeaderComponent {
-  onAddClick() {
-    this.appStateService.increaseMainGridColumns();
-  }
+  protected galleryViewTypes = GalleryViewType;
 
-  onRemoveClick() {
-    this.appStateService.decreaseMainGridColumns();
-  }
+  protected readonly galleryViewType = computed<GalleryViewType>(() => {
+    return this.appStateService.getGalleryViewType();
+  })
 
-  toggleSidebar() {
-    this.appStateService.toggleSidebar();
-  }
-
-  private readonly appStateService = inject(AppStateService);
+  protected readonly appStateService = inject(AppStateService);
 }
