@@ -16,11 +16,10 @@ public class LibraryController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("{id}/tags")]
-    public async Task<ActionResult<LibraryItemDto>> PostTags(uint id, [FromBody] List<string> tags)
+    [HttpPost("attach-tags")]
+    public async Task<ActionResult<List<LibraryItemDto>>> PostTags([FromBody] AssignTagsRequest request)
     {
-        AssignTagsRequest request = new(id, tags);
-        LibraryItemDto result = await mediator.Send(request);
+        List<LibraryItemDto> result = await mediator.Send(request);
         return Ok(result);
     }
 

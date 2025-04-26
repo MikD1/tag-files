@@ -3,6 +3,6 @@ using MediatR;
 namespace TagFilesService.Library.Contracts;
 
 public record AssignTagsRequest(
-    uint FileId,
+    List<uint> ItemsList,
     List<string> Tags)
-    : IRequest<LibraryItemDto>;
+    : IRequest<List<LibraryItemDto>>;

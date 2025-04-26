@@ -6,28 +6,31 @@ using TagFilesService.Model;
 
 namespace TagFilesService.Library.Handlers;
 
-public class AssignTagsHandler(AppDbContext dbContext) : IRequestHandler<AssignTagsRequest, LibraryItemDto>
+public class AssignTagsHandler(AppDbContext dbContext) : IRequestHandler<AssignTagsRequest, List<LibraryItemDto>>
 {
-    public async Task<LibraryItemDto> Handle(AssignTagsRequest request, CancellationToken cancellationToken)
+    public async Task<List<LibraryItemDto>> Handle(AssignTagsRequest request, CancellationToken cancellationToken)
     {
-        FileMetadata metadata = await GetMetadataByIdOrThrow(request.FileId);
+        List<FileMetadata> metadata = await GetMetadataByIdOrThrow(request.ItemsList);
         List<Tag> tags = await GetTagsByNameOrThrow(request.Tags);
-
-        metadata.Tags.Clear();
-        metadata.Tags.AddRange(tags);
+        foreach (FileMetadata item in metadata)
+        {
+            item.Tags.Clear();
+            item.Tags.AddRange(tags);
+        }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return LibraryItemDto.FromMetadata(metadata);
+        return metadata.Select(LibraryItemDto.FromMetadata).ToList();
     }
 
-    private async Task<FileMetadata> GetMetadataByIdOrThrow(uint id)
+    private async Task<List<FileMetadata>> GetMetadataByIdOrThrow(List<uint> ids)
     {
-        FileMetadata? metadata = await dbContext.FilesMetadata
+        List<FileMetadata> metadata = await dbContext.FilesMetadata
             .Include(x => x.Tags)
-            .FirstOrDefaultAsync(x => x.Id == id);
-        if (metadata is null)
+            .Where(x => ids.Contains(x.Id))
+            .ToListAsync();
+        if (metadata.Count != ids.Count)
         {
-            throw new ApplicationException($"Metadata {id} not found");
+            throw new ApplicationException("Some metadata not found");
         }
 
         return metadata;
