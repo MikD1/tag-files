@@ -1,0 +1,16 @@
+:host {
+    display: flex;
+    align-items: center;
+    background-color: #1e1e1e;
+    border-radius: 30px;
+    padding: 8px 16px;
+}
+
+input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    margin: 0 12px;
+    font-size: 16px;
+}

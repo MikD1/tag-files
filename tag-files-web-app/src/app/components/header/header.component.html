@@ -5,10 +5,8 @@
         </button>
         <h2>Tag Files</h2>
     </div>
-    <mat-form-field class="search-field" appearance="outline" subscriptSizing="dynamic">
-        <input matInput placeholder="Search">
-    </mat-form-field>
-    <div>
+    <app-search-bar class="search-bar"></app-search-bar>
+    <div class="controls">
         @if (galleryViewType() == galleryViewTypes.Grid) {
         <button mat-icon-button (click)="this.appStateService.increaseMainGridColumns()">
             <mat-icon>add</mat-icon>
