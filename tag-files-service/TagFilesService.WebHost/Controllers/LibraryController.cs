@@ -16,8 +16,8 @@ public class LibraryController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("attach-tags")]
-    public async Task<ActionResult<List<LibraryItemDto>>> PostTags([FromBody] AssignTagsRequest request)
+    [HttpPost("assign-tags")]
+    public async Task<ActionResult<List<LibraryItemDto>>> AssignTags([FromBody] AssignTagsRequest request)
     {
         List<LibraryItemDto> result = await mediator.Send(request);
         return Ok(result);
