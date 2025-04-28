@@ -8,6 +8,11 @@ export interface SearchRequest {
   pageSize: number;
 }
 
+export interface AssignTagsRequest {
+  itemsList: number[];
+  tags: string[];
+}
+
 export interface LibraryItem {
   id: number;
   path: string;
@@ -32,16 +37,8 @@ export class LibraryService {
     return this.http.post<LibraryItemPaginatedList>(`${this.baseUrl}/library/search`, request);
   }
 
-  addTags(id: number, tags: string[]): Observable<LibraryItem> {
-    return this.http.post<LibraryItem>(`${this.baseUrl}/library/${id}/tags`, tags);
-  }
-
-  getTags(): Observable<string[]> {
-    return this.http.get<string[]>(`${this.baseUrl}/tags`);
-  }
-
-  createTag(tag: string): Observable<void> {
-    return this.http.post<void>(`${this.baseUrl}/tags`, tag);
+  assignTags(request: AssignTagsRequest): Observable<LibraryItem[]> {
+    return this.http.post<LibraryItem[]>(`${this.baseUrl}/library/assign-tags`, request);
   }
 
   private baseUrl = 'http://localhost:5001/api';

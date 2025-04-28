@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { AsyncPipe } from '@angular/common';
 import { MatSidenavModule } from '@angular/material/sidenav';
-import { LibraryService } from '../../services/library.service';
+import { TagsService } from '../../services/tags.service';
 import { Observable } from 'rxjs';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatListModule } from '@angular/material/list';
@@ -18,10 +18,10 @@ import { MatButtonModule } from '@angular/material/button';
 })
 export class AppSidebarComponent {
   constructor() {
-    this.tags = this.libraryService.getTags();
+    this.tags = this.tagsService.getTags();
   }
 
   protected tags: Observable<string[]>;
 
-  private readonly libraryService = inject(LibraryService);
+  private readonly tagsService = inject(TagsService);
 }
