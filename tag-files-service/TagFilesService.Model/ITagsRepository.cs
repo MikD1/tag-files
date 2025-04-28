@@ -6,5 +6,7 @@ public interface ITagsRepository
 
     Task<List<Tag>> GetTags();
 
-    Task DeleteTag(uint id);
+    Task<Tag> GetTag(string name);
+
+    Task DeleteTag(string name);
 }

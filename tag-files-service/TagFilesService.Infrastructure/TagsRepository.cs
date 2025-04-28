@@ -27,15 +27,26 @@ public class TagsRepository(AppDbContext dbContext) : ITagsRepository
             .ToListAsync();
     }
 
-    public async Task DeleteTag(uint id)
+    public async Task<Tag> GetTag(string name)
     {
-        Tag? tag = await dbContext.Tags.FindAsync(id);
-        if (tag is null)
-        {
-            throw new ApplicationException($"Tag {id} not found");
-        }
+        return await GetTagByNameOrThrow(name);
+    }
 
+    public async Task DeleteTag(string name)
+    {
+        Tag tag = await GetTagByNameOrThrow(name);
         dbContext.Tags.Remove(tag);
         await dbContext.SaveChangesAsync();
+    }
+
+    private async Task<Tag> GetTagByNameOrThrow(string name)
+    {
+        Tag? tag = await dbContext.Tags.FirstOrDefaultAsync(x => x.Name == name);
+        if (tag is null)
+        {
+            throw new ApplicationException($"Tag {name} not found");
+        }
+
+        return tag;
     }
 }

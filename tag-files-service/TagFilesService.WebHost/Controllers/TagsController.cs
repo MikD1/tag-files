@@ -22,4 +22,13 @@ public class TagsController(ITagsRepository tagsRepository) : ControllerBase
         await tagsRepository.SaveTag(tag);
         return Ok();
     }
+
+    [HttpPut("{name}")]
+    public async Task<ActionResult> PutTag(string name, [FromBody] string newName)
+    {
+        Tag tag = await tagsRepository.GetTag(name);
+        tag.Rename(newName);
+        await tagsRepository.SaveTag(tag);
+        return Ok();
+    }
 }

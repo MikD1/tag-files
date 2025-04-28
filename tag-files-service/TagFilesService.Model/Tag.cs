@@ -11,10 +11,10 @@ public class Tag
 
     public string Name { get; private set; }
 
-    public void Update(string name)
+    public void Rename(string newName)
     {
-        ValidateName(name);
-        Name = name;
+        ValidateName(newName);
+        Name = newName;
     }
 
     private void ValidateName(string name)

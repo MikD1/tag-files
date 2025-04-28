@@ -30,7 +30,7 @@ public class TagsRepositoryTest : InMemoryDatabaseTestBase
         await repository.SaveTag(new("ExistingTag"));
 
         Tag? existingTag = await DbContext.Tags.FindAsync(1u);
-        existingTag?.Update("NewName");
+        existingTag?.Rename("NewName");
         Tag updatedTag = await repository.SaveTag(existingTag!);
         Tag? updatedTagFromDb = await DbContext.Tags.FindAsync(1u);
 
@@ -66,12 +66,12 @@ public class TagsRepositoryTest : InMemoryDatabaseTestBase
     public async Task DeleteTag_ShouldRemoveTag_WhenTagExists()
     {
         DbContext.Tags.Add(new("tag1"));
-        DbContext.Tags.Add(new("tag1"));
-        DbContext.Tags.Add(new("tag1"));
+        DbContext.Tags.Add(new("tag2"));
+        DbContext.Tags.Add(new("tag3"));
         await DbContext.SaveChangesAsync();
 
         TagsRepository repository = new(DbContext);
-        await repository.DeleteTag(2u);
+        await repository.DeleteTag("tag2");
         Tag? deletedTag = await DbContext.Tags.FindAsync(2u);
         int count = await DbContext.Tags.CountAsync();
 
