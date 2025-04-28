@@ -1,7 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { LibraryItemPaginatedList, LibraryService } from '../../services/library.service';
-import { AppStateService } from '../../services/app-state.service';
 import lgZoom from 'lightgallery/plugins/zoom';
 import lgRotate from 'lightgallery/plugins/rotate';
 import { AsyncPipe } from '@angular/common';
@@ -33,11 +32,5 @@ export class ImageListComponent {
   protected libraryItemsList: Observable<LibraryItemPaginatedList>;
   protected displayedColumns = ['image', 'tags', 'uploadedOn'];
 
-  protected readonly getThumbnailSize = computed(() => {
-    const level = this.appStateService.getGalleryThumbnailSize();
-    return level * 16;
-  })
-
-  private readonly appStateService = inject(AppStateService);
   private readonly libraryService = inject(LibraryService);
 }

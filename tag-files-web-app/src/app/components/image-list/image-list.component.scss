@@ -1,0 +1,24 @@
+::ng-deep .table td,
+::ng-deep .table th {
+    border-bottom: 1px solid #353637;
+}
+
+.table {
+    background-color: rgba($color: #000000, $alpha: 0.0);
+}
+
+.gallery-item {
+    display: flex;
+}
+
+.gallery-item-image {
+    object-fit: cover;
+    border-radius: 0.2rem;
+    width: 80px;
+    height: 80px;
+    margin: 2px;
+}
+
+.gallery-item-image:hover {
+    cursor: pointer;
+}

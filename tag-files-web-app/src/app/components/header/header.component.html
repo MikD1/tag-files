@@ -9,6 +9,14 @@
         <input matInput placeholder="Search">
     </mat-form-field>
     <div>
+        @if (galleryViewType() == galleryViewTypes.Grid) {
+        <button mat-icon-button (click)="this.appStateService.increaseMainGridColumns()">
+            <mat-icon>add</mat-icon>
+        </button>
+        <button mat-icon-button (click)="this.appStateService.decreaseMainGridColumns()">
+            <mat-icon>remove</mat-icon>
+        </button>
+        }
         @if (galleryViewType() != galleryViewTypes.List) {
         <button mat-icon-button title="List view" (click)="this.appStateService.setListGalleryView()">
             <mat-icon>format_list_bulleted</mat-icon>
@@ -19,11 +27,5 @@
             <mat-icon>grid_view</mat-icon>
         </button>
         }
-        <button mat-icon-button (click)="this.appStateService.increaseMainGridColumns()">
-            <mat-icon>add</mat-icon>
-        </button>
-        <button mat-icon-button (click)="this.appStateService.decreaseMainGridColumns()">
-            <mat-icon>remove</mat-icon>
-        </button>
     </div>
 </mat-toolbar>

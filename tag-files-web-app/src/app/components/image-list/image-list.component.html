@@ -1,12 +1,11 @@
 @if (libraryItemsList | async; as libraryItemsList) {
 <lightgallery class="gallery" [settings]="gallerySettings">
-    <table mat-table [dataSource]="libraryItemsList.items" class="mat-elevation-z8">
+    <table class="mat-elevation-z8 table" mat-table [dataSource]="libraryItemsList.items">
         <ng-container matColumnDef="image">
             <th mat-header-cell *matHeaderCellDef></th>
             <td mat-cell *matCellDef="let element">
                 <div class="gallery-item" [attr.data-src]="'http://localhost:5010/' + element.path">
-                    <img class="gallery-item-image" [src]="'http://localhost:5010/' + element.thumbnailPath"
-                        [width]="getThumbnailSize()" [height]="getThumbnailSize()" />
+                    <img class="gallery-item-image" [src]="'http://localhost:5010/' + element.thumbnailPath" />
                 </div>
             </td>
         </ng-container>
