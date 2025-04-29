@@ -32,7 +32,7 @@ export interface LibraryItemPaginatedList {
 @Injectable({
   providedIn: 'root'
 })
-export class LibraryService {
+export class LibraryApiService {
   search(request: SearchRequest): Observable<LibraryItemPaginatedList> {
     return this.http.post<LibraryItemPaginatedList>(`${this.baseUrl}/library/search`, request);
   }

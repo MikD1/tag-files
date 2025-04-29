@@ -1,6 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { LibraryItemPaginatedList, LibraryService } from '../../services/library.service';
+import { LibraryItemPaginatedList, LibraryApiService } from '../../services/api/library-api.service';
 import lgZoom from 'lightgallery/plugins/zoom';
 import lgRotate from 'lightgallery/plugins/rotate';
 import { AsyncPipe } from '@angular/common';
@@ -16,7 +16,7 @@ import { MatChipsModule } from '@angular/material/chips';
 })
 export class ImageListComponent {
   constructor() {
-    this.libraryItemsList = this.libraryService.search({ tagQuery: "", pageIndex: 1, pageSize: 100 })
+    this.libraryItemsList = this.libraryApiService.search({ tagQuery: "", pageIndex: 1, pageSize: 100 })
   }
 
   protected gallerySettings = {
@@ -32,5 +32,5 @@ export class ImageListComponent {
   protected libraryItemsList: Observable<LibraryItemPaginatedList>;
   protected displayedColumns = ['image', 'tags', 'uploadedOn'];
 
-  private readonly libraryService = inject(LibraryService);
+  private readonly libraryApiService = inject(LibraryApiService);
 }
