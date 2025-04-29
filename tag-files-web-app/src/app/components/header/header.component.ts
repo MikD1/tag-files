@@ -19,9 +19,5 @@ export class AppHeaderComponent {
     return this.appStateService.getGalleryViewType();
   })
 
-  protected onSearchClicked(query: string) {
-    console.log('search clicked', query);
-  }
-
   protected readonly appStateService = inject(AppStateService);
 }

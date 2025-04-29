@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, model, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { SearchService } from '../../services/search.service';
 
 @Component({
   selector: 'app-search-bar',
@@ -11,13 +12,11 @@ import { MatIconModule } from '@angular/material/icon';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SearchBarComponent {
-  searchClicked = output<string>();
-
-  protected onSearchClick() {
-    if (this.searchQuery.value) {
-      this.searchClicked.emit(this.searchQuery.value);
-    }
+  protected search() {
+    const searchQuery = this.searchQuery.value ? this.searchQuery.value : '';
+    this.searchService.search(searchQuery);
   }
 
   protected readonly searchQuery = new FormControl<string>('');
+  private readonly searchService = inject(SearchService);
 }

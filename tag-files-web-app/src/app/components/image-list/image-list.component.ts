@@ -1,23 +1,19 @@
 import { Component, computed, inject } from '@angular/core';
-import { Observable } from 'rxjs';
-import { LibraryItemPaginatedList, LibraryApiService } from '../../services/api/library-api.service';
 import lgZoom from 'lightgallery/plugins/zoom';
 import lgRotate from 'lightgallery/plugins/rotate';
-import { AsyncPipe } from '@angular/common';
 import { LightgalleryModule } from 'lightgallery/angular';
 import { MatTableModule } from '@angular/material/table';
 import { MatChipsModule } from '@angular/material/chips';
+import { SearchService } from '../../services/search.service';
 
 @Component({
   selector: 'app-image-list',
-  imports: [AsyncPipe, LightgalleryModule, MatTableModule, MatChipsModule],
+  imports: [LightgalleryModule, MatTableModule, MatChipsModule],
   templateUrl: './image-list.component.html',
   styleUrl: './image-list.component.scss'
 })
 export class ImageListComponent {
-  constructor() {
-    this.libraryItemsList = this.libraryApiService.search({ tagQuery: "", pageIndex: 1, pageSize: 100 })
-  }
+  protected readonly searchResults = computed(() => { return this.searchService.searchResults() });
 
   protected gallerySettings = {
     selector: ".gallery-item",
@@ -29,8 +25,6 @@ export class ImageListComponent {
     rotateLeft: false
   };
 
-  protected libraryItemsList: Observable<LibraryItemPaginatedList>;
   protected displayedColumns = ['image', 'tags', 'uploadedOn'];
-
-  private readonly libraryApiService = inject(LibraryApiService);
+  private readonly searchService = inject(SearchService);
 }

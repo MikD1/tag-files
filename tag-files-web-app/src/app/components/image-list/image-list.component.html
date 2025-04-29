@@ -1,6 +1,6 @@
-@if (libraryItemsList | async; as libraryItemsList) {
+@if (searchResults()) {
 <lightgallery class="gallery" [settings]="gallerySettings">
-    <table class="mat-elevation-z8 table" mat-table [dataSource]="libraryItemsList.items">
+    <table class="mat-elevation-z8 table" mat-table [dataSource]="searchResults().items">
         <ng-container matColumnDef="image">
             <th mat-header-cell *matHeaderCellDef></th>
             <td mat-cell *matCellDef="let element">

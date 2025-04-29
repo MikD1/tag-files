@@ -1,26 +1,20 @@
-import { AsyncPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { AppStateService } from '../../services/app-state.service';
-import { LibraryItemPaginatedList, LibraryApiService } from '../../services/api/library-api.service';
-import { Observable } from 'rxjs';
 import { LightgalleryModule } from 'lightgallery/angular';
 import lgZoom from 'lightgallery/plugins/zoom';
 import lgRotate from 'lightgallery/plugins/rotate';
+import { SearchService } from '../../services/search.service';
 
 @Component({
   selector: 'app-image-grid',
-  imports: [MatGridListModule, AsyncPipe, LightgalleryModule],
+  imports: [MatGridListModule, LightgalleryModule],
   templateUrl: './image-grid.component.html',
   styleUrl: './image-grid.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ImageGridComponent {
-  constructor() {
-    this.libraryItemsList = this.libraryApiService.search({ tagQuery: "", pageIndex: 1, pageSize: 100 })
-  }
-
-  protected libraryItemsList: Observable<LibraryItemPaginatedList>;
+  protected readonly searchResults = computed(() => { return this.searchService.searchResults() });
 
   protected gallerySettings = {
     plugins: [lgZoom, lgRotate],
@@ -37,6 +31,6 @@ export class ImageGridComponent {
     return 4 + (max - level);
   })
 
+  private readonly searchService = inject(SearchService);
   private readonly appStateService = inject(AppStateService);
-  private readonly libraryApiService = inject(LibraryApiService);
 }

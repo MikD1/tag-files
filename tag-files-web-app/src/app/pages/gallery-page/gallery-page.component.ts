@@ -16,5 +16,5 @@ export class GalleryPageComponent {
     return this.appStateService.getGalleryViewType();
   })
 
-  protected readonly appStateService = inject(AppStateService);
+  private readonly appStateService = inject(AppStateService);
 }
