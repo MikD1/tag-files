@@ -4,19 +4,17 @@
     @for (libraryItem of searchResults().items; track $index) {
       @if (isVideo(libraryItem.path)) {
         <a
-          data-lg-size="1280-720"
-          [attr.data-poster]="'http://localhost:5010/' + libraryItem.thumbnailPath"
+          [attr.data-poster]="contentBaseUrl + libraryItem.thumbnailPath"
           [attr.data-video]="getVideoData(libraryItem.path)"
-          data-sub-html="<h4>'Peck Pocketed' by Kevin Herron | Disney Favorite</h4>"
         >
           <img class="gallery-item-image"
-               [src]="'http://localhost:5010/' + libraryItem.thumbnailPath" alt="video"/>
+               [src]="contentBaseUrl + libraryItem.thumbnailPath" alt="video"/>
         </a>
       } @else {
-        <a [href]="'http://localhost:5010/' + libraryItem.path">
+        <a [href]="contentBaseUrl + libraryItem.path">
           <img
             class="gallery-item-image"
-            [src]="'http://localhost:5010/' + libraryItem.thumbnailPath"
+            [src]="contentBaseUrl + libraryItem.thumbnailPath"
            alt="photo"/>
         </a>
       }

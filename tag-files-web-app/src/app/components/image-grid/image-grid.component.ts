@@ -33,6 +33,7 @@ export class ImageGridComponent {
     const level = this.appStateService.getGalleryThumbnailSize();
     return 4 + (max - level);
   })
+  protected readonly contentBaseUrl = "http://localhost:5010/";
 
   isVideo(path: string): boolean {
     return path.endsWith('mp4')
@@ -42,7 +43,7 @@ export class ImageGridComponent {
     return JSON.stringify({
       source: [
         {
-          src: `http://localhost:5010/${path}`,
+          src: `${this.contentBaseUrl}${path}`,
           type: 'video/mp4',
         }
       ],
