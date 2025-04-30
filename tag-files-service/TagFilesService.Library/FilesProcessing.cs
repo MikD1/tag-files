@@ -91,7 +91,7 @@ public class FilesProcessing(ILogger<FilesProcessing> logger, IMinioClient minio
 
             PutObjectArgs args = new PutObjectArgs()
                 .WithBucket(Buckets.Thumbnail)
-                .WithObject(metadata.FileName) // TODO: change extension to .jpg
+                .WithObject(ChangeFileExtension(metadata.FileName, ".jpg"))
                 .WithStreamData(thumbnailStream)
                 .WithObjectSize(thumbnailStream.Length)
                 .WithContentType("image/jpeg");
@@ -116,5 +116,11 @@ public class FilesProcessing(ILogger<FilesProcessing> logger, IMinioClient minio
             .ToString()
             .Replace("-", string.Empty)
             .ToLower() + extension;
+    }
+
+    private string ChangeFileExtension(string fileName, string newExtension)
+    {
+        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+        return fileNameWithoutExtension + newExtension;
     }
 }
