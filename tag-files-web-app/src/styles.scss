@@ -3,6 +3,7 @@
 @use 'lightgallery/scss/lg-zoom';
 @use 'lightgallery/scss/lg-rotate';
 @use './theme-colors' as theme;
+@use "lightgallery/css/lg-video.css";
 
 html {
   color-scheme: dark;
