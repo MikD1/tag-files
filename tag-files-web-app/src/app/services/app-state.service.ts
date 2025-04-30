@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import {Injectable, signal} from '@angular/core';
 
 const maxGalleryThumbnailSize = 7; // TODO: configure in settings
 
@@ -11,6 +11,10 @@ export enum GalleryViewType {
   providedIn: 'root'
 })
 export class AppStateService {
+  private readonly isSidebarOpen = signal<boolean>(true);
+  private readonly galleryThumbnailSize = signal<number>(3);
+  private readonly galleryViewType = signal<GalleryViewType>(GalleryViewType.List);
+
   getIsSidebarOpen() {
     return this.isSidebarOpen()
   }
@@ -42,8 +46,4 @@ export class AppStateService {
   setListGalleryView() {
     this.galleryViewType.update(() => GalleryViewType.List);
   }
-
-  private readonly isSidebarOpen = signal<boolean>(true);
-  private readonly galleryThumbnailSize = signal<number>(3);
-  private readonly galleryViewType = signal<GalleryViewType>(GalleryViewType.List);
 }

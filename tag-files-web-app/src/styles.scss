@@ -5,12 +5,12 @@
 @use './theme-colors' as theme;
 
 html {
-    color-scheme: dark;
-    @include mat.theme((color: (primary: theme.$primary-palette), typography: Roboto, density: -2));
+  color-scheme: dark;
+  @include mat.theme((color: (primary: theme.$primary-palette), typography: Roboto, density: -2));
 }
 
 body {
-    background-color: #1e1e1e;
-    margin: 0;
-    font-family: Roboto, "Helvetica Neue", sans-serif;
+  background-color: #1e1e1e;
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
 }

@@ -1,35 +1,36 @@
 <mat-selection-list>
-    <a routerLink="/gallery">
-        <mat-list-item>
-            <mat-icon matListItemIcon>image</mat-icon>
-            <span>Gallery</span>
-        </mat-list-item>
-    </a>
+  <a routerLink="/gallery">
+    <mat-list-item>
+      <mat-icon matListItemIcon>image</mat-icon>
+      <span>Gallery</span>
+    </mat-list-item>
+  </a>
 </mat-selection-list>
 
 <mat-selection-list>
-    <a routerLink="/tags">
-        <mat-list-item>
-            <mat-icon matListItemIcon>label</mat-icon>
-            <span matListItemTitle>Tags</span>
-        </mat-list-item>
-    </a>
-    @if (tags | async; as tags) {
+  <a routerLink="/tags">
+    <mat-list-item>
+      <mat-icon matListItemIcon>label</mat-icon>
+      <span matListItemTitle>Tags</span>
+    </mat-list-item>
+  </a>
+  @if (tags | async; as tags) {
     @for (tag of tags; track $index) {
-    <mat-list-item>{{tag}}</mat-list-item>
-    }}
+      <mat-list-item>{{ tag }}</mat-list-item>
+    }
+  }
 </mat-selection-list>
 
 <mat-selection-list>
-    <mat-list-item>
-        <mat-icon matListItemIcon>list_alt</mat-icon>
-        <span>Categories</span>
-    </mat-list-item>
+  <mat-list-item>
+    <mat-icon matListItemIcon>list_alt</mat-icon>
+    <span>Categories</span>
+  </mat-list-item>
 </mat-selection-list>
 
 <mat-selection-list>
-    <mat-list-item>
-        <mat-icon matListItemIcon>library_books</mat-icon>
-        <span>Collections</span>
-    </mat-list-item>
+  <mat-list-item>
+    <mat-icon matListItemIcon>library_books</mat-icon>
+    <span>Collections</span>
+  </mat-list-item>
 </mat-selection-list>

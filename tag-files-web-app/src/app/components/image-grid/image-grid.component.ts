@@ -1,10 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { MatGridListModule } from '@angular/material/grid-list';
-import { AppStateService } from '../../services/app-state.service';
-import { LightgalleryModule } from 'lightgallery/angular';
+import {ChangeDetectionStrategy, Component, computed, inject} from '@angular/core';
+import {MatGridListModule} from '@angular/material/grid-list';
+import {AppStateService} from '../../services/app-state.service';
+import {LightgalleryModule} from 'lightgallery/angular';
 import lgZoom from 'lightgallery/plugins/zoom';
 import lgRotate from 'lightgallery/plugins/rotate';
-import { SearchService } from '../../services/search.service';
+import {SearchService} from '../../services/search.service';
 
 @Component({
   selector: 'app-image-grid',
@@ -14,8 +14,6 @@ import { SearchService } from '../../services/search.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ImageGridComponent {
-  protected readonly searchResults = computed(() => { return this.searchService.searchResults() });
-
   protected gallerySettings = {
     plugins: [lgZoom, lgRotate],
     download: false,
@@ -24,13 +22,14 @@ export class ImageGridComponent {
     flipVertical: false,
     rotateLeft: false
   };
-
+  private readonly searchService = inject(SearchService);
+  protected readonly searchResults = computed(() => {
+    return this.searchService.searchResults()
+  });
+  private readonly appStateService = inject(AppStateService);
   protected readonly getGridColumns = computed(() => {
     const max = 7;
     const level = this.appStateService.getGalleryThumbnailSize();
     return 4 + (max - level);
   })
-
-  private readonly searchService = inject(SearchService);
-  private readonly appStateService = inject(AppStateService);
 }

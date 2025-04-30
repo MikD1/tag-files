@@ -1,10 +1,10 @@
 @if (searchResults()) {
-<lightgallery class="gallery" [settings]="gallerySettings"
-    [style.grid-template-columns]="'repeat(' + getGridColumns() + ', 1fr)'">
+  <lightgallery class="gallery" [settings]="gallerySettings"
+                [style.grid-template-columns]="'repeat(' + getGridColumns() + ', 1fr)'">
     @for (libraryItem of searchResults().items; track $index) {
-    <a [href]="'http://localhost:5010/' + libraryItem.path">
-        <img class="gallery-item-image" [src]="'http://localhost:5010/' + libraryItem.thumbnailPath" />
-    </a>
+      <a [href]="'http://localhost:5010/' + libraryItem.path">
+        <img class="gallery-item-image" [src]="'http://localhost:5010/' + libraryItem.thumbnailPath"/>
+      </a>
     }
-</lightgallery>
+  </lightgallery>
 }

@@ -1,13 +1,13 @@
 .gallery {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 5px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
 }
 
 .gallery-item-image {
-    object-fit: cover;
-    border-radius: 0.2rem;
-    height: 100%;
-    width: 100%;
-    aspect-ratio: 3/2; // TODO: configure in settings
+  object-fit: cover;
+  border-radius: 0.2rem;
+  height: 100%;
+  width: 100%;
+  aspect-ratio: 3/2; // TODO: configure in settings
 }

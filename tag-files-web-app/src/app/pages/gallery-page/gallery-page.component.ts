@@ -1,7 +1,7 @@
-import { Component, computed, inject } from '@angular/core';
-import { ImageGridComponent } from '../../components/image-grid/image-grid.component';
-import { AppStateService, GalleryViewType } from '../../services/app-state.service';
-import { ImageListComponent } from '../../components/image-list/image-list.component';
+import {Component, computed, inject} from '@angular/core';
+import {ImageGridComponent} from '../../components/image-grid/image-grid.component';
+import {AppStateService, GalleryViewType} from '../../services/app-state.service';
+import {ImageListComponent} from '../../components/image-list/image-list.component';
 
 @Component({
   selector: 'app-gallery-page',
@@ -11,10 +11,8 @@ import { ImageListComponent } from '../../components/image-list/image-list.compo
 })
 export class GalleryPageComponent {
   protected galleryViewTypes = GalleryViewType;
-
+  private readonly appStateService = inject(AppStateService);
   protected readonly galleryViewType = computed<GalleryViewType>(() => {
     return this.appStateService.getGalleryViewType();
   })
-
-  private readonly appStateService = inject(AppStateService);
 }

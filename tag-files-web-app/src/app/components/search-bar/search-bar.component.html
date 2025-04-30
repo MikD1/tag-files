@@ -1,7 +1,7 @@
-<button mat-icon-button (click)="this.search()">
-    <mat-icon>search</mat-icon>
+<button (click)="this.search()" mat-icon-button>
+  <mat-icon>search</mat-icon>
 </button>
-<input type="text" placeholder="Search" (keydown.enter)="this.search()" [formControl]="searchQuery" />
+<input (keydown.enter)="this.search()" [formControl]="searchQuery" placeholder="Search" type="text"/>
 <button mat-icon-button>
-    <mat-icon>tune</mat-icon>
+  <mat-icon>tune</mat-icon>
 </button>

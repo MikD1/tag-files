@@ -1,5 +1,5 @@
-import { inject, Injectable, signal } from '@angular/core';
-import { LibraryApiService, LibraryItemPaginatedList } from './api/library-api.service';
+import {inject, Injectable, signal} from '@angular/core';
+import {LibraryApiService, LibraryItemPaginatedList} from './api/library-api.service';
 
 const emptyResults = {
   items: [],
@@ -12,15 +12,16 @@ const emptyResults = {
   providedIn: 'root'
 })
 export class SearchService {
+  readonly searchResults = signal<LibraryItemPaginatedList>(emptyResults);
+  private readonly libraryApiService = inject(LibraryApiService);
+
   constructor() {
     this.search('');
   }
 
-  readonly searchResults = signal<LibraryItemPaginatedList>(emptyResults);
-
   search(query: string) {
-    this.libraryApiService.search({ tagQuery: query, pageIndex: 1, pageSize: 100 }).subscribe((result) => { this.searchResults.set(result) })
+    this.libraryApiService.search({tagQuery: query, pageIndex: 1, pageSize: 100}).subscribe((result) => {
+      this.searchResults.set(result)
+    })
   }
-
-  private readonly libraryApiService = inject(LibraryApiService);
 }

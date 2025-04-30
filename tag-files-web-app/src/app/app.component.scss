@@ -1,21 +1,21 @@
 .header {
-    position: fixed;
-    top: 0;
-    z-index: 1000;
-    width: 100%;
+  position: fixed;
+  top: 0;
+  z-index: 1000;
+  width: 100%;
 }
 
 .container {
-    background-color: #1e1e1e;
+  background-color: #1e1e1e;
 }
 
 .content {
-    margin-top: 56px;
-    padding: 7px;
+  margin-top: 56px;
+  padding: 7px;
 }
 
 .sidebar {
-    margin-top: 56px;
-    width: 270px;
-    border-radius: 0;
+  margin-top: 56px;
+  width: 270px;
+  border-radius: 0;
 }

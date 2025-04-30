@@ -1,10 +1,10 @@
-import { Component, computed, inject } from '@angular/core';
+import {Component, computed, inject} from '@angular/core';
 import lgZoom from 'lightgallery/plugins/zoom';
 import lgRotate from 'lightgallery/plugins/rotate';
-import { LightgalleryModule } from 'lightgallery/angular';
-import { MatTableModule } from '@angular/material/table';
-import { MatChipsModule } from '@angular/material/chips';
-import { SearchService } from '../../services/search.service';
+import {LightgalleryModule} from 'lightgallery/angular';
+import {MatTableModule} from '@angular/material/table';
+import {MatChipsModule} from '@angular/material/chips';
+import {SearchService} from '../../services/search.service';
 
 @Component({
   selector: 'app-image-list',
@@ -13,8 +13,6 @@ import { SearchService } from '../../services/search.service';
   styleUrl: './image-list.component.scss'
 })
 export class ImageListComponent {
-  protected readonly searchResults = computed(() => { return this.searchService.searchResults() });
-
   protected gallerySettings = {
     selector: ".gallery-item",
     plugins: [lgZoom, lgRotate],
@@ -24,7 +22,9 @@ export class ImageListComponent {
     flipVertical: false,
     rotateLeft: false
   };
-
   protected displayedColumns = ['image', 'tags', 'uploadedOn'];
   private readonly searchService = inject(SearchService);
+  protected readonly searchResults = computed(() => {
+    return this.searchService.searchResults()
+  });
 }

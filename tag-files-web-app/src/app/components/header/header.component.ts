@@ -1,9 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { MatToolbarModule } from '@angular/material/toolbar';
-import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
-import { AppStateService, GalleryViewType } from '../../services/app-state.service';
-import { SearchBarComponent } from '../search-bar/search-bar.component';
+import {ChangeDetectionStrategy, Component, computed, inject} from '@angular/core';
+import {MatToolbarModule} from '@angular/material/toolbar';
+import {MatIconModule} from '@angular/material/icon';
+import {MatButtonModule} from '@angular/material/button';
+import {AppStateService, GalleryViewType} from '../../services/app-state.service';
+import {SearchBarComponent} from '../search-bar/search-bar.component';
 
 @Component({
   selector: 'app-header',
@@ -14,10 +14,8 @@ import { SearchBarComponent } from '../search-bar/search-bar.component';
 })
 export class AppHeaderComponent {
   protected galleryViewTypes = GalleryViewType;
-
+  protected readonly appStateService = inject(AppStateService);
   protected readonly galleryViewType = computed<GalleryViewType>(() => {
     return this.appStateService.getGalleryViewType();
   })
-
-  protected readonly appStateService = inject(AppStateService);
 }
