@@ -32,4 +32,4 @@ flowchart TB
 
 ### Local starting project
 
-U should create buckets with names: `temporary`, `library`, `thumbnail` in S3
+You need to create buckets with names: `temporary`, `library`, `thumbnail` in S3

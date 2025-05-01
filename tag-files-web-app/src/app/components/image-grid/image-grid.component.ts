@@ -23,6 +23,7 @@ export class ImageGridComponent {
     flipVertical: false,
     rotateLeft: false
   };
+  protected readonly contentBaseUrl = "http://localhost:5010/";
   private readonly searchService = inject(SearchService);
   protected readonly searchResults = computed(() => {
     return this.searchService.searchResults()
@@ -33,7 +34,6 @@ export class ImageGridComponent {
     const level = this.appStateService.getGalleryThumbnailSize();
     return 4 + (max - level);
   })
-  protected readonly contentBaseUrl = "http://localhost:5010/";
 
   isVideo(path: string): boolean {
     return path.endsWith('mp4')
