@@ -2,8 +2,8 @@
 @use 'lightgallery/scss/lightgallery';
 @use 'lightgallery/scss/lg-zoom';
 @use 'lightgallery/scss/lg-rotate';
+@use "lightgallery/scss/lg-video.scss";
 @use './theme-colors' as theme;
-@use "lightgallery/css/lg-video.css";
 
 html {
   color-scheme: dark;
