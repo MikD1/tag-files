@@ -29,3 +29,7 @@ flowchart TB
   generate_thumbnail_step -->|Get file metadata| metadata_db
   generate_thumbnail_step -->|Save thumbnail| thumbnail_bucket
 ```
+
+### Local starting project
+
+U should create buckets with names: `temporary`, `library`, `thumbnail` in S3

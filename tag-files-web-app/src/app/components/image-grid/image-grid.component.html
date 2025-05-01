@@ -2,9 +2,22 @@
   <lightgallery class="gallery" [settings]="gallerySettings"
                 [style.grid-template-columns]="'repeat(' + getGridColumns() + ', 1fr)'">
     @for (libraryItem of searchResults().items; track $index) {
-      <a [href]="'http://localhost:5010/' + libraryItem.path">
-        <img class="gallery-item-image" [src]="'http://localhost:5010/' + libraryItem.thumbnailPath"/>
-      </a>
+      @if (isVideo(libraryItem.path)) {
+        <a
+          [attr.data-poster]="contentBaseUrl + libraryItem.thumbnailPath"
+          [attr.data-video]="getVideoData(libraryItem.path)"
+        >
+          <img class="gallery-item-image"
+               [src]="contentBaseUrl + libraryItem.thumbnailPath" alt="video"/>
+        </a>
+      } @else {
+        <a [href]="contentBaseUrl + libraryItem.path">
+          <img
+            class="gallery-item-image"
+            [src]="contentBaseUrl + libraryItem.thumbnailPath"
+           alt="photo"/>
+        </a>
+      }
     }
   </lightgallery>
 }
