@@ -14,7 +14,7 @@ public class AssignTagsHandlerTest : InMemoryDatabaseTestBase
         DbContext.Tags.Add(new("tag1"));
         DbContext.Tags.Add(new("tag2"));
         DbContext.Tags.Add(new("tag3"));
-        DbContext.FilesMetadata.Add(new("path1", FileType.Unknown, "some desc."));
+        DbContext.FilesMetadata.Add(new("path1", "unknown/unknown", "some desc."));
         await DbContext.SaveChangesAsync();
 
         AssignTagsHandler handler = new(DbContext);
@@ -37,9 +37,9 @@ public class AssignTagsHandlerTest : InMemoryDatabaseTestBase
         DbContext.Tags.Add(new("tag1"));
         DbContext.Tags.Add(new("tag2"));
         DbContext.Tags.Add(new("tag3"));
-        DbContext.FilesMetadata.Add(new("path1", FileType.Unknown, "some desc."));
-        DbContext.FilesMetadata.Add(new("path2", FileType.Unknown, "some desc."));
-        DbContext.FilesMetadata.Add(new("path3", FileType.Unknown, "some desc."));
+        DbContext.FilesMetadata.Add(new("path1", "unknown/unknown", "some desc."));
+        DbContext.FilesMetadata.Add(new("path2", "unknown/unknown", "some desc."));
+        DbContext.FilesMetadata.Add(new("path3", "unknown/unknown", "some desc."));
         await DbContext.SaveChangesAsync();
 
         AssignTagsHandler handler = new(DbContext);

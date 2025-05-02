@@ -9,11 +9,11 @@ namespace TagFilesService.Library;
 
 public class FilesProcessing(ILogger<FilesProcessing> logger, IMinioClient minio, MetadataService metadataService)
 {
-    public async Task ProcessFile(string fileName)
+    public async Task ProcessFile(string fileName, string mediaType)
     {
         string key = await AddFileToLibrary(fileName);
         await DeleteTemporaryFile(fileName);
-        FileMetadata metadata = await SaveMetadata(key);
+        FileMetadata metadata = await SaveMetadata(key, mediaType);
         await MakeThumbnail(metadata);
         logger.LogInformation("File '{fileName}' processed successfully", fileName);
     }
@@ -42,10 +42,9 @@ public class FilesProcessing(ILogger<FilesProcessing> logger, IMinioClient minio
         logger.LogInformation("Temporary file deleted");
     }
 
-    private async Task<FileMetadata> SaveMetadata(string key)
+    private async Task<FileMetadata> SaveMetadata(string key, string mediaType)
     {
-        // TODO: pass file type
-        FileMetadata metadata = new(key, FileType.Unknown, null);
+        FileMetadata metadata = new(key, mediaType, null);
         await metadataService.SaveMetadata(metadata);
 
         Dictionary<string, string> tags = new() { ["metadata-id"] = metadata.Id.ToString() };

@@ -8,6 +8,8 @@ public record LibraryItemDto(
     string? ThumbnailPath,
     string? Description,
     DateTime UploadedOn,
+    FileType Type,
+    string MediaType,
     List<string> Tags)
 {
     public static LibraryItemDto FromMetadata(FileMetadata metadata)
@@ -19,6 +21,8 @@ public record LibraryItemDto(
             $"{Buckets.Thumbnail}/{thumbnailFileName}",
             metadata.Description,
             metadata.UploadedOn,
+            metadata.Type,
+            metadata.MediaType,
             metadata.Tags.Select(t => t.Name).ToList());
     }
 

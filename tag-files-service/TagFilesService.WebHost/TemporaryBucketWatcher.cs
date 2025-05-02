@@ -28,27 +28,28 @@ public class TemporaryBucketWatcher(
 
     private async void OnNext(MinioNotificationRaw notification)
     {
-        string? fileName = GetFileName(notification.Json);
-        if (fileName is null)
+        (string? FileName, string? MediaType) info = GetFileInfo(notification.Json);
+        if (info.FileName is null || info.MediaType is null)
         {
-            logger.LogWarning("Failed to parse file name from notification");
+            logger.LogWarning("Failed to parse file info from notification");
             return;
         }
 
         using IServiceScope scope = serviceScopeFactory.CreateScope();
         FilesProcessing processing = scope.ServiceProvider.GetRequiredService<FilesProcessing>();
-        await processing.ProcessFile(fileName);
+        await processing.ProcessFile(info.FileName, info.MediaType);
     }
 
-    private string? GetFileName(string json)
+    private (string? FileName, string? MediaType) GetFileInfo(string json)
     {
         using JsonDocument document = JsonDocument.Parse(json);
-        return document.RootElement
+        JsonElement objectElement = document.RootElement
             .GetProperty("Records")[0]
             .GetProperty("s3")
-            .GetProperty("object")
-            .GetProperty("key")
-            .GetString();
+            .GetProperty("object");
+        string? key = objectElement.GetProperty("key").GetString();
+        string? contentType = objectElement.GetProperty("contentType").GetString();
+        return (key, contentType);
     }
 
     private IDisposable? _subscription;

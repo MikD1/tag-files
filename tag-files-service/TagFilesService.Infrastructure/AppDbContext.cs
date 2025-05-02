@@ -18,7 +18,10 @@ public sealed class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<FileMetadata>()
-            .HasMany(e => e.Tags)
-            .WithMany();
+            .Property(e => e.Type).HasConversion<string>();
+        modelBuilder.Entity<FileMetadata>()
+            .Property(e => e.ThumbnailStatus).HasConversion<string>();
+        modelBuilder.Entity<FileMetadata>()
+            .HasMany(e => e.Tags).WithMany();
     }
 }

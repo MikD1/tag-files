@@ -20,11 +20,11 @@ public class SearchRequestHandlerTest : InMemoryDatabaseTestBase
         DbContext.Tags.AddRange(tags);
         await DbContext.SaveChangesAsync();
 
-        FileMetadata metadata1 = new("file1", FileType.Image, null);
+        FileMetadata metadata1 = new("file1", "image/png", null);
         metadata1.Tags.AddRange(tags[0], tags[1]);
-        FileMetadata metadata2 = new("file2", FileType.Image, null);
+        FileMetadata metadata2 = new("file2", "image/png", null);
         metadata2.Tags.AddRange(tags[0], tags[2]);
-        FileMetadata metadata3 = new("file3", FileType.Image, null);
+        FileMetadata metadata3 = new("file3", "image/png", null);
         metadata3.Tags.AddRange(tags[0], tags[2], tags[3]);
         DbContext.FilesMetadata.AddRange(metadata1, metadata2, metadata3);
         await DbContext.SaveChangesAsync();
@@ -41,9 +41,9 @@ public class SearchRequestHandlerTest : InMemoryDatabaseTestBase
     [TestMethod]
     public async Task SearchRequest_ShouldReturnLastMetadata_WhenEmptyQuery()
     {
-        DbContext.FilesMetadata.Add(new("file1", FileType.Image, null));
-        DbContext.FilesMetadata.Add(new("file2", FileType.Image, null));
-        DbContext.FilesMetadata.Add(new("file3", FileType.Image, null));
+        DbContext.FilesMetadata.Add(new("file1", "image/png", null));
+        DbContext.FilesMetadata.Add(new("file2", "image/png", null));
+        DbContext.FilesMetadata.Add(new("file3", "image/png", null));
         await DbContext.SaveChangesAsync();
 
         SearchRequestHandler handler = new(DbContext);
