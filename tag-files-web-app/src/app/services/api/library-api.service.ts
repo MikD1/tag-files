@@ -2,6 +2,14 @@ import {inject, Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {Observable} from 'rxjs';
 
+export enum FileType {
+  Unknown = 'Unknown',
+  Text = 'Text',
+  Image = 'Image',
+  Video = 'Video',
+  Audio = 'Audio'
+}
+
 export interface SearchRequest {
   tagQuery: string;
   pageIndex: number;
@@ -19,6 +27,8 @@ export interface LibraryItem {
   thumbnailPath?: string;
   description?: string;
   uploadedOn: string;
+  type: FileType;
+  mediaType?: string | null;
   tags: string[];
 }
 

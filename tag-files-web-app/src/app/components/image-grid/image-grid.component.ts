@@ -6,6 +6,7 @@ import lgZoom from 'lightgallery/plugins/zoom';
 import lgRotate from 'lightgallery/plugins/rotate';
 import lgVideo from 'lightgallery/plugins/video';
 import {SearchService} from '../../services/search.service';
+import {FileType, LibraryItem} from '../../services/api/library-api.service';
 
 @Component({
   selector: 'app-image-grid',
@@ -24,6 +25,7 @@ export class ImageGridComponent {
     rotateLeft: false
   };
   protected readonly contentBaseUrl = "http://localhost:5010/";
+  protected fileTypes = FileType;
   private readonly searchService = inject(SearchService);
   protected readonly searchResults = computed(() => {
     return this.searchService.searchResults()
@@ -35,16 +37,12 @@ export class ImageGridComponent {
     return 4 + (max - level);
   })
 
-  isVideo(path: string): boolean {
-    return path.endsWith('mp4')
-  }
-
-  getVideoData(path: string): string {
+  protected getVideoData(item: LibraryItem): string {
     return JSON.stringify({
       source: [
         {
-          src: `${this.contentBaseUrl}${path}`,
-          type: 'video/mp4',
+          src: `${this.contentBaseUrl}${item.path}`,
+          type: item.mediaType,
         }
       ],
       attributes: {

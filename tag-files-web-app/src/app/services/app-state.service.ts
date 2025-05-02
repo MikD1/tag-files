@@ -13,7 +13,7 @@ export enum GalleryViewType {
 export class AppStateService {
   private readonly isSidebarOpen = signal<boolean>(true);
   private readonly galleryThumbnailSize = signal<number>(3);
-  private readonly galleryViewType = signal<GalleryViewType>(GalleryViewType.List);
+  private readonly galleryViewType = signal<GalleryViewType>(GalleryViewType.Grid);
 
   getIsSidebarOpen() {
     return this.isSidebarOpen()
