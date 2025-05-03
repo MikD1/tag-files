@@ -1,12 +1,19 @@
-@if (searchResults()) {
-  <lightgallery class="gallery" [settings]="gallerySettings">
-    <table class="mat-elevation-z8 table" mat-table [dataSource]="searchResults().items">
+@if (itemsList()) {
+  <lightgallery class="gallery" [settings]="gallerySettings()">
+    <table class="mat-elevation-z8 table" mat-table [dataSource]="itemsList().items">
       <ng-container matColumnDef="image">
         <th mat-header-cell *matHeaderCellDef></th>
         <td mat-cell *matCellDef="let element">
-          <div class="gallery-item" [attr.data-src]="'http://localhost:5010/' + element.path">
-            <img class="gallery-item-image" [src]="'http://localhost:5010/' + element.thumbnailPath"/>
-          </div>
+          @if (element.type == fileTypes.Image) {
+            <div class="gallery-item" [attr.data-src]="getFullContentPath(element.path)">
+              <img class="gallery-item-image" [src]="getFullThumbnailPath(element.thumbnailPath)" alt=""/>
+            </div>
+          }
+          @if (element.type == fileTypes.Video) {
+            <div class="gallery-item" [attr.data-video]="getVideoData(element)">
+              <img class="gallery-item-image" [src]="getFullThumbnailPath(element.thumbnailPath)" alt=""/>
+            </div>
+          }
         </td>
       </ng-container>
 

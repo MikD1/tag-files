@@ -1,12 +1,11 @@
-import {ChangeDetectionStrategy, Component, computed, inject} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, inject, input} from '@angular/core';
 import {MatGridListModule} from '@angular/material/grid-list';
 import {AppStateService} from '../../services/app-state.service';
 import {LightgalleryModule} from 'lightgallery/angular';
-import lgZoom from 'lightgallery/plugins/zoom';
-import lgRotate from 'lightgallery/plugins/rotate';
-import lgVideo from 'lightgallery/plugins/video';
-import {SearchService} from '../../services/search.service';
-import {FileType, LibraryItem} from '../../services/api/library-api.service';
+import {FileType, LibraryItem, LibraryItemPaginatedList} from '../../services/api/library-api.service';
+import {LightGallerySettings} from 'lightgallery/lg-settings';
+
+const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 
 @Component({
   selector: 'app-image-grid',
@@ -16,20 +15,10 @@ import {FileType, LibraryItem} from '../../services/api/library-api.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ImageGridComponent {
-  protected gallerySettings = {
-    plugins: [lgVideo, lgZoom, lgRotate],
-    download: false,
-    counter: false,
-    flipHorizontal: false,
-    flipVertical: false,
-    rotateLeft: false
-  };
-  protected readonly contentBaseUrl = "http://localhost:5010/";
+  gallerySettings = input.required<LightGallerySettings>();
+  itemsList = input.required<LibraryItemPaginatedList>();
+
   protected fileTypes = FileType;
-  private readonly searchService = inject(SearchService);
-  protected readonly searchResults = computed(() => {
-    return this.searchService.searchResults()
-  });
   private readonly appStateService = inject(AppStateService);
   protected readonly getGridColumns = computed(() => {
     const max = 7;
@@ -37,11 +26,23 @@ export class ImageGridComponent {
     return 4 + (max - level);
   })
 
+  protected getFullThumbnailPath(thumbnailPath?: string): string {
+    if (!thumbnailPath) {
+      return '#';
+    }
+
+    return ContentBaseUrl + thumbnailPath;
+  }
+
+  protected getFullContentPath(contentPath: string): string {
+    return ContentBaseUrl + contentPath;
+  }
+
   protected getVideoData(item: LibraryItem): string {
     return JSON.stringify({
       source: [
         {
-          src: `${this.contentBaseUrl}${item.path}`,
+          src: `${this.getFullContentPath(item.path)}`,
           type: item.mediaType,
         }
       ],

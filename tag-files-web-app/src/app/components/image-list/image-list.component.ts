@@ -1,10 +1,11 @@
-import {Component, computed, inject} from '@angular/core';
-import lgZoom from 'lightgallery/plugins/zoom';
-import lgRotate from 'lightgallery/plugins/rotate';
+import {Component, input} from '@angular/core';
 import {LightgalleryModule} from 'lightgallery/angular';
 import {MatTableModule} from '@angular/material/table';
 import {MatChipsModule} from '@angular/material/chips';
-import {SearchService} from '../../services/search.service';
+import {LightGallerySettings} from 'lightgallery/lg-settings';
+import {FileType, LibraryItem, LibraryItemPaginatedList} from '../../services/api/library-api.service';
+
+const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 
 @Component({
   selector: 'app-image-list',
@@ -13,18 +14,36 @@ import {SearchService} from '../../services/search.service';
   styleUrl: './image-list.component.scss'
 })
 export class ImageListComponent {
-  protected gallerySettings = {
-    selector: ".gallery-item",
-    plugins: [lgZoom, lgRotate],
-    download: false,
-    counter: false,
-    flipHorizontal: false,
-    flipVertical: false,
-    rotateLeft: false
-  };
+  gallerySettings = input.required<LightGallerySettings>();
+  itemsList = input.required<LibraryItemPaginatedList>();
+  protected fileTypes = FileType;
   protected displayedColumns = ['image', 'tags', 'uploadedOn'];
-  private readonly searchService = inject(SearchService);
-  protected readonly searchResults = computed(() => {
-    return this.searchService.searchResults()
-  });
+
+  protected getFullThumbnailPath(thumbnailPath?: string): string {
+    if (!thumbnailPath) {
+      return '#';
+    }
+
+    return ContentBaseUrl + thumbnailPath;
+  }
+
+  protected getFullContentPath(contentPath: string): string {
+    return ContentBaseUrl + contentPath;
+  }
+
+  protected getVideoData(item: LibraryItem): string {
+    return JSON.stringify({
+      source: [
+        {
+          src: `${this.getFullContentPath(item.path)}`,
+          type: item.mediaType,
+        }
+      ],
+      attributes: {
+        preload: false,
+        playsinline: true,
+        controls: true
+      }
+    });
+  }
 }
