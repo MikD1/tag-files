@@ -8,12 +8,12 @@ import lgRotate from 'lightgallery/plugins/rotate';
 import {SearchService} from '../../services/search.service';
 
 @Component({
-  selector: 'app-gallery-page',
+  selector: 'app-library-page',
   imports: [ImageGridComponent, ImageListComponent],
-  templateUrl: './gallery-page.component.html',
-  styleUrl: './gallery-page.component.scss'
+  templateUrl: './library-page.component.html',
+  styleUrl: './library-page.component.scss'
 })
-export class GalleryPageComponent {
+export class LibraryPageComponent {
   protected gallerySettings = {
     plugins: [lgVideo, lgZoom, lgRotate],
     selector: ".gallery-item",

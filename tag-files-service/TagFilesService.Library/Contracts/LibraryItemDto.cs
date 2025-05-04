@@ -14,7 +14,7 @@ public record LibraryItemDto(
 {
     public static LibraryItemDto FromMetadata(FileMetadata metadata)
     {
-        string thumbnailFileName = ChangeFileExtension(metadata.FileName, ".jpg");
+        string thumbnailFileName = FilesProcessing.ChangeFileExtension(metadata.FileName, ".jpg");
         return new(
             metadata.Id,
             $"{Buckets.Library}/{metadata.FileName}",
@@ -24,11 +24,5 @@ public record LibraryItemDto(
             metadata.Type,
             metadata.MediaType,
             metadata.Tags.Select(t => t.Name).ToList());
-    }
-
-    private static string ChangeFileExtension(string fileName, string newExtension)
-    {
-        string fileNameWithoutExtension = System.IO.Path.GetFileNameWithoutExtension(fileName);
-        return fileNameWithoutExtension + newExtension;
     }
 }

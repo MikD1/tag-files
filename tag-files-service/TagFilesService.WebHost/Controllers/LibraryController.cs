@@ -9,6 +9,19 @@ namespace TagFilesService.WebHost.Controllers;
 [Route("api/library")]
 public class LibraryController(IMediator mediator) : ControllerBase
 {
+    [HttpGet("{id}")]
+    public async Task<ActionResult<LibraryItemDto>> Get(uint id)
+    {
+        GetLibraryItemByIdRequest request = new(id);
+        LibraryItemDto? result = await mediator.Send(request);
+        if (result is null)
+        {
+            return NotFound();
+        }
+
+        return result;
+    }
+
     [HttpPost("search")]
     public async Task<ActionResult<PaginatedList<LibraryItemDto>>> Search([FromBody] SearchRequest request)
     {

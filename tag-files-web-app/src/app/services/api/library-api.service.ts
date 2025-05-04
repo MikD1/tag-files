@@ -46,6 +46,10 @@ export class LibraryApiService {
   private baseUrl = 'http://localhost:5001/api';
   private readonly http = inject(HttpClient);
 
+  getItem(id: number): Observable<LibraryItem> {
+    return this.http.get<LibraryItem>(`${this.baseUrl}/library/${id}`);
+  }
+
   search(request: SearchRequest): Observable<LibraryItemPaginatedList> {
     return this.http.post<LibraryItemPaginatedList>(`${this.baseUrl}/library/search`, request);
   }

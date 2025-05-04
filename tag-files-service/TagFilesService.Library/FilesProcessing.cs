@@ -9,6 +9,12 @@ namespace TagFilesService.Library;
 
 public class FilesProcessing(ILogger<FilesProcessing> logger, IMinioClient minio, MetadataService metadataService)
 {
+    public static string ChangeFileExtension(string fileName, string newExtension)
+    {
+        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+        return fileNameWithoutExtension + newExtension;
+    }
+
     public async Task ProcessFile(string fileName, string mediaType)
     {
         string key = await AddFileToLibrary(fileName);
@@ -115,11 +121,5 @@ public class FilesProcessing(ILogger<FilesProcessing> logger, IMinioClient minio
             .ToString()
             .Replace("-", string.Empty)
             .ToLower() + extension;
-    }
-
-    private string ChangeFileExtension(string fileName, string newExtension)
-    {
-        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
-        return fileNameWithoutExtension + newExtension;
     }
 }
