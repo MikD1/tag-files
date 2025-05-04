@@ -22,3 +22,12 @@
 .gallery-item-image:hover {
   cursor: pointer;
 }
+
+
+::ng-deep .table tr:hover .edit-button {
+  opacity: 1;
+}
+
+.edit-button {
+  opacity: 0;
+}
