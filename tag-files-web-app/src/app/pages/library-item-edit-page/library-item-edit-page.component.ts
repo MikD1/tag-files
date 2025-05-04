@@ -3,10 +3,18 @@ import {ActivatedRoute} from '@angular/router';
 import {LibraryApiService, LibraryItem} from '../../services/api/library-api.service';
 import {toSignal} from '@angular/core/rxjs-interop';
 import {map} from 'rxjs';
+import {MatChip, MatChipSet} from '@angular/material/chips';
+import {MatIconModule} from '@angular/material/icon';
+
+const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 
 @Component({
   selector: 'app-library-item-edit-page',
-  imports: [],
+  imports: [
+    MatIconModule,
+    MatChipSet,
+    MatChip
+  ],
   templateUrl: './library-item-edit-page.component.html',
   styleUrl: './library-item-edit-page.component.scss'
 })
@@ -29,5 +37,13 @@ export class LibraryItemEditPageComponent {
         this.item.set(result);
       });
     });
+  }
+
+  protected getFullThumbnailPath(thumbnailPath?: string): string {
+    if (!thumbnailPath) {
+      return '#';
+    }
+
+    return ContentBaseUrl + thumbnailPath;
   }
 }

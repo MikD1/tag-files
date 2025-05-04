@@ -7,13 +7,14 @@ import {FileType, LibraryItem, LibraryItemPaginatedList} from '../../services/ap
 import {Router} from '@angular/router';
 import {MatIconModule} from '@angular/material/icon';
 import {MatButtonModule} from '@angular/material/button';
+import {DatePipe} from '@angular/common';
 
 
 const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 
 @Component({
   selector: 'app-image-list',
-  imports: [LightgalleryModule, MatTableModule, MatChipsModule, MatIconModule, MatButtonModule],
+  imports: [LightgalleryModule, MatTableModule, MatChipsModule, MatIconModule, MatButtonModule, DatePipe],
   templateUrl: './image-list.component.html',
   styleUrl: './image-list.component.scss'
 })

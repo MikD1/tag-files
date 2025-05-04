@@ -1,0 +1,11 @@
+.container {
+  display: flex;
+  gap: 10px;
+}
+
+.item-image {
+  object-fit: cover;
+  border-radius: 0.2rem;
+  width: 200px;
+  height: 200px;
+}

@@ -1,5 +1,12 @@
 @if (item()) {
-  <p>{{ item().path }}</p>
+  <div class="container">
+    <img class="item-image" [src]="getFullThumbnailPath(item().thumbnailPath)" alt=""/>
+    <mat-chip-set>
+      @for (tag of item().tags; track $index) {
+        <mat-chip>{{ tag }}</mat-chip>
+      }
+    </mat-chip-set>
+  </div>
 } @else {
   <p>Loading...</p>
 }
