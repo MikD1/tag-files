@@ -39,8 +39,8 @@ builder.Services.AddMinio(configure =>
         .WithSSL(false)
         .Build();
 });
-builder.Services.AddScoped<IFileStorage, FileStorage>();
-builder.Services.AddScoped<IThumbnailService, ThumbnailService>();
+builder.Services.AddScoped<MetadataService>();
+builder.Services.AddScoped<FilesProcessing>();
 builder.Services.AddScoped<ITagsRepository, TagsRepository>();
 builder.Services.AddHostedService<TemporaryBucketWatcher>();
 
