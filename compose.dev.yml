@@ -9,15 +9,11 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./data/webapp:/app/data
+      - ./data/sqlite:/app/data
     depends_on:
       - minio
     environment:
-      - ASPNETCORE_S3Option_Host=localhost:5010
-      - ASPNETCORE_S3Option_AccessKey=admin
-      - ASPNETCORE_S3Option_SecretKey=12345678
       - ASPNETCORE_ENVIRONMENT=Development
-      - DOTNET_EnableDiagnostics=1
         
   tag-files-web-app:
     build:
@@ -25,7 +21,7 @@ services:
       dockerfile: Dockerfile
     container_name: tag-files-web-app
     ports:
-      - "4200:4200"
+      - "80:80"
 
 
   minio:

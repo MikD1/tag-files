@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  tag-files-service:
+    build:
+      context: ./tag-files-service
+      dockerfile: Dockerfile
+    container_name: tagfiles-service
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data/sqlite:/app/data
+    depends_on:
+      - minio
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+        
+  tag-files-web-app:
+    build:
+      context: ./tag-files-web-app
+      dockerfile: Dockerfile
+    container_name: tag-files-web-app
+    ports:
+      - "80:80"
+
+
+  minio:
+    image: quay.io/minio/minio
+    command: server --console-address ":9001" /data
+    container_name: minio
+    ports:
+      - "5010:9000"
+      - "5011:9001"
+    volumes:
+      - ./data/minio_data:/data
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=12345678
