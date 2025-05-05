@@ -5,15 +5,10 @@ RUN apt-get -y update
 RUN apt-get -y upgrade
 RUN apt-get install -y ffmpeg
 
-COPY TagFilesService.sln ./
-COPY TagFilesService.Model/ TagFilesService.Model/
-COPY TagFilesService.Infrastructure/ TagFilesService.Infrastructure/
-COPY TagFilesService.Library/ TagFilesService.Library/
-COPY TagFilesService.WebHost/ TagFilesService.WebHost/
+COPY ./ ./
 
-RUN dotnet restore "TagFilesService.WebHost/TagFilesService.WebHost.csproj"
-
-RUN dotnet publish "TagFilesService.WebHost/TagFilesService.WebHost.csproj" -c Release -o /app/publish
+RUN dotnet restore
+RUN dotnet publish -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
