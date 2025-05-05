@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  webapp:
+  tag-files-service:
     build:
-      context: .
+      context: ./tag-files-service
       dockerfile: Dockerfile
     container_name: tagfiles-service
     ports:
@@ -18,6 +18,15 @@ services:
       - ASPNETCORE_S3Option_SecretKey=12345678
       - ASPNETCORE_ENVIRONMENT=Development
       - DOTNET_EnableDiagnostics=1
+        
+  tag-files-web-app:
+    build:
+      context: ./tag-files-web-app
+      dockerfile: Dockerfile
+    container_name: tag-files-web-app
+    ports:
+      - "4200:4200"
+
 
   minio:
     image: quay.io/minio/minio
