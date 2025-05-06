@@ -6,8 +6,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_BACKEND: ${{ env.REGISTRY }}/${{ github.repository }}/tag-files-service
-  IMAGE_FRONTEND: ${{ env.REGISTRY }}/${{ github.repository }}/tag-files-web-app
+  IMAGE_BACKEND: ghcr.io/${{ github.repository }}/tag-files-service
+  IMAGE_FRONTEND: ghcr.io/${{ github.repository }}/tag-files-web-app
 
 jobs:
   build-and-push:
