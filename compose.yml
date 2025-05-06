@@ -25,3 +25,11 @@ services:
         - minio
       environment:
         - 'ConnectionStrings__SQLite=Data Source=/app/data/tag-files.db'
+  
+  tag-files-web-app:
+     build:
+       context: ./tag-files-web-app
+       dockerfile: Dockerfile
+     container_name: tag-files-web-app
+     ports:
+       - "4200:4200"
