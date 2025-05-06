@@ -22,7 +22,7 @@ builder.Services.AddCors(x => x.AddPolicy("AllowAll", policy =>
 }));
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=./../../data/tag-files.db"));
+    options.UseSqlite(builder.Configuration.GetConnectionString("SQLite")));
 builder.Services.AddMinio(configure => configure
     .WithEndpoint("localhost:5010")
     .WithCredentials("admin", "12345678")
