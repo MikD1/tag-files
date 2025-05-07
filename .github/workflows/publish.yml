@@ -26,7 +26,7 @@ jobs:
         with:
           context: ./tag-files-service
           push: true
-          tags: tag-files-service:latest
+          tags: ghcr.io/${{ github.repository_owner }}/tag-files-service:latest
   build-and-push-frontend:
     runs-on: ubuntu-latest
     permissions:
@@ -48,4 +48,4 @@ jobs:
         with:
           context: ./tag-files-web-app
           push: true
-          tags: tag-files-web-app:latest
+          tags: ghcr.io/${{ github.repository_owner }}/tag-files-web-app:latest
