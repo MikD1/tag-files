@@ -4,48 +4,62 @@ on:
   release:
     types: [published]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_BACKEND: ${{ github.repository }}-service
+  IMAGE_NAME_FRONTEND: ${{ github.repository }}-web-app
+
 jobs:
   build-and-push-backend:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-      attestations: write
-      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: ./tag-files-service
           push: true
-          tags: ghcr.io/${{ github.repository }}/tag-files-service:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
   build-and-push-frontend:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-      attestations: write
-      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: ./tag-files-web-app
           push: true
-          tags: ghcr.io/${{ github.repository }}/tag-files-web-app:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
