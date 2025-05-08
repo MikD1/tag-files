@@ -12,27 +12,32 @@ public class SearchRequestHandler(AppDbContext dbContext)
 {
     public async Task<PaginatedList<LibraryItemDto>> Handle(SearchRequest request, CancellationToken cancellationToken)
     {
-        PaginatedList<FileMetadata> searchResults = await Search(request.TagQuery, request.PageIndex, request.PageSize);
+        PaginatedList<FileMetadata> searchResults = await Search(request);
         List<LibraryItemDto> itemsDto = searchResults.Items
             .Select(LibraryItemDto.FromMetadata)
             .ToList();
         return new(itemsDto, searchResults.TotalItems, searchResults.PageIndex, searchResults.TotalPages);
     }
 
-    private async Task<PaginatedList<FileMetadata>> Search(string tagQuery, int pageIndex, int pageSize)
+    private async Task<PaginatedList<FileMetadata>> Search(SearchRequest request)
     {
         IQueryable<FileMetadata> queryable = dbContext.FilesMetadata
             .Include(x => x.Tags);
 
-        if (!string.IsNullOrWhiteSpace(tagQuery))
+        if (!string.IsNullOrWhiteSpace(request.TagQuery))
         {
-            string dynamicQuery = TagQueryConverter.ConvertToDynamicQuery(tagQuery);
+            string dynamicQuery = TagQueryConverter.ConvertToDynamicQuery(request.TagQuery);
             queryable = queryable
                 .Where(dynamicQuery);
         }
 
+        if (request.ItemType is not null)
+        {
+            queryable = queryable.Where(x => x.Type == request.ItemType);
+        }
+
         queryable = queryable
             .OrderByDescending(x => x.UploadedOn);
-        return await QueryablePaginatedList<FileMetadata>.CreateAsync(queryable, pageIndex, pageSize);
+        return await QueryablePaginatedList<FileMetadata>.CreateAsync(queryable, request.PageIndex, request.PageSize);
     }
 }
