@@ -4,10 +4,11 @@ import {MatIconModule} from '@angular/material/icon';
 import {MatButtonModule} from '@angular/material/button';
 import {AppStateService, GalleryViewType} from '../../services/app-state.service';
 import {SearchBarComponent} from '../search-bar/search-bar.component';
+import {MatButtonToggleModule} from '@angular/material/button-toggle';
 
 @Component({
   selector: 'app-header',
-  imports: [MatToolbarModule, MatIconModule, MatButtonModule, SearchBarComponent],
+  imports: [MatToolbarModule, MatIconModule, MatButtonModule, SearchBarComponent, MatButtonToggleModule],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
