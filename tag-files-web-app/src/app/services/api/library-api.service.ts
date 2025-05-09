@@ -11,7 +11,8 @@ export enum FileType {
 }
 
 export interface SearchRequest {
-  tagQuery: string;
+  tagQuery?: string;
+  itemType?: FileType;
   pageIndex: number;
   pageSize: number;
 }

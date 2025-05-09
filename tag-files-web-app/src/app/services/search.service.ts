@@ -1,5 +1,5 @@
 import {inject, Injectable, signal} from '@angular/core';
-import {LibraryApiService, LibraryItemPaginatedList} from './api/library-api.service';
+import {FileType, LibraryApiService, LibraryItemPaginatedList} from './api/library-api.service';
 
 const emptyResults = {
   items: [],
@@ -16,11 +16,16 @@ export class SearchService {
   private readonly libraryApiService = inject(LibraryApiService);
 
   constructor() {
-    this.search('');
+    this.search();
   }
 
-  search(query: string) {
-    this.libraryApiService.search({tagQuery: query, pageIndex: 1, pageSize: 100}).subscribe((result) => {
+  search(query?: string, itemType?: FileType) {
+    this.libraryApiService.search({
+      tagQuery: query,
+      itemType: itemType,
+      pageIndex: 1,
+      pageSize: 100
+    }).subscribe((result) => {
       this.searchResults.set(result)
     })
   }

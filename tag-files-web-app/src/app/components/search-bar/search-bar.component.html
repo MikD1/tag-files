@@ -2,6 +2,9 @@
   <mat-icon>search</mat-icon>
 </button>
 <input (keydown.enter)="this.search()" [formControl]="searchQuery" placeholder="Search" type="text"/>
-<button mat-icon-button>
-  <mat-icon>tune</mat-icon>
+<button (click)="toggleImage()" mat-icon-button>
+  <mat-icon [style.color]="isImageSelected() ? '#5c77aa' : ''">panorama</mat-icon>
+</button>
+<button (click)="toggleVideo()" mat-icon-button>
+  <mat-icon [style.color]="isVideoSelected() ? '#5c77aa' : ''">smart_display</mat-icon>
 </button>
