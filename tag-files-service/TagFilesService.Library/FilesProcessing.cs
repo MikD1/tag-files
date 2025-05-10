@@ -51,6 +51,11 @@ public class FilesProcessing(ILogger<FilesProcessing> logger, IMinioClient minio
     private async Task<FileMetadata> SaveMetadata(string key, string mediaType)
     {
         FileMetadata metadata = new(key, mediaType, null);
+        if (metadata.Type is FileType.Video)
+        {
+            await FillVideoDuration(metadata);
+        }
+
         await metadataService.SaveMetadata(metadata);
 
         Dictionary<string, string> tags = new() { ["metadata-id"] = metadata.Id.ToString() };
@@ -111,6 +116,47 @@ public class FilesProcessing(ILogger<FilesProcessing> logger, IMinioClient minio
             metadata.UpdateThumbnailStatus(ThumbnailStatus.Failed);
             await metadataService.SaveMetadata(metadata);
             logger.LogError("Failed to generate thumbnail for file {fileName}: {error}", metadata.FileName, ex.Message);
+        }
+    }
+
+    private async Task FillVideoDuration(FileMetadata metadata)
+    {
+        try
+        {
+            string fileUrl = Path.Combine(minio.Config.Endpoint, Buckets.Library, metadata.FileName);
+
+            using Process ffmpeg = new();
+            ffmpeg.StartInfo = new()
+            {
+                FileName = "ffmpeg",
+                Arguments = $"""-i "{fileUrl}" -f null -""",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            ffmpeg.Start();
+
+            string output = await ffmpeg.StandardError.ReadToEndAsync();
+            await ffmpeg.WaitForExitAsync();
+            if (ffmpeg.ExitCode != 0)
+            {
+                string error = await ffmpeg.StandardError.ReadToEndAsync();
+                throw new ApplicationException(error);
+            }
+
+            bool success = VideoDurationParser.TryParse(output, out TimeSpan duration);
+            if (!success)
+            {
+                throw new ApplicationException("Failed to parse video duration");
+            }
+
+            metadata.VideoDuration = duration;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError("Failed to get video duration for file {fileName}: {error}", metadata.FileName, ex.Message);
         }
     }
 

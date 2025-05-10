@@ -10,6 +10,7 @@ public record LibraryItemDto(
     DateTime UploadedOn,
     FileType Type,
     string MediaType,
+    TimeSpan? VideoDuration,
     List<string> Tags)
 {
     public static LibraryItemDto FromMetadata(FileMetadata metadata)
@@ -23,6 +24,7 @@ public record LibraryItemDto(
             metadata.UploadedOn,
             metadata.Type,
             metadata.MediaType,
+            metadata.VideoDuration,
             metadata.Tags.Select(t => t.Name).ToList());
     }
 }

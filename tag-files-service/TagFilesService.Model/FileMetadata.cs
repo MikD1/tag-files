@@ -19,6 +19,8 @@ public class FileMetadata
 
     public string? Description { get; private set; }
 
+    public TimeSpan? VideoDuration { get; set; }
+
     public ThumbnailStatus ThumbnailStatus { get; private set; }
 
     public List<Tag> Tags { get; private set; }
