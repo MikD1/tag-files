@@ -1,0 +1,19 @@
+<div class="header" mat-dialog-title>
+  <div>Library Item</div>
+  <button class="close-button" mat-dialog-close mat-icon-button>
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+<mat-dialog-content class="mat-typography">
+  <div class="container">
+    <img [src]="getFullThumbnailPath()" alt="" class="item-image"/>
+    <div>
+      <h3>ID: {{ data.item.id }}</h3>
+      <mat-chip-set>
+        @for (tag of data.item.tags; track $index) {
+          <mat-chip>{{ tag }}</mat-chip>
+        }
+      </mat-chip-set>
+    </div>
+  </div>
+</mat-dialog-content>

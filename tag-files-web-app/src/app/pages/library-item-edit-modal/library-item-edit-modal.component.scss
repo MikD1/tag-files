@@ -1,3 +1,16 @@
+h3 {
+  margin-top: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+}
+
+.close-button {
+  margin-left: auto;
+}
+
 .container {
   display: flex;
   gap: 10px;

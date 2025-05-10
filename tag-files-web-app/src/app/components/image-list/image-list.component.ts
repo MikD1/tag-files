@@ -4,10 +4,11 @@ import {MatTableModule} from '@angular/material/table';
 import {MatChipsModule} from '@angular/material/chips';
 import {LightGallerySettings} from 'lightgallery/lg-settings';
 import {FileType, LibraryItem, LibraryItemPaginatedList} from '../../services/api/library-api.service';
-import {Router} from '@angular/router';
 import {MatIconModule} from '@angular/material/icon';
 import {MatButtonModule} from '@angular/material/button';
 import {DatePipe} from '@angular/common';
+import {MatDialog} from '@angular/material/dialog';
+import {LibraryItemEditModalComponent} from '../../pages/library-item-edit-modal/library-item-edit-modal.component';
 
 
 const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
@@ -21,9 +22,9 @@ const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 export class ImageListComponent {
   gallerySettings = input.required<LightGallerySettings>();
   itemsList = input.required<LibraryItemPaginatedList>();
-  protected router = inject(Router);
   protected fileTypes = FileType;
   protected displayedColumns = ['image', 'tags', 'uploadedOn', 'actions'];
+  private dialog = inject(MatDialog);
 
   protected getFullThumbnailPath(thumbnailPath?: string): string {
     if (!thumbnailPath) {
@@ -53,7 +54,13 @@ export class ImageListComponent {
     });
   }
 
-  protected editItem(id: number) {
-    this.router.navigate(['/library/edit', id]);
+  protected editItem(item: LibraryItem) {
+    this.dialog.open(LibraryItemEditModalComponent, {
+      data: {
+        item: item,
+      },
+      width: '800px',
+      height: '600px',
+    });
   }
 }
