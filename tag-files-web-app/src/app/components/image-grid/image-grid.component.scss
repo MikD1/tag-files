@@ -11,3 +11,18 @@
   width: 100%;
   aspect-ratio: 3/2; // TODO: configure in settings
 }
+
+.video-item {
+  position: relative;
+}
+
+.video-duration {
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: #ffffff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
