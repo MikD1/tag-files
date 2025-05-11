@@ -1,13 +1,15 @@
-import {inject, Injectable} from '@angular/core';
-import {HttpClient} from '@angular/common/http';
-import {map, Observable} from 'rxjs';
+import { HttpClient } from "@angular/common/http";
+import { inject, Injectable } from "@angular/core";
+import { map } from "rxjs";
+
+import type { Observable } from "rxjs";
 
 export enum FileType {
-  Unknown = 'Unknown',
-  Text = 'Text',
-  Image = 'Image',
-  Video = 'Video',
-  Audio = 'Audio'
+  Unknown = "Unknown",
+  Text = "Text",
+  Image = "Image",
+  Video = "Video",
+  Audio = "Audio",
 }
 
 export interface SearchRequest {
@@ -30,7 +32,7 @@ export interface LibraryItem {
   uploadedOn: string;
   type: FileType;
   mediaType?: string;
-  videoDuration?: string
+  videoDuration?: string;
   tags: string[];
 }
 
@@ -42,10 +44,10 @@ export interface LibraryItemPaginatedList {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root",
 })
 export class LibraryApiService {
-  private baseUrl = 'http://localhost:5001/api';
+  private readonly baseUrl = "http://localhost:5001/api";
   private readonly http = inject(HttpClient);
 
   getItem(id: number): Observable<LibraryItem> {
@@ -53,19 +55,26 @@ export class LibraryApiService {
   }
 
   search(request: SearchRequest): Observable<LibraryItemPaginatedList> {
-    return this.http.post<LibraryItemPaginatedList>(`${this.baseUrl}/library/search`, request).pipe(
-      map(response => ({
-        ...response,
-        items: response.items.map(item => ({
-          ...item,
-          videoDuration: item.videoDuration ? convertDuration(item.videoDuration) : undefined
+    return this.http
+      .post<LibraryItemPaginatedList>(`${this.baseUrl}/library/search`, request)
+      .pipe(
+        map((response) => ({
+          ...response,
+          items: response.items.map((item) => ({
+            ...item,
+            videoDuration: item.videoDuration
+              ? convertDuration(item.videoDuration)
+              : undefined,
+          })),
         }))
-      }))
-    );
+      );
   }
 
   assignTags(request: AssignTagsRequest): Observable<LibraryItem[]> {
-    return this.http.post<LibraryItem[]>(`${this.baseUrl}/library/assign-tags`, request);
+    return this.http.post<LibraryItem[]>(
+      `${this.baseUrl}/library/assign-tags`,
+      request
+    );
   }
 }
 
@@ -77,8 +86,8 @@ function convertDuration(input: string): string {
   const seconds = Math.floor(parseFloat(secondsFractionStr));
 
   if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   } else {
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   }
 }

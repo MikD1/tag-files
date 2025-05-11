@@ -1,11 +1,13 @@
-@if (galleryViewType() == galleryViewTypes.Grid) {
+@if (galleryViewType() === galleryViewTypes.Grid) {
   <app-image-grid
     [gallerySettings]="gallerySettings"
-    [itemsList]="searchResults()">
+    [itemsList]="searchResults()"
+  >
   </app-image-grid>
-} @else if (galleryViewType() == galleryViewTypes.List) {
+} @else if (galleryViewType() === galleryViewTypes.List) {
   <app-image-list
     [gallerySettings]="gallerySettings"
-    [itemsList]="searchResults()">
+    [itemsList]="searchResults()"
+  >
   </app-image-list>
 }

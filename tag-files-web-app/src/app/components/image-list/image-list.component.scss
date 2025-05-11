@@ -4,7 +4,7 @@
 }
 
 .table {
-  background-color: rgba($color: #000000, $alpha: 0.0);
+  background-color: rgba($color: #000000, $alpha: 0);
 }
 
 .gallery-item {
@@ -22,7 +22,6 @@
 .gallery-item-image:hover {
   cursor: pointer;
 }
-
 
 ::ng-deep .table tr:hover .edit-button {
   opacity: 1;

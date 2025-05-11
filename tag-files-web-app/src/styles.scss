@@ -1,13 +1,21 @@
-@use '@angular/material' as mat;
-@use 'lightgallery/scss/lightgallery';
-@use 'lightgallery/scss/lg-zoom';
-@use 'lightgallery/scss/lg-rotate';
+@use "@angular/material" as mat;
+@use "lightgallery/scss/lightgallery";
+@use "lightgallery/scss/lg-zoom";
+@use "lightgallery/scss/lg-rotate";
 @use "lightgallery/scss/lg-video.scss";
-@use './theme-colors' as theme;
+@use "./theme-colors" as theme;
 
 html {
   color-scheme: dark;
-  @include mat.theme((color: (primary: theme.$primary-palette), typography: Roboto, density: -2));
+  @include mat.theme(
+    (
+      color: (
+        primary: theme.$primary-palette,
+      ),
+      typography: Roboto,
+      density: -2,
+    )
+  );
 }
 
 body {

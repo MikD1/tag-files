@@ -1,42 +1,46 @@
-import {Injectable, signal} from '@angular/core';
+import { Injectable, signal } from "@angular/core";
 
 const maxGalleryThumbnailSize = 7; // TODO: configure in settings
 
 export enum GalleryViewType {
   Grid,
-  List
+  List,
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root",
 })
 export class AppStateService {
   private readonly isSidebarOpen = signal<boolean>(true);
   private readonly galleryThumbnailSize = signal<number>(3);
-  private readonly galleryViewType = signal<GalleryViewType>(GalleryViewType.Grid);
+  private readonly galleryViewType = signal<GalleryViewType>(
+    GalleryViewType.Grid
+  );
 
   getIsSidebarOpen() {
-    return this.isSidebarOpen()
+    return this.isSidebarOpen();
   }
 
   getGalleryThumbnailSize() {
-    return this.galleryThumbnailSize()
+    return this.galleryThumbnailSize();
   }
 
   getGalleryViewType() {
-    return this.galleryViewType()
+    return this.galleryViewType();
   }
 
   toggleSidebar() {
-    this.isSidebarOpen.update(prev => !prev);
+    this.isSidebarOpen.update((prev) => !prev);
   }
 
   increaseMainGridColumns() {
-    this.galleryThumbnailSize.update(prev => prev < maxGalleryThumbnailSize ? prev + 1 : prev);
+    this.galleryThumbnailSize.update((prev) =>
+      prev < maxGalleryThumbnailSize ? prev + 1 : prev
+    );
   }
 
   decreaseMainGridColumns() {
-    this.galleryThumbnailSize.update(prev => prev > 1 ? prev - 1 : prev);
+    this.galleryThumbnailSize.update((prev) => (prev > 1 ? prev - 1 : prev));
   }
 
   setGridGalleryView() {
