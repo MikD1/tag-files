@@ -1,4 +1,4 @@
-@if (itemsList()) {
+@if (itemsList().totalItems > 0){
   <lightgallery class="gallery" [settings]="gallerySettings()">
     <table class="mat-elevation-z8 table" mat-table [dataSource]="itemsList().items">
       <ng-container matColumnDef="image">
