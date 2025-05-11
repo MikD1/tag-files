@@ -23,7 +23,9 @@
     />
     <mat-autocomplete #auto="matAutocomplete" (optionSelected)="selectedTag($event); tagInput.value = ''">
       @for (tag of filteredTags(); track tag) {
-        <mat-option [value]="tag">{{ tag }}</mat-option>
+        <mat-option [value]="tag">
+          <mat-chip>{{ tag }}</mat-chip>
+        </mat-option>
       }
     </mat-autocomplete>
   </mat-form-field>
