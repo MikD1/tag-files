@@ -1,0 +1,30 @@
+<form>
+  <mat-form-field appearance="outline" class="tags-field">
+    <mat-label>Tags</mat-label>
+    <mat-chip-grid #chipGrid>
+      @for (tag of tags(); track $index) {
+        <mat-chip-row (removed)="removeTag(tag)">
+          {{ tag }}
+          <button matChipRemove>
+            <mat-icon>cancel</mat-icon>
+          </button>
+        </mat-chip-row>
+      }
+    </mat-chip-grid>
+    <input
+      #tagInput
+      (matChipInputTokenEnd)="addTag($event)"
+      [(ngModel)]="currentTag"
+      [matAutocomplete]="auto"
+      [matChipInputFor]="chipGrid"
+      [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
+      name="currentTag"
+      placeholder="New Tag..."
+    />
+    <mat-autocomplete #auto="matAutocomplete" (optionSelected)="selectedTag($event); tagInput.value = ''">
+      @for (tag of filteredTags(); track tag) {
+        <mat-option [value]="tag">{{ tag }}</mat-option>
+      }
+    </mat-autocomplete>
+  </mat-form-field>
+</form>

@@ -5,7 +5,7 @@
   </button>
 </div>
 <mat-dialog-content class="mat-typography">
-  <div class="container">
+  <div class="main-section">
     <img [src]="getFullThumbnailPath()" alt="" class="item-image"/>
     <div>
       <h3>ID: {{ data.item.id }}</h3>
@@ -14,11 +14,13 @@
       @if (data.item.videoDuration) {
         <h3>Duration: {{ data.item.videoDuration }}</h3>
       }
-      <mat-chip-set>
-        @for (tag of data.item.tags; track $index) {
-          <mat-chip>{{ tag }}</mat-chip>
-        }
-      </mat-chip-set>
     </div>
   </div>
+
+  <div class="tags-section">
+    <app-tags-form [(tags)]="tags"></app-tags-form>
+  </div>
 </mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button (click)="saveClick()" mat-button>Save</button>
+</mat-dialog-actions>
