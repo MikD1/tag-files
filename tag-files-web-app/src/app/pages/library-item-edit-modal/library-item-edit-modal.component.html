@@ -6,10 +6,10 @@
 </div>
 <mat-dialog-content class="mat-typography">
   <div class="container">
-    <img [src]="getFullThumbnailPath()" alt="" class="item-image"/>
+    <img [src]="getFullThumbnailPath()" alt="" class="item-image" />
     <div>
       <h3>ID: {{ data.item.id }}</h3>
-      <h3>Uploaded on: {{ data.item.uploadedOn | date: 'dd.MM.yyyy' }}</h3>
+      <h3>Uploaded on: {{ data.item.uploadedOn | date: "dd.MM.yyyy" }}</h3>
       <h3>Type: {{ data.item.type }} ({{ data.item.mediaType }})</h3>
       @if (data.item.videoDuration) {
         <h3>Duration: {{ data.item.videoDuration }}</h3>

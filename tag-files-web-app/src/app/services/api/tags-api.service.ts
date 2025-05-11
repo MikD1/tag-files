@@ -1,12 +1,13 @@
-import {inject, Injectable} from '@angular/core';
-import {HttpClient} from '@angular/common/http';
-import {Observable} from 'rxjs';
+import { HttpClient } from "@angular/common/http";
+import { inject, Injectable } from "@angular/core";
+
+import type { Observable } from "rxjs";
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root",
 })
 export class TagsApiService {
-  private baseUrl = 'http://localhost:5001/api';
+  private readonly baseUrl = "http://localhost:5001/api";
   private readonly http = inject(HttpClient);
 
   getTags(): Observable<string[]> {
