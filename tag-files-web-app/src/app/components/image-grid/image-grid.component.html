@@ -1,4 +1,4 @@
-@if (itemsList()) {
+@if (itemsList().totalItems > 0) {
   <lightgallery class="gallery" [settings]="gallerySettings()"
                 [style.grid-template-columns]="'repeat(' + getGridColumns() + ', 1fr)'">
     @for (libraryItem of itemsList().items; track $index) {
