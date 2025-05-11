@@ -10,7 +10,6 @@ import {DatePipe} from '@angular/common';
 import {MatDialog} from '@angular/material/dialog';
 import {LibraryItemEditModalComponent} from '../../pages/library-item-edit-modal/library-item-edit-modal.component';
 
-
 const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 
 @Component({
@@ -23,7 +22,7 @@ export class ImageListComponent {
   gallerySettings = input.required<LightGallerySettings>();
   itemsList = input.required<LibraryItemPaginatedList>();
   protected fileTypes = FileType;
-  protected displayedColumns = ['image', 'tags', 'uploadedOn', 'actions'];
+  protected displayedColumns = ['image', 'duration', 'tags', 'uploadedOn', 'actions'];
   private dialog = inject(MatDialog);
 
   protected getFullThumbnailPath(thumbnailPath?: string): string {

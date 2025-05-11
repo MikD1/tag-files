@@ -18,11 +18,11 @@
       </div>
     }
     <div class="button-group">
-      <button (click)="this.appStateService.setListGalleryView()" mat-icon-button title="List view">
-        <mat-icon [style.color]="galleryViewType() == galleryViewTypes.List ? '#5c77aa' : ''">view_list</mat-icon>
-      </button>
       <button (click)="this.appStateService.setGridGalleryView()" mat-icon-button title="Grid view">
         <mat-icon [style.color]="galleryViewType() == galleryViewTypes.Grid ? '#5c77aa' : ''">apps</mat-icon>
+      </button>
+      <button (click)="this.appStateService.setListGalleryView()" mat-icon-button title="List view">
+        <mat-icon [style.color]="galleryViewType() == galleryViewTypes.List ? '#5c77aa' : ''">view_list</mat-icon>
       </button>
     </div>
   </div>

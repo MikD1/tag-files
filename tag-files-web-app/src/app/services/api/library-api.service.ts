@@ -1,6 +1,6 @@
 import {inject, Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
-import {Observable} from 'rxjs';
+import {map, Observable} from 'rxjs';
 
 export enum FileType {
   Unknown = 'Unknown',
@@ -29,7 +29,8 @@ export interface LibraryItem {
   description?: string;
   uploadedOn: string;
   type: FileType;
-  mediaType?: string | null;
+  mediaType?: string;
+  videoDuration?: string
   tags: string[];
 }
 
@@ -52,10 +53,32 @@ export class LibraryApiService {
   }
 
   search(request: SearchRequest): Observable<LibraryItemPaginatedList> {
-    return this.http.post<LibraryItemPaginatedList>(`${this.baseUrl}/library/search`, request);
+    return this.http.post<LibraryItemPaginatedList>(`${this.baseUrl}/library/search`, request).pipe(
+      map(response => ({
+        ...response,
+        items: response.items.map(item => ({
+          ...item,
+          videoDuration: item.videoDuration ? convertDuration(item.videoDuration) : undefined
+        }))
+      }))
+    );
   }
 
   assignTags(request: AssignTagsRequest): Observable<LibraryItem[]> {
     return this.http.post<LibraryItem[]>(`${this.baseUrl}/library/assign-tags`, request);
+  }
+}
+
+function convertDuration(input: string): string {
+  const [hoursStr, minutesStr, secondsFractionStr] = input.split(":");
+
+  const hours = parseInt(hoursStr, 10);
+  const minutes = parseInt(minutesStr, 10);
+  const seconds = Math.floor(parseFloat(secondsFractionStr));
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  } else {
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   }
 }
