@@ -4,6 +4,7 @@ import {MatChip, MatChipSet} from '@angular/material/chips';
 import {MatIconModule} from '@angular/material/icon';
 import {MAT_DIALOG_DATA, MatDialogClose, MatDialogContent, MatDialogTitle} from '@angular/material/dialog';
 import {MatIconButton} from '@angular/material/button';
+import {DatePipe} from '@angular/common';
 
 
 const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
@@ -21,7 +22,8 @@ export interface LibraryItemEditModalData {
     MatDialogTitle,
     MatDialogContent,
     MatDialogClose,
-    MatIconButton
+    MatIconButton,
+    DatePipe
   ],
   templateUrl: './library-item-edit-modal.component.html',
   styleUrl: './library-item-edit-modal.component.scss',

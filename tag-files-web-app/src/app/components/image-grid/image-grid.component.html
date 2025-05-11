@@ -8,7 +8,7 @@
         </a>
       }
       @if (libraryItem.type == fileTypes.Video) {
-        <a class="gallery-item video-item" href="" [attr.data-video]="getVideoData(libraryItem)">
+        <a class="gallery-item" href="" [attr.data-video]="getVideoData(libraryItem)">
           <img class="gallery-item-image" [src]="getFullThumbnailPath(libraryItem.thumbnailPath)" alt=""/>
           <span class="video-duration">{{ libraryItem.videoDuration }}</span>
         </a>
