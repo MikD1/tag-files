@@ -6,24 +6,26 @@
     <h2>Tag Files</h2>
   </div>
   <app-search-bar class="search-bar"></app-search-bar>
-  <div class="controls">
-    @if (galleryViewType() == galleryViewTypes.Grid) {
+  @if (isLibraryPage()) {
+    <div class="controls">
+      @if (galleryViewType() == galleryViewTypes.Grid) {
+        <div class="button-group">
+          <button mat-icon-button (click)="this.appStateService.increaseMainGridColumns()">
+            <mat-icon>add</mat-icon>
+          </button>
+          <button mat-icon-button (click)="this.appStateService.decreaseMainGridColumns()">
+            <mat-icon>remove</mat-icon>
+          </button>
+        </div>
+      }
       <div class="button-group">
-        <button mat-icon-button (click)="this.appStateService.increaseMainGridColumns()">
-          <mat-icon>add</mat-icon>
+        <button (click)="this.appStateService.setGridGalleryView()" mat-icon-button title="Grid view">
+          <mat-icon [style.color]="galleryViewType() == galleryViewTypes.Grid ? '#5c77aa' : ''">apps</mat-icon>
         </button>
-        <button mat-icon-button (click)="this.appStateService.decreaseMainGridColumns()">
-          <mat-icon>remove</mat-icon>
+        <button (click)="this.appStateService.setListGalleryView()" mat-icon-button title="List view">
+          <mat-icon [style.color]="galleryViewType() == galleryViewTypes.List ? '#5c77aa' : ''">view_list</mat-icon>
         </button>
       </div>
-    }
-    <div class="button-group">
-      <button (click)="this.appStateService.setGridGalleryView()" mat-icon-button title="Grid view">
-        <mat-icon [style.color]="galleryViewType() == galleryViewTypes.Grid ? '#5c77aa' : ''">apps</mat-icon>
-      </button>
-      <button (click)="this.appStateService.setListGalleryView()" mat-icon-button title="List view">
-        <mat-icon [style.color]="galleryViewType() == galleryViewTypes.List ? '#5c77aa' : ''">view_list</mat-icon>
-      </button>
     </div>
-  </div>
+  }
 </mat-toolbar>

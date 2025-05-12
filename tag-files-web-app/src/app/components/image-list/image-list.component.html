@@ -1,56 +1,54 @@
-@if (itemsList().totalItems > 0){
-  <lightgallery class="gallery" [settings]="gallerySettings()">
-    <table class="mat-elevation-z8 table" mat-table [dataSource]="itemsList().items">
-      <ng-container matColumnDef="image">
-        <th mat-header-cell *matHeaderCellDef></th>
-        <td mat-cell *matCellDef="let element">
-          @if (element.type == fileTypes.Image) {
-            <div class="gallery-item" [attr.data-src]="getFullContentPath(element.path)">
-              <img class="gallery-item-image" [src]="getFullThumbnailPath(element.thumbnailPath)" alt=""/>
-            </div>
+<lightgallery [settings]="gallerySettings()" class="gallery">
+  <table [dataSource]="itemsList().items" class="mat-elevation-z8 table" mat-table>
+    <ng-container matColumnDef="image">
+      <th *matHeaderCellDef mat-header-cell></th>
+      <td *matCellDef="let element" mat-cell>
+        @if (element.type == fileTypes.Image) {
+          <div class="gallery-item" [attr.data-src]="getFullContentPath(element.path)">
+            <img class="gallery-item-image" [src]="getFullThumbnailPath(element.thumbnailPath)" alt=""/>
+          </div>
+        }
+        @if (element.type == fileTypes.Video) {
+          <div class="gallery-item" [attr.data-video]="getVideoData(element)">
+            <img class="gallery-item-image" [src]="getFullThumbnailPath(element.thumbnailPath)" alt=""/>
+          </div>
+        }
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="duration">
+      <th *matHeaderCellDef mat-header-cell>Duration</th>
+      <td *matCellDef="let element" mat-cell>
+        @if (element.videoDuration) {
+          {{ element.videoDuration }}
+        }
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="tags">
+      <th *matHeaderCellDef mat-header-cell> Tags</th>
+      <td *matCellDef="let element" mat-cell>
+        <mat-chip-set>
+          @for (tag of element.tags; track $index) {
+            <mat-chip>{{ tag }}</mat-chip>
           }
-          @if (element.type == fileTypes.Video) {
-            <div class="gallery-item" [attr.data-video]="getVideoData(element)">
-              <img class="gallery-item-image" [src]="getFullThumbnailPath(element.thumbnailPath)" alt=""/>
-            </div>
-          }
-        </td>
-      </ng-container>
+        </mat-chip-set>
+      </td>
+    </ng-container>
 
-      <ng-container matColumnDef="duration">
-        <th mat-header-cell *matHeaderCellDef>Duration</th>
-        <td mat-cell *matCellDef="let element">
-          @if (element.videoDuration) {
-            {{ element.videoDuration }}
-          }
-        </td>
-      </ng-container>
+    <ng-container matColumnDef="uploadedOn">
+      <th *matHeaderCellDef mat-header-cell> Uploaded on</th>
+      <td *matCellDef="let element" mat-cell> {{ element.uploadedOn | date: 'dd.MM.yyyy' }}</td>
+    </ng-container>
 
-      <ng-container matColumnDef="tags">
-        <th mat-header-cell *matHeaderCellDef> Tags</th>
-        <td mat-cell *matCellDef="let element">
-          <mat-chip-set>
-            @for (tag of element.tags; track $index) {
-              <mat-chip>{{ tag }}</mat-chip>
-            }
-          </mat-chip-set>
-        </td>
-      </ng-container>
+    <ng-container matColumnDef="actions">
+      <th *matHeaderCellDef mat-header-cell></th>
+      <td *matCellDef="let element" mat-cell>
+        <button (click)="editItem(element)" class="edit-button" mat-button>Edit</button>
+      </td>
+    </ng-container>
 
-      <ng-container matColumnDef="uploadedOn">
-        <th mat-header-cell *matHeaderCellDef> Uploaded on</th>
-        <td mat-cell *matCellDef="let element"> {{ element.uploadedOn | date: 'dd.MM.yyyy' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="actions">
-        <th mat-header-cell *matHeaderCellDef></th>
-        <td mat-cell *matCellDef="let element">
-          <button class="edit-button" (click)="editItem(element)" mat-button>Edit</button>
-        </td>
-      </ng-container>
-
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-    </table>
-  </lightgallery>
-}
+    <tr *matHeaderRowDef="displayedColumns" mat-header-row></tr>
+    <tr *matRowDef="let row; columns: displayedColumns;" mat-row></tr>
+  </table>
+</lightgallery>

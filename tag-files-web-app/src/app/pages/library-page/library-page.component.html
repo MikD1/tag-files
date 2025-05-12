@@ -1,11 +1,15 @@
-@if (galleryViewType() == galleryViewTypes.Grid) {
-  <app-image-grid
-    [gallerySettings]="gallerySettings"
-    [itemsList]="searchResults()">
-  </app-image-grid>
-} @else if (galleryViewType() == galleryViewTypes.List) {
-  <app-image-list
-    [gallerySettings]="gallerySettings"
-    [itemsList]="searchResults()">
-  </app-image-list>
+@if (searchResults().totalItems > 0) {
+  @if (galleryViewType() == galleryViewTypes.Grid) {
+    <app-image-grid
+      [gallerySettings]="gallerySettings"
+      [itemsList]="searchResults()">
+    </app-image-grid>
+  } @else if (galleryViewType() == galleryViewTypes.List) {
+    <app-image-list
+      [gallerySettings]="gallerySettings"
+      [itemsList]="searchResults()">
+    </app-image-list>
+  }
+} @else {
+  <h3 class="no-results-row">No search results</h3>
 }

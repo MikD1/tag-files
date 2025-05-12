@@ -1,18 +1,16 @@
-@if (itemsList().totalItems > 0) {
-  <lightgallery class="gallery" [settings]="gallerySettings()"
-                [style.grid-template-columns]="'repeat(' + getGridColumns() + ', 1fr)'">
-    @for (libraryItem of itemsList().items; track $index) {
-      @if (libraryItem.type == fileTypes.Image) {
-        <a class="gallery-item" [href]="getFullContentPath(libraryItem.path)">
-          <img class="gallery-item-image" [src]="getFullThumbnailPath(libraryItem.thumbnailPath)" alt=""/>
-        </a>
-      }
-      @if (libraryItem.type == fileTypes.Video) {
-        <a class="gallery-item" href="" [attr.data-video]="getVideoData(libraryItem)">
-          <img class="gallery-item-image" [src]="getFullThumbnailPath(libraryItem.thumbnailPath)" alt=""/>
-          <span class="video-duration">{{ libraryItem.videoDuration }}</span>
-        </a>
-      }
+<lightgallery [settings]="gallerySettings()" [style.grid-template-columns]="'repeat(' + getGridColumns() + ', 1fr)'"
+              class="gallery">
+  @for (libraryItem of itemsList().items; track $index) {
+    @if (libraryItem.type == fileTypes.Image) {
+      <a class="gallery-item" [href]="getFullContentPath(libraryItem.path)">
+        <img class="gallery-item-image" [src]="getFullThumbnailPath(libraryItem.thumbnailPath)" alt=""/>
+      </a>
     }
-  </lightgallery>
-}
+    @if (libraryItem.type == fileTypes.Video) {
+      <a class="gallery-item" href="" [attr.data-video]="getVideoData(libraryItem)">
+        <img class="gallery-item-image" [src]="getFullThumbnailPath(libraryItem.thumbnailPath)" alt=""/>
+        <span class="video-duration">{{ libraryItem.videoDuration }}</span>
+      </a>
+    }
+  }
+</lightgallery>

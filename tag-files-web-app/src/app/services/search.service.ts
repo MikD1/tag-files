@@ -1,5 +1,6 @@
 import {inject, Injectable, signal} from '@angular/core';
 import {FileType, LibraryApiService, LibraryItemPaginatedList} from './api/library-api.service';
+import {Router} from '@angular/router';
 
 const emptyResults = {
   items: [],
@@ -14,6 +15,7 @@ const emptyResults = {
 export class SearchService {
   readonly searchResults = signal<LibraryItemPaginatedList>(emptyResults);
   private readonly libraryApiService = inject(LibraryApiService);
+  private readonly router = inject(Router);
 
   constructor() {
     this.search();
@@ -26,7 +28,10 @@ export class SearchService {
       pageIndex: 1,
       pageSize: 100
     }).subscribe((result) => {
-      this.searchResults.set(result)
+      this.searchResults.set(result);
+      if (this.router.url !== '/library') {
+        this.router.navigate(['/library']);
+      }
     })
   }
 }
