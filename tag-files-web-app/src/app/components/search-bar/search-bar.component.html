@@ -1,7 +1,7 @@
 <button (click)="this.search()" mat-icon-button>
   <mat-icon>search</mat-icon>
 </button>
-<input (keydown.enter)="this.search()" [formControl]="searchQuery" placeholder="Search" type="text"/>
+<input (keydown.enter)="this.search()" [formControl]="searchQuery" placeholder="Search in library" type="text"/>
 <button (click)="toggleImage()" mat-icon-button>
   <mat-icon [style.color]="isImageSelected() ? '#5c77aa' : ''">panorama</mat-icon>
 </button>

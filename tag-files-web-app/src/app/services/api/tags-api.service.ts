@@ -2,6 +2,11 @@ import {inject, Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {Observable} from 'rxjs';
 
+export interface TagStatistics {
+  tagName: string;
+  usageCount: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -15,5 +20,9 @@ export class TagsApiService {
 
   createTag(tag: string): Observable<void> {
     return this.http.post<void>(`${this.baseUrl}/tags`, tag);
+  }
+
+  getTagStatistics(): Observable<TagStatistics[]> {
+    return this.http.get<TagStatistics[]>(`${this.baseUrl}/tags/statistics`);
   }
 }

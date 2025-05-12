@@ -1,4 +1,4 @@
-import {Component, inject, input} from '@angular/core';
+import {ChangeDetectionStrategy, Component, inject, input} from '@angular/core';
 import {LightgalleryModule} from 'lightgallery/angular';
 import {MatTableModule} from '@angular/material/table';
 import {MatChipsModule} from '@angular/material/chips';
@@ -16,13 +16,14 @@ const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
   selector: 'app-image-list',
   imports: [LightgalleryModule, MatTableModule, MatChipsModule, MatIconModule, MatButtonModule, DatePipe],
   templateUrl: './image-list.component.html',
-  styleUrl: './image-list.component.scss'
+  styleUrl: './image-list.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ImageListComponent {
   gallerySettings = input.required<LightGallerySettings>();
   itemsList = input.required<LibraryItemPaginatedList>();
-  protected fileTypes = FileType;
-  protected displayedColumns = ['image', 'duration', 'tags', 'uploadedOn', 'actions'];
+  protected readonly fileTypes = FileType;
+  protected readonly displayedColumns = ['image', 'duration', 'tags', 'uploadedOn', 'actions'];
   private dialog = inject(MatDialog);
 
   protected getFullThumbnailPath(thumbnailPath?: string): string {
