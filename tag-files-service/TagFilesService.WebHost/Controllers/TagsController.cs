@@ -34,7 +34,7 @@ public class TagsController(ITagsRepository tagsRepository, IMediator mediator) 
         return Ok();
     }
 
-    [HttpGet("/statistics")]
+    [HttpGet("statistics")]
     public async Task<ActionResult<List<TagStatisticsDto>>> GetStatistics()
     {
         GetTagsStatisticsRequest request = new();
