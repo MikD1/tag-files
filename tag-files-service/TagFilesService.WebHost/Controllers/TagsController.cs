@@ -1,11 +1,13 @@
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using TagFilesService.Library.Contracts;
 using TagFilesService.Model;
 
 namespace TagFilesService.WebHost.Controllers;
 
 [ApiController]
 [Route("api/tags")]
-public class TagsController(ITagsRepository tagsRepository) : ControllerBase
+public class TagsController(ITagsRepository tagsRepository, IMediator mediator) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<List<string>>> GetTags()
@@ -30,5 +32,13 @@ public class TagsController(ITagsRepository tagsRepository) : ControllerBase
         tag.Rename(newName);
         await tagsRepository.SaveTag(tag);
         return Ok();
+    }
+
+    [HttpGet("/statistics")]
+    public async Task<ActionResult<List<TagStatisticsDto>>> GetStatistics()
+    {
+        GetTagsStatisticsRequest request = new();
+        List<TagStatisticsDto> result = await mediator.Send(request);
+        return result;
     }
 }
