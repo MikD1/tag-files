@@ -19,7 +19,15 @@ export class TagsApiService {
   }
 
   createTag(tag: string): Observable<void> {
-    return this.http.post<void>(`${this.baseUrl}/tags`, tag);
+    return this.http.post<void>(`${this.baseUrl}/tags`, `"${tag}"`, {
+      headers: {'Content-Type': 'application/json'}
+    });
+  }
+
+  updateTag(name: string, newName: string): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/tags/${name}`, `"${newName}"`, {
+      headers: {'Content-Type': 'application/json'}
+    });
   }
 
   getTagStatistics(): Observable<TagStatistics[]> {

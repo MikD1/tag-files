@@ -22,11 +22,10 @@
   cursor: pointer;
 }
 
-
-::ng-deep .table tr:hover .edit-button {
-  opacity: 1;
-}
-
 .edit-button {
   opacity: 0;
+}
+
+.table tr:hover .edit-button {
+  opacity: 1;
 }

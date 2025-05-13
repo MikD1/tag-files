@@ -6,6 +6,8 @@ import {MatChipsModule} from '@angular/material/chips';
 import {MatListModule} from '@angular/material/list';
 import {MatIconModule} from '@angular/material/icon';
 import {SearchService} from '../../services/search.service';
+import {MatDialog} from '@angular/material/dialog';
+import {TagEditModalComponent} from '../../pages/tag-edit-modal/tag-edit-modal.component';
 
 @Component({
   selector: 'app-tags-table',
@@ -25,6 +27,7 @@ export class TagsTableComponent {
   protected readonly displayedColumns = ['tag', 'usageCount', 'actions'];
   private readonly tagsService = inject(TagsApiService);
   private readonly searchService = inject(SearchService);
+  private dialog = inject(MatDialog);
 
   constructor() {
     effect(() => {
@@ -34,10 +37,24 @@ export class TagsTableComponent {
     });
   }
 
-  protected tagCLick(tag: string) {
+  protected tagClick(tag: string) {
     this.searchService.searchQuery.setValue(tag);
     this.searchService.isVideoSelected.update(() => false)
     this.searchService.isImageSelected.update(() => false)
     this.searchService.search();
+  }
+
+  protected editItem(tag: string) {
+    const dialogRef = this.dialog.open(TagEditModalComponent, {
+      data: {
+        tag: tag
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result === true) {
+        window.location.reload();
+      }
+    });
   }
 }

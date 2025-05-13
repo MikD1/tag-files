@@ -10,3 +10,11 @@
   margin-left: 17px;
   margin-top: 15px;
 }
+
+.edit-button {
+  opacity: 0;
+}
+
+.table tr:hover .edit-button {
+  opacity: 1;
+}

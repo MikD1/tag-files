@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, inject, input} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, inject, input, OnChanges, SimpleChanges} from '@angular/core';
 import {MatGridListModule} from '@angular/material/grid-list';
 import {AppStateService} from '../../services/app-state.service';
 import {LightgalleryModule} from 'lightgallery/angular';
@@ -14,10 +14,9 @@ const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
   styleUrl: './image-grid.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ImageGridComponent {
+export class ImageGridComponent implements OnChanges {
   gallerySettings = input.required<LightGallerySettings>();
   itemsList = input.required<LibraryItemPaginatedList>();
-
   protected fileTypes = FileType;
   private readonly appStateService = inject(AppStateService);
   protected readonly getGridColumns = computed(() => {
@@ -25,6 +24,12 @@ export class ImageGridComponent {
     const level = this.appStateService.getGalleryThumbnailSize();
     return 4 + (max - level);
   })
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['itemsList'].currentValue != changes['itemsList'].previousValue) {
+      console.log('need refresh');
+    }
+  }
 
   protected getFullThumbnailPath(thumbnailPath?: string): string {
     if (!thumbnailPath) {

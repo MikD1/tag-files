@@ -62,7 +62,7 @@ export class LibraryItemEditModalComponent {
         this.dialogRef.close(true);
       },
       error: (err) => {
-        console.error('Error saving tags:', err);
+        console.error('Error assign tags:', err);
       },
     });
   }

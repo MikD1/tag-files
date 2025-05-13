@@ -1,0 +1,11 @@
+<div class="header" mat-dialog-title>Edit tag</div>
+<mat-dialog-content class="mat-typography">
+  <mat-form-field appearance="outline" class="tag-name-field">
+    <mat-label>Tag name</mat-label>
+    <input [formControl]="tagName" cdkFocusInitial matInput>
+  </mat-form-field>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Cancel</button>
+  <button (click)="saveClick()" mat-button>Save</button>
+</mat-dialog-actions>
