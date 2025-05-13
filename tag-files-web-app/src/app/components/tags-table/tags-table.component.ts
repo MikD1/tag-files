@@ -5,6 +5,7 @@ import {MatButtonModule} from '@angular/material/button';
 import {MatChipsModule} from '@angular/material/chips';
 import {MatListModule} from '@angular/material/list';
 import {MatIconModule} from '@angular/material/icon';
+import {SearchService} from '../../services/search.service';
 
 @Component({
   selector: 'app-tags-table',
@@ -23,6 +24,7 @@ export class TagsTableComponent {
   protected readonly tags = signal<TagStatistics[]>([]);
   protected readonly displayedColumns = ['tag', 'usageCount', 'actions'];
   private readonly tagsService = inject(TagsApiService);
+  private readonly searchService = inject(SearchService);
 
   constructor() {
     effect(() => {
@@ -30,5 +32,12 @@ export class TagsTableComponent {
         this.tags.set(result);
       });
     });
+  }
+
+  protected tagCLick(tag: string) {
+    this.searchService.searchQuery.setValue(tag);
+    this.searchService.isVideoSelected.update(() => false)
+    this.searchService.isImageSelected.update(() => false)
+    this.searchService.search();
   }
 }

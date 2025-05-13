@@ -1,6 +1,7 @@
 import {inject, Injectable, signal} from '@angular/core';
 import {FileType, LibraryApiService, LibraryItemPaginatedList} from './api/library-api.service';
 import {Router} from '@angular/router';
+import {FormControl} from '@angular/forms';
 
 const emptyResults = {
   items: [],
@@ -13,6 +14,9 @@ const emptyResults = {
   providedIn: 'root'
 })
 export class SearchService {
+  readonly searchQuery = new FormControl<string>('');
+  readonly isImageSelected = signal<boolean>(false);
+  readonly isVideoSelected = signal<boolean>(false);
   readonly searchResults = signal<LibraryItemPaginatedList>(emptyResults);
   private readonly libraryApiService = inject(LibraryApiService);
   private readonly router = inject(Router);
@@ -21,9 +25,17 @@ export class SearchService {
     this.search();
   }
 
-  search(query?: string, itemType?: FileType) {
+  search() {
+    let itemType = undefined
+    if (this.isImageSelected() && !this.isVideoSelected()) {
+      itemType = FileType.Image;
+    }
+    if (!this.isImageSelected() && this.isVideoSelected()) {
+      itemType = FileType.Video;
+    }
+
     this.libraryApiService.search({
-      tagQuery: query,
+      tagQuery: this.searchQuery.value ? this.searchQuery.value : undefined,
       itemType: itemType,
       pageIndex: 1,
       pageSize: 100

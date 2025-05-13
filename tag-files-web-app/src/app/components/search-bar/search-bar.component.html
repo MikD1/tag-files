@@ -1,10 +1,11 @@
 <button (click)="this.search()" mat-icon-button>
   <mat-icon>search</mat-icon>
 </button>
-<input (keydown.enter)="this.search()" [formControl]="searchQuery" placeholder="Search in library" type="text"/>
+<input (keydown.enter)="this.search()" [formControl]="searchService.searchQuery" placeholder="Search in library"
+       type="text"/>
 <button (click)="toggleImage()" mat-icon-button>
-  <mat-icon [style.color]="isImageSelected() ? '#5c77aa' : ''">panorama</mat-icon>
+  <mat-icon [style.color]="searchService.isImageSelected() ? '#5c77aa' : ''">panorama</mat-icon>
 </button>
 <button (click)="toggleVideo()" mat-icon-button>
-  <mat-icon [style.color]="isVideoSelected() ? '#5c77aa' : ''">smart_display</mat-icon>
+  <mat-icon [style.color]="searchService.isVideoSelected() ? '#5c77aa' : ''">smart_display</mat-icon>
 </button>
