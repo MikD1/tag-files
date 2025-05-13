@@ -1,6 +1,5 @@
 import {inject, Injectable, signal} from '@angular/core';
 import {FileType, LibraryApiService, LibraryItemPaginatedList} from './api/library-api.service';
-import {Router} from '@angular/router';
 import {FormControl} from '@angular/forms';
 
 const emptyResults = {
@@ -19,7 +18,6 @@ export class SearchService {
   readonly isVideoSelected = signal<boolean>(false);
   readonly searchResults = signal<LibraryItemPaginatedList>(emptyResults);
   private readonly libraryApiService = inject(LibraryApiService);
-  private readonly router = inject(Router);
 
   constructor() {
     this.search();
@@ -41,9 +39,6 @@ export class SearchService {
       pageSize: 100
     }).subscribe((result) => {
       this.searchResults.set(result);
-      if (this.router.url !== '/library') {
-        this.router.navigate(['/library']);
-      }
     })
   }
 }

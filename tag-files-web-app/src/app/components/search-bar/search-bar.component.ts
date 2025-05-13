@@ -3,6 +3,7 @@ import {ReactiveFormsModule} from '@angular/forms';
 import {MatButtonModule} from '@angular/material/button';
 import {MatIconModule} from '@angular/material/icon';
 import {SearchService} from '../../services/search.service';
+import {Router} from '@angular/router';
 
 @Component({
   selector: 'app-search-bar',
@@ -13,9 +14,13 @@ import {SearchService} from '../../services/search.service';
 })
 export class SearchBarComponent {
   protected readonly searchService = inject(SearchService);
+  private readonly router = inject(Router);
 
   protected search() {
     this.searchService.search();
+    if (this.router.url !== '/library') {
+      this.router.navigate(['/library']);
+    }
   }
 
   protected toggleImage() {

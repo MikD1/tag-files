@@ -8,6 +8,7 @@ import {MatIconModule} from '@angular/material/icon';
 import {SearchService} from '../../services/search.service';
 import {MatDialog} from '@angular/material/dialog';
 import {TagEditModalComponent} from '../../pages/tag-edit-modal/tag-edit-modal.component';
+import {Router} from '@angular/router';
 
 @Component({
   selector: 'app-tags-table',
@@ -28,6 +29,7 @@ export class TagsTableComponent {
   private readonly tagsService = inject(TagsApiService);
   private readonly searchService = inject(SearchService);
   private dialog = inject(MatDialog);
+  private readonly router = inject(Router);
 
   constructor() {
     effect(() => {
@@ -42,6 +44,7 @@ export class TagsTableComponent {
     this.searchService.isVideoSelected.update(() => false)
     this.searchService.isImageSelected.update(() => false)
     this.searchService.search();
+    this.router.navigate(['/library']);
   }
 
   protected editItem(tag: string) {
