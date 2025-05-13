@@ -27,4 +27,11 @@ export class SearchBarComponent {
     this.searchService.isVideoSelected.update(prev => !prev);
     this.search();
   }
+
+  protected clearSearch() {
+    this.searchService.isImageSelected.update(() => false);
+    this.searchService.isVideoSelected.update(() => false);
+    this.searchService.searchQuery.setValue('');
+    this.search();
+  }
 }

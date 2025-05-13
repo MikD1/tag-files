@@ -9,3 +9,6 @@
 <button (click)="toggleVideo()" mat-icon-button>
   <mat-icon [style.color]="searchService.isVideoSelected() ? '#5c77aa' : ''">smart_display</mat-icon>
 </button>
+<button (click)="clearSearch()" mat-icon-button>
+  <mat-icon>close</mat-icon>
+</button>
