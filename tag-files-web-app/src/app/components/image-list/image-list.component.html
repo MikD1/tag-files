@@ -1,4 +1,4 @@
-<lightgallery [settings]="gallerySettings()" class="gallery">
+<lightgallery [onInit]="onGalleryInit" [settings]="gallerySettings()" class="gallery">
   <table [dataSource]="itemsList().items" class="mat-elevation-z8 table" mat-table>
     <ng-container matColumnDef="image">
       <th *matHeaderCellDef mat-header-cell></th>

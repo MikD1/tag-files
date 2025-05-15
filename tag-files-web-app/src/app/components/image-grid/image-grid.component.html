@@ -1,4 +1,5 @@
-<lightgallery [settings]="gallerySettings()" [style.grid-template-columns]="'repeat(' + getGridColumns() + ', 1fr)'"
+<lightgallery [onInit]="onGalleryInit" [settings]="gallerySettings()"
+              [style.grid-template-columns]="'repeat(' + getGridColumns() + ', 1fr)'"
               class="gallery">
   @for (libraryItem of itemsList().items; track $index) {
     @if (libraryItem.type == fileTypes.Image) {

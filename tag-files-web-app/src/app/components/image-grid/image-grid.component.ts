@@ -1,9 +1,19 @@
-import {ChangeDetectionStrategy, Component, computed, inject, input, OnChanges, SimpleChanges} from '@angular/core';
+import {
+  AfterViewChecked,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  OnChanges,
+  SimpleChanges
+} from '@angular/core';
 import {MatGridListModule} from '@angular/material/grid-list';
 import {AppStateService} from '../../services/app-state.service';
 import {LightgalleryModule} from 'lightgallery/angular';
 import {FileType, LibraryItem, LibraryItemPaginatedList} from '../../services/api/library-api.service';
 import {LightGallerySettings} from 'lightgallery/lg-settings';
+import {LightGallery} from 'lightgallery/lightgallery';
 
 const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 
@@ -14,10 +24,12 @@ const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
   styleUrl: './image-grid.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ImageGridComponent implements OnChanges {
+export class ImageGridComponent implements OnChanges, AfterViewChecked {
   gallerySettings = input.required<LightGallerySettings>();
   itemsList = input.required<LibraryItemPaginatedList>();
   protected fileTypes = FileType;
+  private lightGallery?: LightGallery;
+  private needRefresh = true;
   private readonly appStateService = inject(AppStateService);
   protected readonly getGridColumns = computed(() => {
     const max = 7;
@@ -25,11 +37,22 @@ export class ImageGridComponent implements OnChanges {
     return 4 + (max - level);
   })
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['itemsList'].currentValue != changes['itemsList'].previousValue) {
-      console.log('need refresh');
+  ngAfterViewChecked(): void {
+    if (this.needRefresh && this.lightGallery) {
+      this.lightGallery.refresh();
+      this.needRefresh = false;
     }
   }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['itemsList'].currentValue != changes['itemsList'].previousValue) {
+      this.needRefresh = true;
+    }
+  }
+
+  protected onGalleryInit = (detail: any): void => {
+    this.lightGallery = detail.instance;
+  };
 
   protected getFullThumbnailPath(thumbnailPath?: string): string {
     if (!thumbnailPath) {
