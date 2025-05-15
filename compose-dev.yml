@@ -23,6 +23,9 @@ services:
       - minio
     environment:
       - "ConnectionStrings__SQLite=Data Source=/app/data/tag-files.db"
+      - "S3__Url=minio:5010"
+      - "S3__Username=admin"
+      - "S3__Password=12345678"
 
   tag-files-web-app:
     image: ghcr.io/mikd1/tag-files-web-app:latest
