@@ -24,8 +24,8 @@ builder.Services.AddCors(x => x.AddPolicy("AllowAll", policy =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("SQLite")));
 builder.Services.AddMinio(configure => configure
-    .WithEndpoint("localhost:5010")
-    .WithCredentials("admin", "12345678")
+    .WithEndpoint(builder.Configuration["S3:Url"])
+    .WithCredentials(builder.Configuration["S3:Username"], builder.Configuration["S3:Password"])
     .WithSSL(false)
     .Build());
 builder.Services.AddScoped<MetadataService>();

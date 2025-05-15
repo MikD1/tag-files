@@ -17,6 +17,7 @@ public class TemporaryBucketWatcher(
             minioClient.ListenBucketNotificationsAsync(Buckets.Temporary, [EventType.ObjectCreatedAll],
                 cancellationToken: cancellationToken);
         _subscription = observable.Subscribe(OnNext);
+        logger.LogInformation("Temporary bucket watcher service started");
         return Task.CompletedTask;
     }
 
