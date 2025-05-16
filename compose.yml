@@ -13,23 +13,26 @@ services:
       - MINIO_ROOT_PASSWORD=12345678
   
   tag-files-service:
-      build:
-        context: ./tag-files-service
-        dockerfile: Dockerfile
-      container_name: tag-files-service
-      ports:
-        - '5001:8080'
-      volumes:
-        - './data:/app/data'
-      depends_on:
-        - minio
-      environment:
-        - 'ConnectionStrings__SQLite=Data Source=/app/data/tag-files.db'
+    build:
+      context: ./tag-files-service
+      dockerfile: Dockerfile
+    container_name: tag-files-service
+    ports:
+      - '5001:8080'
+    volumes:
+      - './data:/app/data'
+    depends_on:
+      - minio
+    environment:
+      - 'ConnectionStrings__SQLite=Data Source=/app/data/tag-files.db'
+      - "S3__Url=minio:9000"
+      - "S3__Username=admin"
+      - "S3__Password=12345678"
   
   tag-files-web-app:
-     build:
-       context: ./tag-files-web-app
-       dockerfile: Dockerfile
-     container_name: tag-files-web-app
-     ports:
-       - "4200:4200"
+    build:
+      context: ./tag-files-web-app
+      dockerfile: Dockerfile
+    container_name: tag-files-web-app
+    ports:
+      - "4200:4200"

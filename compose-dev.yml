@@ -23,7 +23,7 @@ services:
       - minio
     environment:
       - "ConnectionStrings__SQLite=Data Source=/app/data/tag-files.db"
-      - "S3__Url=minio:5010"
+      - "S3__Url=minio:9000"
       - "S3__Username=admin"
       - "S3__Password=12345678"
 
