@@ -1,19 +1,18 @@
-using System.Collections.Concurrent;
+using System.Threading.Channels;
 
 namespace TagFilesService.FilesProcessing;
 
 public class VideoConversionQueue
 {
-    public void Enqueue(string fileName)
+    public async Task Enqueue(string fileName, CancellationToken cancellationToken)
     {
-        _queue.Enqueue(fileName);
+        await _queue.Writer.WriteAsync(fileName, cancellationToken);
     }
 
-    public bool TryDequeue(out string? fileName)
+    public async Task<string> Dequeue(CancellationToken cancellationToken)
     {
-        return _queue.TryDequeue(out fileName);
+        return await _queue.Reader.ReadAsync(cancellationToken);
     }
 
-    // TODO: Try Channel<T> instead of ConcurrentQueue<T>
-    private readonly ConcurrentQueue<string> _queue = new();
+    private readonly Channel<string> _queue = Channel.CreateUnbounded<string>();
 }

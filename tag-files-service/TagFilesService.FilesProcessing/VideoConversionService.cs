@@ -15,8 +15,8 @@ public class VideoConversionService(
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("VideoFileConverterService started.");
-        return Task.Run(() => ProcessTaskQueue(stoppingToken), stoppingToken);
+        logger.LogInformation("VideoFileConverterService is starting.");
+        return ProcessTaskQueue(stoppingToken);
     }
 
     private async Task ProcessTaskQueue(CancellationToken stoppingToken)
@@ -25,11 +25,7 @@ public class VideoConversionService(
         {
             try
             {
-                if (!queue.TryDequeue(out string? fileName))
-                {
-                    await Task.Delay(200, stoppingToken);
-                    continue;
-                }
+                string fileName = await queue.Dequeue(stoppingToken);
 
                 logger.LogInformation("Processing video file: {VideoFile}", fileName);
                 await Task.Delay(5000, stoppingToken);
