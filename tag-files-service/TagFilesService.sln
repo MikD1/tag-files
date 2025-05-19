@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.WebHost", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.Library", "TagFilesService.Library\TagFilesService.Library.csproj", "{2F8EE5FF-BB82-4F1C-8843-D99C9BF3FDBB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TagFilesService.FilesProcessing", "TagFilesService.FilesProcessing\TagFilesService.FilesProcessing.csproj", "{F1C41263-4194-4FF7-BD36-5859982C9223}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -42,5 +44,9 @@ Global
 		{2F8EE5FF-BB82-4F1C-8843-D99C9BF3FDBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2F8EE5FF-BB82-4F1C-8843-D99C9BF3FDBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2F8EE5FF-BB82-4F1C-8843-D99C9BF3FDBB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F1C41263-4194-4FF7-BD36-5859982C9223}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F1C41263-4194-4FF7-BD36-5859982C9223}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F1C41263-4194-4FF7-BD36-5859982C9223}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F1C41263-4194-4FF7-BD36-5859982C9223}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

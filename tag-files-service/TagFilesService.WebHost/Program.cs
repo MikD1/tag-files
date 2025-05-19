@@ -1,10 +1,10 @@
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Minio;
+using TagFilesService.FilesProcessing;
 using TagFilesService.Infrastructure;
 using TagFilesService.Library;
 using TagFilesService.Model;
-using TagFilesService.WebHost;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services
@@ -12,7 +12,9 @@ builder.Services
     .AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(FilesProcessing).Assembly));
+builder.Services.AddMediatR(cfg => cfg
+    .RegisterServicesFromAssemblyContaining<FilesProcessing>()
+    .RegisterServicesFromAssemblyContaining<VideoConversionService>());
 builder.Services.AddCors(x => x.AddPolicy("AllowAll", policy =>
 {
     policy
@@ -31,7 +33,10 @@ builder.Services.AddMinio(configure => configure
 builder.Services.AddScoped<MetadataService>();
 builder.Services.AddScoped<FilesProcessing>();
 builder.Services.AddScoped<ITagsRepository, TagsRepository>();
-builder.Services.AddHostedService<TemporaryBucketWatcher>();
+
+// builder.Services.AddHostedService<TemporaryBucketWatcher>();
+builder.Services.AddSingleton<VideoConversionQueue>();
+builder.Services.AddHostedService<VideoConversionService>();
 
 WebApplication app = builder.Build();
 app.UseCors("AllowAll");

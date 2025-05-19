@@ -15,6 +15,8 @@ public sealed class AppDbContext : DbContext
 
     public DbSet<FileMetadata> FilesMetadata => Set<FileMetadata>();
 
+    public DbSet<ProcessingFile> ProcessingFiles => Set<ProcessingFile>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<FileMetadata>()

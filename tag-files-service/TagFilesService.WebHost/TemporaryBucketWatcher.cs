@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Minio;
 using Minio.DataModel.Notification;
-using TagFilesService.Library;
 using TagFilesService.Model;
 
 namespace TagFilesService.WebHost;
@@ -37,7 +36,7 @@ public class TemporaryBucketWatcher(
         }
 
         using IServiceScope scope = serviceScopeFactory.CreateScope();
-        FilesProcessing processing = scope.ServiceProvider.GetRequiredService<FilesProcessing>();
+        Library.FilesProcessing processing = scope.ServiceProvider.GetRequiredService<Library.FilesProcessing>();
         await processing.ProcessFile(info.FileName, info.MediaType);
     }
 
