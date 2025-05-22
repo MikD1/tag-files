@@ -12,4 +12,9 @@
     <PackageReference Include="Minio" Version="6.0.4" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\TagFilesService.Infrastructure\TagFilesService.Infrastructure.csproj" />
+    <ProjectReference Include="..\TagFilesService.Model\TagFilesService.Model.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -1,12 +1,17 @@
 using System.Text.Json;
+using MediatR;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Minio;
 using Minio.DataModel.Notification;
+using TagFilesService.FilesProcessing.Contracts;
 using TagFilesService.Model;
 
-namespace TagFilesService.WebHost;
+namespace TagFilesService.FilesProcessing;
 
-public class TemporaryBucketWatcher(
-    ILogger<TemporaryBucketWatcher> logger,
+public class BucketWatcher(
+    ILogger<BucketWatcher> logger,
     IMinioClient minioClient,
     IServiceScopeFactory serviceScopeFactory) : IHostedService
 {
@@ -16,13 +21,14 @@ public class TemporaryBucketWatcher(
             minioClient.ListenBucketNotificationsAsync(Buckets.Temporary, [EventType.ObjectCreatedAll],
                 cancellationToken: cancellationToken);
         _subscription = observable.Subscribe(OnNext);
-        logger.LogInformation("Temporary bucket watcher service started");
+        logger.LogInformation("BucketWatcher service started");
         return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
         _subscription?.Dispose();
+        logger.LogInformation("BucketWatcher service stopped");
         return Task.CompletedTask;
     }
 
@@ -35,9 +41,11 @@ public class TemporaryBucketWatcher(
             return;
         }
 
+        FileProcessingRequest request = new(info.FileName, info.MediaType);
+
         using IServiceScope scope = serviceScopeFactory.CreateScope();
-        Library.FilesProcessing processing = scope.ServiceProvider.GetRequiredService<Library.FilesProcessing>();
-        await processing.ProcessFile(info.FileName, info.MediaType);
+        IMediator mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        await mediator.Send(request);
     }
 
     private (string? FileName, string? MediaType) GetFileInfo(string json)

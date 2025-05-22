@@ -1,4 +1,4 @@
-namespace TagFilesService.Library;
+namespace TagFilesService.FilesProcessing;
 
 public static class VideoDurationParser
 {

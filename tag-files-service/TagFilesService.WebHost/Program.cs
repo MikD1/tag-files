@@ -13,8 +13,8 @@ builder.Services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddMediatR(cfg => cfg
-    .RegisterServicesFromAssemblyContaining<FilesProcessing>()
-    .RegisterServicesFromAssemblyContaining<VideoConversionService>());
+    .RegisterServicesFromAssemblyContaining<MetadataService>()
+    .RegisterServicesFromAssemblyContaining<FilesProcessingService>());
 builder.Services.AddCors(x => x.AddPolicy("AllowAll", policy =>
 {
     policy
@@ -31,12 +31,11 @@ builder.Services.AddMinio(configure => configure
     .WithSSL(false)
     .Build());
 builder.Services.AddScoped<MetadataService>();
-builder.Services.AddScoped<FilesProcessing>();
 builder.Services.AddScoped<ITagsRepository, TagsRepository>();
 
-// builder.Services.AddHostedService<TemporaryBucketWatcher>();
-builder.Services.AddSingleton<VideoConversionQueue>();
-builder.Services.AddHostedService<VideoConversionService>();
+builder.Services.AddSingleton<FilesProcessingQueue>();
+builder.Services.AddHostedService<BucketWatcher>();
+builder.Services.AddHostedService<FilesProcessingService>();
 
 WebApplication app = builder.Build();
 app.UseCors("AllowAll");

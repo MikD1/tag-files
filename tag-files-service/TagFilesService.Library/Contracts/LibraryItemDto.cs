@@ -15,16 +15,25 @@ public record LibraryItemDto(
 {
     public static LibraryItemDto FromMetadata(FileMetadata metadata)
     {
-        string thumbnailFileName = FilesProcessing.ChangeFileExtension(metadata.FileName, ".jpg");
+        string? thumbnailPath = metadata.ThumbnailStatus is ThumbnailStatus.Generated
+            ? System.IO.Path.Combine(Buckets.Thumbnail, ChangeFileExtension(metadata.FileName, ".jpg"))
+            : null;
+
         return new(
             metadata.Id,
-            $"{Buckets.Library}/{metadata.FileName}",
-            $"{Buckets.Thumbnail}/{thumbnailFileName}",
+            System.IO.Path.Combine(Buckets.Library, metadata.FileName),
+            thumbnailPath,
             metadata.Description,
             metadata.UploadedOn,
             metadata.Type,
             metadata.MediaType,
             metadata.VideoDuration,
             metadata.Tags.Select(t => t.Name).ToList());
+    }
+
+    private static string ChangeFileExtension(string fileName, string newExtension)
+    {
+        string fileNameWithoutExtension = System.IO.Path.GetFileNameWithoutExtension(fileName);
+        return fileNameWithoutExtension + newExtension;
     }
 }

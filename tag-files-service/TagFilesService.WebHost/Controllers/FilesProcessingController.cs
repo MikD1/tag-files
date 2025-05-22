@@ -8,8 +8,8 @@ namespace TagFilesService.WebHost.Controllers;
 [Route("api/files-processing")]
 public class FilesProcessingController(IMediator mediator) : ControllerBase
 {
-    [HttpPost("convert-video")]
-    public async Task<IActionResult> ConvertVideo(ConvertVideoFileRequest request)
+    [HttpPost("file-processing")]
+    public async Task<IActionResult> ConvertVideo(FileProcessingRequest request)
     {
         await mediator.Send(request);
         return Ok();

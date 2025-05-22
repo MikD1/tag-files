@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TagFilesService.Model;
+using TagFilesService.Model.Processing;
 
 namespace TagFilesService.Infrastructure;
 
@@ -21,8 +22,8 @@ public sealed class AppDbContext : DbContext
     {
         modelBuilder.Entity<FileMetadata>()
             .Property(e => e.Type).HasConversion<string>();
-        modelBuilder.Entity<FileMetadata>()
-            .Property(e => e.ThumbnailStatus).HasConversion<string>();
+        /*modelBuilder.Entity<FileMetadata>()
+            .Property(e => e.ThumbnailStatus).HasConversion<string>();*/
         modelBuilder.Entity<FileMetadata>()
             .HasMany(e => e.Tags).WithMany();
     }

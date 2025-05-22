@@ -1,6 +1,6 @@
-using TagFilesService.Library;
+using TagFilesService.FilesProcessing;
 
-namespace TagFilesService.Tests.Unit.Library;
+namespace TagFilesService.Tests.Unit.FilesProcessing;
 
 [TestClass]
 public class VideoDurationParserTest
