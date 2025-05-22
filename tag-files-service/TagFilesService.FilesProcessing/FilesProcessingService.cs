@@ -234,11 +234,19 @@ public class FilesProcessingService(
         {
             string fileUrl = Path.Combine(minio.Config.Endpoint, Buckets.Library, metadata.FileName);
 
+            string timestampArg = string.Empty;
+            if (metadata.VideoDuration.HasValue)
+            {
+                TimeSpan thumbnailTimestamp = TimeSpan.FromTicks((long)(metadata.VideoDuration.Value.Ticks * 0.1));
+                timestampArg = $"-ss {thumbnailTimestamp}";
+            }
+
             using Process ffmpeg = new();
             ffmpeg.StartInfo = new()
             {
                 FileName = "ffmpeg",
-                Arguments = $"""-i "{fileUrl}" -vf scale=300:-1 -vframes 1 -f image2pipe -vcodec mjpeg -""",
+                Arguments =
+                    $"""{timestampArg} -i "{fileUrl}" -vf scale=300:-1 -vframes 1 -f image2pipe -vcodec mjpeg -""",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
