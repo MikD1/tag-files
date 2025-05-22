@@ -3,7 +3,7 @@ namespace TagFilesService.Model.Processing;
 public class ProcessingFile
 {
     public ProcessingFile(string fileName, string contentType)
-        : this(0u, fileName, contentType, ProcessingStatus.New, ThumbnailStatus.NotGenerated)
+        : this(0u, fileName, contentType, ProcessingStatus.Pending)
     {
     }
 
@@ -19,10 +19,7 @@ public class ProcessingFile
 
     public ProcessingStatus Status { get; set; }
 
-    public ThumbnailStatus ThumbnailStatus { get; set; }
-
-    private ProcessingFile(uint id, string originalFileName, string contentType, ProcessingStatus status,
-        ThumbnailStatus thumbnailStatus)
+    private ProcessingFile(uint id, string originalFileName, string contentType, ProcessingStatus status)
     {
         Id = id;
         OriginalFileName = originalFileName;
@@ -30,7 +27,6 @@ public class ProcessingFile
         ContentType = contentType;
         FileType = GetFileType(contentType);
         Status = status;
-        ThumbnailStatus = thumbnailStatus;
     }
 
     private FileType GetFileType(string contentType)

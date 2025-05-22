@@ -2,7 +2,7 @@ namespace TagFilesService.Model.Processing;
 
 public enum ProcessingStatus
 {
-    New,
+    Pending,
     Converting,
     AddedToLibrary,
     TemporaryFileDeleted,

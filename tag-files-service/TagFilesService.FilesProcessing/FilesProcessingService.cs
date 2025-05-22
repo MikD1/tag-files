@@ -35,9 +35,9 @@ public class FilesProcessingService(
         {
             try
             {
-                FileProcessingInfo fileInfo = await queue.Dequeue(stoppingToken);
+                ProcessingFile processingFile = await queue.Dequeue(stoppingToken);
                 logger.LogInformation("Start processing file");
-                await ProcessFile(fileInfo, stoppingToken);
+                await ProcessFile(processingFile, stoppingToken);
                 logger.LogInformation("Finished processing file");
             }
             catch (OperationCanceledException)
@@ -50,14 +50,11 @@ public class FilesProcessingService(
         }
     }
 
-    private async Task ProcessFile(FileProcessingInfo fileInfo, CancellationToken cancellationToken)
+    private async Task ProcessFile(ProcessingFile processingFile, CancellationToken cancellationToken)
     {
         using IServiceScope scope = serviceScopeFactory.CreateScope();
         AppDbContext dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        ProcessingFile processingFile = new(fileInfo.FileName, fileInfo.ContentType);
-        await dbContext.AddAsync(processingFile, cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        dbContext.Update(processingFile);
 
         try
         {

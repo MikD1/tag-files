@@ -8,8 +8,16 @@ namespace TagFilesService.WebHost.Controllers;
 [Route("api/files-processing")]
 public class FilesProcessingController(IMediator mediator) : ControllerBase
 {
-    [HttpPost("file-processing")]
-    public async Task<IActionResult> ConvertVideo(FileProcessingRequest request)
+    [HttpGet("files")]
+    public async Task<ActionResult<List<ProcessingFileDto>>> GetProcessingFiles()
+    {
+        GetProcessingFilesRequest request = new();
+        List<ProcessingFileDto> result = await mediator.Send(request);
+        return Ok(result);
+    }
+
+    [HttpPost("start-file-processing")]
+    public async Task<ActionResult> StartFileProcessing(FileProcessingRequest request)
     {
         await mediator.Send(request);
         return Ok();
