@@ -58,9 +58,10 @@ public class FilesProcessingService(
 
         try
         {
+            TimeSpan? duration = null;
             if (processingFile.FileType is FileType.Video)
             {
-                await ConvertVideoFileAndAddToLibrary(dbContext, processingFile, cancellationToken);
+                duration = await ConvertVideoFileAndAddToLibrary(dbContext, processingFile, cancellationToken);
             }
             else
             {
@@ -69,9 +70,10 @@ public class FilesProcessingService(
 
             await DeleteTemporaryFile(dbContext, processingFile, cancellationToken);
             FileMetadata metadata = await SaveMetadata(dbContext, processingFile, cancellationToken);
-            if (metadata.Type is FileType.Video)
+            if (duration is not null)
             {
-                await FillVideoDuration(dbContext, metadata, cancellationToken);
+                metadata.VideoDuration = duration.Value;
+                await dbContext.SaveChangesAsync(cancellationToken);
             }
 
             if (metadata.Type is FileType.Image or FileType.Video)
@@ -107,7 +109,7 @@ public class FilesProcessingService(
         logger.LogInformation("File added to library ({id})", processingFile.Id);
     }
 
-    private async Task ConvertVideoFileAndAddToLibrary(AppDbContext dbContext, ProcessingFile processingFile,
+    private async Task<TimeSpan> ConvertVideoFileAndAddToLibrary(AppDbContext dbContext, ProcessingFile processingFile,
         CancellationToken cancellationToken)
     {
         processingFile.Status = ProcessingStatus.Converting;
@@ -128,7 +130,7 @@ public class FilesProcessingService(
         using Process ffmpeg = new();
         ffmpeg.StartInfo = startInfo;
         ffmpeg.Start();
-        Task loggingTask = LogFfmpegOutput(ffmpeg, cancellationToken);
+        Task<VideoConversionProgress> loggingTask = LogFfmpegOutput(ffmpeg, cancellationToken);
 
         await minio.PutObjectAsync(new PutObjectArgs()
             .WithBucket(Buckets.Library)
@@ -138,7 +140,7 @@ public class FilesProcessingService(
             .WithContentType("video/mp4"), cancellationToken);
 
         await ffmpeg.WaitForExitAsync(cancellationToken);
-        await loggingTask;
+        VideoConversionProgress progress = await loggingTask;
         if (ffmpeg.ExitCode != 0)
         {
             throw new ApplicationException("ffmpeg exited with error code " + ffmpeg.ExitCode);
@@ -147,6 +149,7 @@ public class FilesProcessingService(
         processingFile.Status = ProcessingStatus.AddedToLibrary;
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Finished video file converting ({id})", processingFile.Id);
+        return progress.Total ?? TimeSpan.Zero;
     }
 
     private async Task DeleteTemporaryFile(AppDbContext dbContext, ProcessingFile processingFile,
@@ -180,50 +183,6 @@ public class FilesProcessingService(
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Metadata saved ({id})", processingFile.Id);
         return metadata;
-    }
-
-    private async Task FillVideoDuration(AppDbContext dbContext, FileMetadata metadata,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            string fileUrl = Path.Combine(minio.Config.Endpoint, Buckets.Library, metadata.FileName);
-
-            using Process ffmpeg = new();
-            ffmpeg.StartInfo = new()
-            {
-                FileName = "ffmpeg",
-                Arguments = $"""-i "{fileUrl}" -f null -""",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            ffmpeg.Start();
-
-            string output = await ffmpeg.StandardError.ReadToEndAsync(cancellationToken);
-            await ffmpeg.WaitForExitAsync(cancellationToken);
-            if (ffmpeg.ExitCode != 0)
-            {
-                string error = await ffmpeg.StandardError.ReadToEndAsync(cancellationToken);
-                throw new ApplicationException(error);
-            }
-
-            bool success = VideoDurationParser.TryParse(output, out TimeSpan duration);
-            if (!success)
-            {
-                throw new ApplicationException("Failed to parse video duration");
-            }
-
-            metadata.VideoDuration = duration;
-            await dbContext.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Video duration filled ({fileName})", metadata.FileName);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError("Failed to get video duration for file {fileName}: {error}", metadata.FileName, ex.Message);
-        }
     }
 
     private async Task MakeThumbnail(AppDbContext dbContext, FileMetadata metadata, CancellationToken cancellationToken)
@@ -290,11 +249,24 @@ public class FilesProcessingService(
         return fileNameWithoutExtension + newExtension;
     }
 
-    private async Task LogFfmpegOutput(Process ffmpeg, CancellationToken cancellationToken)
+    private async Task<VideoConversionProgress> LogFfmpegOutput(Process ffmpeg, CancellationToken cancellationToken)
     {
+        VideoConversionProgress progress = new();
+        int previousPercent = -1;
         while (await ffmpeg.StandardError.ReadLineAsync(cancellationToken) is { } line)
         {
-            logger.LogInformation(line);
+            progress.AddOutputLine(line);
+            if (progress.Total is null || progress.Percent == previousPercent)
+            {
+                continue;
+            }
+
+            previousPercent = progress.Percent;
+            logger.LogInformation("Progress: {current} / {total} ({percent}%)", progress.Current ?? TimeSpan.Zero,
+                progress.Total,
+                progress.Percent);
         }
+
+        return progress;
     }
 }
