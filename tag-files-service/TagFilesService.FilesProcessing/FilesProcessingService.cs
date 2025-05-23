@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Minio;
 using Minio.DataModel.Args;
 using Minio.DataModel.Tags;
@@ -13,6 +14,7 @@ namespace TagFilesService.FilesProcessing;
 
 public class FilesProcessingService(
     ILogger<FilesProcessingService> logger,
+    IOptions<FfmpegOptions> ffmpegOptions,
     FilesProcessingQueue queue,
     IMinioClient minio,
     IServiceScopeFactory serviceScopeFactory) : BackgroundService
@@ -106,7 +108,7 @@ public class FilesProcessingService(
 
         processingFile.Status = ProcessingStatus.AddedToLibrary;
         await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("File added to library ({id})", processingFile.Id);
+        logger.LogInformation("File added to library - {id}", processingFile.Id);
     }
 
     private async Task<TimeSpan> ConvertVideoFileAndAddToLibrary(AppDbContext dbContext, ProcessingFile processingFile,
@@ -114,13 +116,17 @@ public class FilesProcessingService(
     {
         processingFile.Status = ProcessingStatus.Converting;
         await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Start video file converting ({id})", processingFile.Id);
+
+        logger.LogInformation("Start video file converting (preset: {preset}, crf: {crf}) - {id}",
+            ffmpegOptions.Value.Preset, ffmpegOptions.Value.Crf, processingFile.Id);
 
         string sourceUrl = Path.Combine(minio.Config.Endpoint, Buckets.Temporary, processingFile.OriginalFileName);
         ProcessStartInfo startInfo = new()
         {
+            // -movflags +faststart (?)
             FileName = "ffmpeg",
-            Arguments = $"-i \"{sourceUrl}\" -c:v libx264 -c:a aac -f mp4 -movflags frag_keyframe+empty_moov pipe:1",
+            Arguments =
+                $"-i \"{sourceUrl}\" -c:v libx264 -preset {ffmpegOptions.Value.Preset} -crf {ffmpegOptions.Value.Crf} -c:a aac -b:a 128k -f mp4 -movflags frag_keyframe+empty_moov pipe:1",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -148,7 +154,7 @@ public class FilesProcessingService(
 
         processingFile.Status = ProcessingStatus.AddedToLibrary;
         await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Finished video file converting ({id})", processingFile.Id);
+        logger.LogInformation("Finished video file converting - {id}", processingFile.Id);
         return progress.Total ?? TimeSpan.Zero;
     }
 
@@ -162,7 +168,7 @@ public class FilesProcessingService(
 
         processingFile.Status = ProcessingStatus.TemporaryFileDeleted;
         await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Temporary file deleted ({id})", processingFile.Id);
+        logger.LogInformation("Temporary file deleted - {id}", processingFile.Id);
     }
 
     private async Task<FileMetadata> SaveMetadata(AppDbContext dbContext, ProcessingFile processingFile,
@@ -181,7 +187,7 @@ public class FilesProcessingService(
 
         processingFile.Status = ProcessingStatus.MetadataSaved;
         await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Metadata saved ({id})", processingFile.Id);
+        logger.LogInformation("Metadata saved - {id}", processingFile.Id);
         return metadata;
     }
 

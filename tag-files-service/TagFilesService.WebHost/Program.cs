@@ -7,6 +7,7 @@ using TagFilesService.Library;
 using TagFilesService.Model;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+builder.Services.Configure<FfmpegOptions>(builder.Configuration.GetSection("Ffmpeg"));
 builder.Services
     .AddControllers()
     .AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
