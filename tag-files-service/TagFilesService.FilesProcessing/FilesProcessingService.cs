@@ -128,6 +128,7 @@ public class FilesProcessingService(
         using Process ffmpeg = new();
         ffmpeg.StartInfo = startInfo;
         ffmpeg.Start();
+        Task loggingTask = LogFfmpegOutput(ffmpeg, cancellationToken);
 
         await minio.PutObjectAsync(new PutObjectArgs()
             .WithBucket(Buckets.Library)
@@ -137,10 +138,10 @@ public class FilesProcessingService(
             .WithContentType("video/mp4"), cancellationToken);
 
         await ffmpeg.WaitForExitAsync(cancellationToken);
+        await loggingTask;
         if (ffmpeg.ExitCode != 0)
         {
-            string error = await ffmpeg.StandardError.ReadToEndAsync(cancellationToken);
-            throw new ApplicationException(error);
+            throw new ApplicationException("ffmpeg exited with error code " + ffmpeg.ExitCode);
         }
 
         processingFile.Status = ProcessingStatus.AddedToLibrary;
@@ -287,5 +288,13 @@ public class FilesProcessingService(
     {
         string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
         return fileNameWithoutExtension + newExtension;
+    }
+
+    private async Task LogFfmpegOutput(Process ffmpeg, CancellationToken cancellationToken)
+    {
+        while (await ffmpeg.StandardError.ReadLineAsync(cancellationToken) is { } line)
+        {
+            logger.LogInformation(line);
+        }
     }
 }
