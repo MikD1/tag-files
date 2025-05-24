@@ -2,6 +2,12 @@ namespace TagFilesService.Model;
 
 public class FileMetadata
 {
+    public static string ChangeFileExtension(string fileName, string newExtension)
+    {
+        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+        return fileNameWithoutExtension + newExtension;
+    }
+
     public FileMetadata(string fileName, string mediaType, string? description)
         : this(0u, DateTime.UtcNow, fileName, mediaType, description, ThumbnailStatus.NotGenerated, [])
     {

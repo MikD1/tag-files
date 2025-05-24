@@ -12,8 +12,19 @@ public class FileMetadataTest
     [DataRow("application/json", FileType.Unknown)]
     public void FileMetadata_Constructor_ShouldCorrectDeterminateFileType(string mediaType, FileType expectedFileType)
     {
-        FileMetadata metadata = new FileMetadata("test-file.md", mediaType, null);
+        FileMetadata metadata = new("test-file.md", mediaType, null);
 
         Assert.AreEqual(expectedFileType, metadata.Type);
+    }
+
+    [DataTestMethod]
+    [DataRow("test-file.txt", ".jpg", "test-file.jpg")]
+    [DataRow("archive.tar.gz", ".zip", "archive.tar.zip")]
+    [DataRow("no-extension", ".txt", "no-extension.txt")]
+    public void ChangeFileExtension_ShouldReturnCorrectFileName(string fileName, string newExtension, string expected)
+    {
+        string result = FileMetadata.ChangeFileExtension(fileName, newExtension);
+
+        Assert.AreEqual(expected, result);
     }
 }

@@ -22,6 +22,14 @@ public class LibraryController(IMediator mediator) : ControllerBase
         return result;
     }
 
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(uint id)
+    {
+        DeleteLibraryItemRequest request = new(id);
+        await mediator.Send(request);
+        return NoContent();
+    }
+
     [HttpPost("search")]
     public async Task<ActionResult<PaginatedList<LibraryItemDto>>> Search([FromBody] SearchRequest request)
     {

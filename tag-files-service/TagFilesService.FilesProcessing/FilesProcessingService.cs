@@ -231,7 +231,7 @@ public class FilesProcessingService(
 
             PutObjectArgs args = new PutObjectArgs()
                 .WithBucket(Buckets.Thumbnail)
-                .WithObject(ChangeFileExtension(metadata.FileName, ".jpg"))
+                .WithObject(FileMetadata.ChangeFileExtension(metadata.FileName, ".jpg"))
                 .WithStreamData(thumbnailStream)
                 .WithObjectSize(thumbnailStream.Length)
                 .WithContentType("image/jpeg");
@@ -247,12 +247,6 @@ public class FilesProcessingService(
             await dbContext.SaveChangesAsync(cancellationToken);
             logger.LogError("Failed to generate thumbnail for file {fileName}: {error}", metadata.FileName, ex.Message);
         }
-    }
-
-    private string ChangeFileExtension(string fileName, string newExtension)
-    {
-        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
-        return fileNameWithoutExtension + newExtension;
     }
 
     private async Task<VideoConversionProgress> LogFfmpegOutput(Process ffmpeg, CancellationToken cancellationToken)

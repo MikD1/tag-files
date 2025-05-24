@@ -16,7 +16,7 @@ public record LibraryItemDto(
     public static LibraryItemDto FromMetadata(FileMetadata metadata)
     {
         string? thumbnailPath = metadata.ThumbnailStatus is ThumbnailStatus.Generated
-            ? System.IO.Path.Combine(Buckets.Thumbnail, ChangeFileExtension(metadata.FileName, ".jpg"))
+            ? System.IO.Path.Combine(Buckets.Thumbnail, FileMetadata.ChangeFileExtension(metadata.FileName, ".jpg"))
             : null;
 
         return new(
@@ -29,11 +29,5 @@ public record LibraryItemDto(
             metadata.MediaType,
             metadata.VideoDuration,
             metadata.Tags.Select(t => t.Name).ToList());
-    }
-
-    private static string ChangeFileExtension(string fileName, string newExtension)
-    {
-        string fileNameWithoutExtension = System.IO.Path.GetFileNameWithoutExtension(fileName);
-        return fileNameWithoutExtension + newExtension;
     }
 }
