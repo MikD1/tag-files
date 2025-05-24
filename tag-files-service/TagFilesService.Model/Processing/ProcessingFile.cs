@@ -21,11 +21,14 @@ public class ProcessingFile
 
     private ProcessingFile(uint id, string originalFileName, string contentType, ProcessingStatus status)
     {
+        FileType fileType = GetFileType(contentType);
+        string libraryFileName = GenerateLibraryFileName(fileType, originalFileName);
+
         Id = id;
         OriginalFileName = originalFileName;
-        LibraryFileName = GenerateLibraryFileName(FileType, originalFileName);
+        LibraryFileName = libraryFileName;
         ContentType = contentType;
-        FileType = GetFileType(contentType);
+        FileType = fileType;
         Status = status;
     }
 
