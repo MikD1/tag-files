@@ -27,7 +27,7 @@ public class ProcessingFile
         Id = id;
         OriginalFileName = originalFileName;
         LibraryFileName = libraryFileName;
-        ContentType = contentType;
+        ContentType = fileType is FileType.Video ? "video/mp4" : contentType;
         FileType = fileType;
         Status = status;
     }
