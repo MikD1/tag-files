@@ -113,4 +113,30 @@ public class SearchRequestHandlerTest : InMemoryDatabaseTestBase
         Assert.AreEqual("library/file3", result.Items[0].Path);
         Assert.AreEqual("library/file1", result.Items[1].Path);
     }
+
+    [TestMethod]
+    public async Task Search_ShouldReturnTagsSortedByName()
+    {
+        List<Tag> tags =
+        [
+            new("tagC"),
+            new("tagA"),
+            new("tagB")
+        ];
+        DbContext.Tags.AddRange(tags);
+        await DbContext.SaveChangesAsync();
+
+        FileMetadata metadata = new("file1", "image/png", null);
+        metadata.Tags.AddRange(tags);
+        DbContext.FilesMetadata.Add(metadata);
+        await DbContext.SaveChangesAsync();
+
+        SearchRequestHandler handler = new(DbContext);
+        SearchRequest request = new(null, null, 1, 20);
+        PaginatedList<LibraryItemDto> result = await handler.Handle(request, CancellationToken.None);
+
+        Assert.AreEqual("tagA", result.Items[0].Tags[0]);
+        Assert.AreEqual("tagB", result.Items[0].Tags[1]);
+        Assert.AreEqual("tagC", result.Items[0].Tags[2]);
+    }
 }

@@ -28,6 +28,9 @@ public record LibraryItemDto(
             metadata.Type,
             metadata.MediaType,
             metadata.VideoDuration,
-            metadata.Tags.Select(t => t.Name).ToList());
+            metadata.Tags
+                .OrderBy(t => t.Name)
+                .Select(t => t.Name)
+                .ToList());
     }
 }
