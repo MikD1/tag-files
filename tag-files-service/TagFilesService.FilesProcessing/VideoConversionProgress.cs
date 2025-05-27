@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace TagFilesService.FilesProcessing;
@@ -11,8 +12,11 @@ public class VideoConversionProgress
 
     public int Percent { get; private set; }
 
+    public string RawOutput => _rawOutput.ToString();
+
     public void AddOutputLine(string line)
     {
+        _rawOutput.AppendLine(line);
         if (Total == null)
         {
             Match durationMatch = DurationRegex.Match(line);
@@ -45,4 +49,6 @@ public class VideoConversionProgress
     private static readonly Regex DurationRegex = new(@"Duration:\s+(\d+):(\d+):(\d+\.\d+)", RegexOptions.Compiled);
 
     private static readonly Regex ProgressRegex = new(@"time=(\d+):(\d+):(\d+\.\d+)", RegexOptions.Compiled);
+
+    private readonly StringBuilder _rawOutput = new();
 }

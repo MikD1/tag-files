@@ -121,41 +121,56 @@ public class FilesProcessingService(
             ffmpegOptions.Value.Preset, ffmpegOptions.Value.Crf, processingFile.Id);
 
         string sourceUrl = Path.Combine(minio.Config.Endpoint, Buckets.Temporary, processingFile.OriginalFileName);
-        ProcessStartInfo startInfo = new()
+        string tempFilePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".tagfilestmp");
+        TimeSpan totalDuration = TimeSpan.Zero;
+        try
         {
-            // -movflags +faststart (?)
-            FileName = "ffmpeg",
-            Arguments =
-                $"-i \"{sourceUrl}\" -c:v libx264 -preset {ffmpegOptions.Value.Preset} -crf {ffmpegOptions.Value.Crf} -c:a aac -b:a 128k -f mp4 -movflags frag_keyframe+empty_moov pipe:1",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
+            ProcessStartInfo startInfo = new()
+            {
+                FileName = "ffmpeg",
+                Arguments =
+                    $"-i \"{sourceUrl}\" -c:v libx264 -preset {ffmpegOptions.Value.Preset} -crf {ffmpegOptions.Value.Crf} -c:a aac -b:a 128k -f mp4 -movflags +faststart \"{tempFilePath}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
 
-        using Process ffmpeg = new();
-        ffmpeg.StartInfo = startInfo;
-        ffmpeg.Start();
-        Task<VideoConversionProgress> loggingTask = LogFfmpegOutput(ffmpeg, cancellationToken);
+            using Process ffmpeg = new();
+            ffmpeg.StartInfo = startInfo;
+            ffmpeg.Start();
+            Task<VideoConversionProgress> loggingTask = LogFfmpegOutput(ffmpeg, cancellationToken);
+            await ffmpeg.WaitForExitAsync(cancellationToken);
+            VideoConversionProgress progress = await loggingTask;
+            if (ffmpeg.ExitCode != 0)
+            {
+                throw new ApplicationException("ffmpeg exited with error\n" + progress.RawOutput);
+            }
 
-        await minio.PutObjectAsync(new PutObjectArgs()
-            .WithBucket(Buckets.Library)
-            .WithObject(processingFile.LibraryFileName)
-            .WithStreamData(ffmpeg.StandardOutput.BaseStream)
-            .WithObjectSize(-1)
-            .WithContentType("video/mp4"), cancellationToken);
+            await using FileStream fileStream = File.OpenRead(tempFilePath);
+            FileInfo fileInfo = new(tempFilePath);
 
-        await ffmpeg.WaitForExitAsync(cancellationToken);
-        VideoConversionProgress progress = await loggingTask;
-        if (ffmpeg.ExitCode != 0)
+            await minio.PutObjectAsync(new PutObjectArgs()
+                .WithBucket(Buckets.Library)
+                .WithObject(processingFile.LibraryFileName)
+                .WithStreamData(fileStream)
+                .WithObjectSize(fileInfo.Length)
+                .WithContentType("video/mp4"), cancellationToken);
+
+            if (progress.Total is not null)
+            {
+                totalDuration = progress.Total.Value;
+            }
+        }
+        finally
         {
-            throw new ApplicationException("ffmpeg exited with error code " + ffmpeg.ExitCode);
+            File.Delete(tempFilePath);
         }
 
         processingFile.Status = ProcessingStatus.AddedToLibrary;
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Finished video file converting - {id}", processingFile.Id);
-        return progress.Total ?? TimeSpan.Zero;
+        return totalDuration;
     }
 
     private async Task DeleteTemporaryFile(AppDbContext dbContext, ProcessingFile processingFile,
