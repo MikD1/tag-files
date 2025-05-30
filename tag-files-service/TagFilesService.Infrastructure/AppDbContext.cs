@@ -4,14 +4,8 @@ using TagFilesService.Model.Processing;
 
 namespace TagFilesService.Infrastructure;
 
-public sealed class AppDbContext : DbContext
+public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options)
-        : base(options)
-    {
-        Database.EnsureCreated();
-    }
-
     public DbSet<Tag> Tags => Set<Tag>();
 
     public DbSet<FileMetadata> FilesMetadata => Set<FileMetadata>();
