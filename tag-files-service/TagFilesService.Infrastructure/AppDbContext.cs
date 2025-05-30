@@ -16,8 +16,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     {
         modelBuilder.Entity<FileMetadata>()
             .Property(e => e.Type).HasConversion<string>();
-        /*modelBuilder.Entity<FileMetadata>()
-            .Property(e => e.ThumbnailStatus).HasConversion<string>();*/
+        modelBuilder.Entity<FileMetadata>()
+            .Property(e => e.ThumbnailStatus).HasConversion<string>();
         modelBuilder.Entity<FileMetadata>()
             .HasMany(e => e.Tags).WithMany();
     }
