@@ -11,13 +11,14 @@ import {LightgalleryModule} from 'lightgallery/angular';
 import {MatTableModule} from '@angular/material/table';
 import {MatChipsModule} from '@angular/material/chips';
 import {LightGallerySettings} from 'lightgallery/lg-settings';
-import {FileType, LibraryItem, LibraryItemPaginatedList} from '../../services/api/library-api.service';
+import {LibraryItem, LibraryItemPaginatedList} from '../../services/api/library-api.service';
 import {MatIconModule} from '@angular/material/icon';
 import {MatButtonModule} from '@angular/material/button';
 import {DatePipe} from '@angular/common';
 import {MatDialog} from '@angular/material/dialog';
 import {LibraryItemEditModalComponent} from '../../pages/library-item-edit-modal/library-item-edit-modal.component';
 import {LightGallery} from 'lightgallery/lightgallery';
+import {FileType} from '../../services/api/file-type';
 
 const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 

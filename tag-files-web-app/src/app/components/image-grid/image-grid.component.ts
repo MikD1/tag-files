@@ -11,7 +11,8 @@ import {
 import {MatGridListModule} from '@angular/material/grid-list';
 import {AppStateService} from '../../services/app-state.service';
 import {LightgalleryModule} from 'lightgallery/angular';
-import {FileType, LibraryItem, LibraryItemPaginatedList} from '../../services/api/library-api.service';
+import {LibraryItem, LibraryItemPaginatedList} from '../../services/api/library-api.service';
+import {FileType} from '../../services/api/file-type';
 import {LightGallerySettings} from 'lightgallery/lg-settings';
 import {LightGallery} from 'lightgallery/lightgallery';
 

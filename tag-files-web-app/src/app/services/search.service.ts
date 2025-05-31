@@ -1,6 +1,7 @@
 import {inject, Injectable, signal} from '@angular/core';
-import {FileType, LibraryApiService, LibraryItemPaginatedList} from './api/library-api.service';
+import {LibraryApiService, LibraryItemPaginatedList} from './api/library-api.service';
 import {FormControl} from '@angular/forms';
+import {FileType} from './api/file-type';
 
 const emptyResults = {
   items: [],

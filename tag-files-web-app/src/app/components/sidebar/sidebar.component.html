@@ -11,10 +11,12 @@
       <span matListItemTitle>Tags</span>
     </mat-list-item>
   </a>
-  <mat-list-item>
-    <mat-icon matListItemIcon>library_books</mat-icon>
-    <span>Categories</span>
-  </mat-list-item>
+  <a routerLink="/categories">
+    <mat-list-item [ngClass]="{'item-active': currentRoute() === '/categories'}">
+      <mat-icon matListItemIcon>library_books</mat-icon>
+      <span>Categories</span>
+    </mat-list-item>
+  </a>
   <mat-list-item>
     <mat-icon matListItemIcon>folder_copy</mat-icon>
     <span>Collections</span>

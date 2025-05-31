@@ -1,14 +1,7 @@
 import {inject, Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {map, Observable} from 'rxjs';
-
-export enum FileType {
-  Unknown = 'Unknown',
-  Text = 'Text',
-  Image = 'Image',
-  Video = 'Video',
-  Audio = 'Audio'
-}
+import {FileType} from './file-type';
 
 export interface SearchRequest {
   tagQuery?: string;
