@@ -33,6 +33,7 @@ builder.Services.AddMinio(configure => configure
     .Build());
 builder.Services.AddScoped<MetadataService>();
 builder.Services.AddScoped<ITagsRepository, TagsRepository>();
+builder.Services.AddScoped<ICategoriesRepository, CategoriesRepository>();
 
 builder.Services.AddSingleton<FilesProcessingQueue>();
 builder.Services.AddHostedService<BucketWatcher>();

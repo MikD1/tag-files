@@ -15,6 +15,7 @@ public abstract class InMemoryDatabaseTestBase
             .UseSqlite(_connection)
             .Options;
         DbContext = new(options);
+        DbContext.Database.EnsureCreated();
     }
 
     [TestCleanup]

@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using TagFilesService.Infrastructure;
 using TagFilesService.Model;
 
-namespace TagFilesService.Tests.Integration.Library;
+namespace TagFilesService.Tests.Integration.Infrastructure;
 
 [TestClass]
 public class TagsRepositoryTest : InMemoryDatabaseTestBase

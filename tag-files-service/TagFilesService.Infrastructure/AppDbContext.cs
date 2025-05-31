@@ -12,6 +12,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<ProcessingFile> ProcessingFiles => Set<ProcessingFile>();
 
+    public DbSet<Category> Categories => Set<Category>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<FileMetadata>()
@@ -20,5 +22,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             .Property(e => e.ThumbnailStatus).HasConversion<string>();
         modelBuilder.Entity<FileMetadata>()
             .HasMany(e => e.Tags).WithMany();
+
+        modelBuilder.Entity<Category>()
+            .Property(e => e.ItemsType).HasConversion<string>();
     }
 }
