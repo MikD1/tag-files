@@ -30,6 +30,9 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
+  @if (data.category) {
+    <button (click)="deleteClick()" mat-button>Delete</button>
+  }
   <button mat-button mat-dialog-close>Cancel</button>
   <button (click)="saveClick()" mat-button>Save</button>
 </mat-dialog-actions>

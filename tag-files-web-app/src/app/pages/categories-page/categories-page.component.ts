@@ -26,7 +26,7 @@ import {CategoryEditModalComponent} from '../category-edit-modal/category-edit-m
 })
 export class CategoriesPageComponent {
   protected readonly categories = signal<Category[]>([]);
-  protected readonly displayedColumns = ['name', 'tagQuery', 'actions'];
+  protected readonly displayedColumns = ['name', 'tagQuery', 'itemsType', 'actions'];
   private readonly categoriesService = inject(CategoriesApiService);
   private readonly searchService = inject(SearchService);
   private dialog = inject(MatDialog);

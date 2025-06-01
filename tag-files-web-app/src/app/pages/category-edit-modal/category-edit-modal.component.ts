@@ -1,6 +1,7 @@
 import {Component, inject} from '@angular/core';
 import {
   MAT_DIALOG_DATA,
+  MatDialog,
   MatDialogActions,
   MatDialogClose,
   MatDialogContent,
@@ -20,6 +21,7 @@ import {MatFormFieldModule} from '@angular/material/form-field';
 import {MatSelectModule} from '@angular/material/select';
 import {FileType} from '../../services/api/file-type';
 import {MatIconModule} from '@angular/material/icon';
+import {ConfirmDialogComponent} from '../../components/confirm-dialog/confirm-dialog.component';
 
 export interface CategoryEditModalData {
   category?: Category;
@@ -54,6 +56,33 @@ export class CategoryEditModalComponent {
   });
   private readonly dialogRef = inject(MatDialogRef<CategoryEditModalComponent>);
   private readonly categoriesService = inject(CategoriesApiService);
+  private readonly dialog = inject(MatDialog);
+
+  protected deleteClick() {
+    if (!this.data.category) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Delete Category',
+        message: `Are you sure you want to delete category "${this.data.category.name}"?`
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result === true) {
+        this.categoriesService.deleteCategory(this.data.category!.id).subscribe({
+          next: () => {
+            this.dialogRef.close(true);
+          },
+          error: (err) => {
+            console.error('Error deleting category:', err);
+          }
+        });
+      }
+    });
+  }
 
   protected saveClick() {
     if (this.form.invalid) {
