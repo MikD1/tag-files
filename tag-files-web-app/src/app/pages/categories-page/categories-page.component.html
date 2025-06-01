@@ -1,1 +1,35 @@
-<app-categories-table></app-categories-table>
+@if (categories().length > 0) {
+  <table class="mat-elevation-z8 table" mat-table [dataSource]="categories()">
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef>Name</th>
+      <td mat-cell *matCellDef="let element">
+        <p>{{ element.name }}</p>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="tagQuery">
+      <th mat-header-cell *matHeaderCellDef>Query</th>
+      <td mat-cell *matCellDef="let element">
+        {{ element.tagQuery }}
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let element">
+        <button (click)="editItem(element)" class="edit-button" mat-button>Edit</button>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+  </table>
+
+  <div class="total-row">
+    Total: {{ categories().length }}
+  </div>
+}
+
+<button (click)="addCategory()" class="add-button" mat-fab>
+  <mat-icon>add</mat-icon>
+</button>

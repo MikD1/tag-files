@@ -1,0 +1,35 @@
+<div class="header" mat-dialog-title>
+  {{ data.category ? 'Edit category' : 'New category' }}
+  <button class="close-button" mat-dialog-close mat-icon-button>
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+
+<mat-dialog-content class="mat-typography">
+  <form [formGroup]="form" class="category-form">
+    <mat-form-field appearance="outline" class="form-field">
+      <mat-label>Name</mat-label>
+      <input cdkFocusInitial formControlName="name" matInput>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="form-field">
+      <mat-label>Tag query</mat-label>
+      <input formControlName="tagQuery" matInput>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="form-field">
+      <mat-label>Items type</mat-label>
+      <mat-select formControlName="itemsType">
+        <mat-option [value]="null">Any</mat-option>
+        @for (type of fileTypes; track type) {
+          <mat-option [value]="type">{{ type }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Cancel</button>
+  <button (click)="saveClick()" mat-button>Save</button>
+</mat-dialog-actions>
