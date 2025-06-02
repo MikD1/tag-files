@@ -9,6 +9,7 @@ import {SearchService} from '../../services/search.service';
 import {MatDialog} from '@angular/material/dialog';
 import {Router} from '@angular/router';
 import {CategoryEditModalComponent} from '../category-edit-modal/category-edit-modal.component';
+import {FileType} from '../../services/api/file-type';
 
 @Component({
   selector: 'app-categories-table',
@@ -36,6 +37,24 @@ export class CategoriesPageComponent {
     effect(() => {
       this.loadCategories();
     });
+  }
+
+  protected categoryClick(category: Category) {
+    this.searchService.searchQuery.setValue(category.tagQuery);
+
+    if (category.itemsType === FileType.Image) {
+      this.searchService.isImageSelected.update(() => true);
+      this.searchService.isVideoSelected.update(() => false);
+    } else if (category.itemsType === FileType.Video) {
+      this.searchService.isImageSelected.update(() => false);
+      this.searchService.isVideoSelected.update(() => true);
+    } else {
+      this.searchService.isImageSelected.update(() => false);
+      this.searchService.isVideoSelected.update(() => false);
+    }
+
+    this.searchService.search();
+    this.router.navigate(['/library']);
   }
 
   protected editItem(category: Category) {
