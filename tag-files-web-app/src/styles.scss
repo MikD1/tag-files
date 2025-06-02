@@ -1,9 +1,9 @@
 @use '@angular/material' as mat;
-@use 'lightgallery/scss/lightgallery';
-@use 'lightgallery/scss/lg-zoom';
-@use 'lightgallery/scss/lg-rotate';
-@use "lightgallery/scss/lg-video.scss";
 @use './theme-colors' as theme;
+@import 'lightgallery/css/lightgallery.css';
+@import 'lightgallery/css/lg-zoom.css';
+@import 'lightgallery/css/lg-rotate.css';
+@import 'lightgallery/css/lg-video.css';
 
 html {
   color-scheme: dark;
