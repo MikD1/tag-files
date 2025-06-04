@@ -15,12 +15,13 @@ import {LibraryItem, LibraryItemPaginatedList} from '../../services/api/library-
 import {FileType} from '../../services/api/file-type';
 import {LightGallerySettings} from 'lightgallery/lg-settings';
 import {LightGallery} from 'lightgallery/lightgallery';
+import {MatTooltipModule} from '@angular/material/tooltip';
 
 const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 
 @Component({
   selector: 'app-image-grid',
-  imports: [MatGridListModule, LightgalleryModule],
+  imports: [MatGridListModule, LightgalleryModule, MatTooltipModule],
   templateUrl: './image-grid.component.html',
   styleUrl: './image-grid.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -81,5 +82,12 @@ export class ImageGridComponent implements OnChanges, AfterViewChecked {
         controls: true
       }
     });
+  }
+
+  protected getTagsTooltip(item: LibraryItem): string {
+    if (!item.tags || item.tags.length === 0) {
+      return 'No tags';
+    }
+    return item.tags.join(', ');
   }
 }
