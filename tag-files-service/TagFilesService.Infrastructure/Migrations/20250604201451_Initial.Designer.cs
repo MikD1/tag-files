@@ -11,7 +11,7 @@ using TagFilesService.Infrastructure;
 namespace TagFilesService.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250530103746_Initial")]
+    [Migration("20250604201451_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -35,6 +35,27 @@ namespace TagFilesService.Infrastructure.Migrations
                     b.ToTable("FileMetadataTag");
                 });
 
+            modelBuilder.Entity("TagFilesService.Model.Category", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ItemsType")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TagQuery")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Categories");
+                });
+
             modelBuilder.Entity("TagFilesService.Model.FileMetadata", b =>
                 {
                     b.Property<uint>("Id")
@@ -52,8 +73,9 @@ namespace TagFilesService.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("ThumbnailStatus")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("ThumbnailStatus")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Type")
                         .IsRequired()

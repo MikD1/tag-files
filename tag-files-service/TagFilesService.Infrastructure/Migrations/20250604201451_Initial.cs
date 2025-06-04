@@ -12,6 +12,21 @@ namespace TagFilesService.Infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
+                name: "Categories",
+                columns: table => new
+                {
+                    Id = table.Column<uint>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Name = table.Column<string>(type: "TEXT", nullable: false),
+                    TagQuery = table.Column<string>(type: "TEXT", nullable: true),
+                    ItemsType = table.Column<string>(type: "TEXT", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Categories", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "FilesMetadata",
                 columns: table => new
                 {
@@ -23,7 +38,7 @@ namespace TagFilesService.Infrastructure.Migrations
                     MediaType = table.Column<string>(type: "TEXT", nullable: false),
                     Description = table.Column<string>(type: "TEXT", nullable: true),
                     VideoDuration = table.Column<TimeSpan>(type: "TEXT", nullable: true),
-                    ThumbnailStatus = table.Column<int>(type: "INTEGER", nullable: false)
+                    ThumbnailStatus = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -93,6 +108,9 @@ namespace TagFilesService.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "Categories");
+
             migrationBuilder.DropTable(
                 name: "FileMetadataTag");
 
