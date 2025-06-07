@@ -36,6 +36,7 @@ builder.Services.AddScoped<ITagsRepository, TagsRepository>();
 builder.Services.AddScoped<ICategoriesRepository, CategoriesRepository>();
 
 builder.Services.AddSingleton<FilesProcessingQueue>();
+builder.Services.AddHostedService<BucketInitializer>();
 builder.Services.AddHostedService<BucketWatcher>();
 builder.Services.AddHostedService<FilesProcessingService>();
 
