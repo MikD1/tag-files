@@ -66,6 +66,9 @@ namespace TagFilesService.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsFavorite")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("MediaType")
                         .IsRequired()
                         .HasColumnType("TEXT");

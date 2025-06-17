@@ -31,6 +31,13 @@ public class FileMetadata
 
     public List<Tag> Tags { get; private set; }
 
+    public bool IsFavorite { get; private set; }
+
+    public void ToggleFavorite()
+    {
+        IsFavorite = !IsFavorite;
+    }
+
     public void UpdateDescription(string? description)
     {
         ValidateDescription(description);
@@ -62,6 +69,7 @@ public class FileMetadata
         Description = description;
         ThumbnailStatus = thumbnailStatus;
         Tags = tags;
+        IsFavorite = false;
     }
 
     private FileType GetFileType(string mediaType)

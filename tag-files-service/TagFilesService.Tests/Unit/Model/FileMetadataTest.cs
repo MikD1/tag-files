@@ -27,4 +27,17 @@ public class FileMetadataTest
 
         Assert.AreEqual(expected, result);
     }
+
+    [TestMethod]
+    public void ToggleFavorite_ShouldToggleFavoriteStatus()
+    {
+        FileMetadata metadata = new("test-file.jpg", "image/jpeg", null);
+        Assert.IsFalse(metadata.IsFavorite);
+
+        metadata.ToggleFavorite();
+        Assert.IsTrue(metadata.IsFavorite);
+
+        metadata.ToggleFavorite();
+        Assert.IsFalse(metadata.IsFavorite);
+    }
 }

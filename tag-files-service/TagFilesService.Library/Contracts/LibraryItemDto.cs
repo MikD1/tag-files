@@ -11,7 +11,8 @@ public record LibraryItemDto(
     FileType Type,
     string MediaType,
     TimeSpan? VideoDuration,
-    List<string> Tags)
+    List<string> Tags,
+    bool IsFavorite)
 {
     public static LibraryItemDto FromMetadata(FileMetadata metadata)
     {
@@ -31,6 +32,7 @@ public record LibraryItemDto(
             metadata.Tags
                 .OrderBy(t => t.Name)
                 .Select(t => t.Name)
-                .ToList());
+                .ToList(),
+            metadata.IsFavorite);
     }
 }

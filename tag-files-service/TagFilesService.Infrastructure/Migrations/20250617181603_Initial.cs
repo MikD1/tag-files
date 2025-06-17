@@ -38,7 +38,8 @@ namespace TagFilesService.Infrastructure.Migrations
                     MediaType = table.Column<string>(type: "TEXT", nullable: false),
                     Description = table.Column<string>(type: "TEXT", nullable: true),
                     VideoDuration = table.Column<TimeSpan>(type: "TEXT", nullable: true),
-                    ThumbnailStatus = table.Column<string>(type: "TEXT", nullable: false)
+                    ThumbnailStatus = table.Column<string>(type: "TEXT", nullable: false),
+                    IsFavorite = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {

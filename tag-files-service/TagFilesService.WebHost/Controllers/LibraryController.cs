@@ -50,4 +50,12 @@ public class LibraryController(IMediator mediator) : ControllerBase
         Dictionary<string, string> result = await mediator.Send(request);
         return Ok(result);
     }
+
+    [HttpPost("{id}/toggle-favorite")]
+    public async Task<ActionResult<LibraryItemDto>> ToggleFavorite(uint id)
+    {
+        ToggleFavoriteRequest request = new(id);
+        await mediator.Send(request);
+        return Ok();
+    }
 }
