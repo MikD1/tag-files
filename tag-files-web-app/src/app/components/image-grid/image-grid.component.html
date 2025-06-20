@@ -2,13 +2,14 @@
               [style.grid-template-columns]="'repeat(' + getGridColumns() + ', 1fr)'"
               class="gallery">
   @for (libraryItem of itemsList().items; track $index) {
-    @if (libraryItem.type == fileTypes.Image) {
+    @if (libraryItem.fileType == fileTypes.Image) {
       <a class="gallery-item" [href]="getFullContentPath(libraryItem.path)" [matTooltip]="getTagsTooltip(libraryItem)">
         <img class="gallery-item-image" [src]="getFullThumbnailPath(libraryItem.thumbnailPath)" alt=""/>
       </a>
     }
-    @if (libraryItem.type == fileTypes.Video) {
-      <a class="gallery-item" href="" [attr.data-video]="getVideoData(libraryItem)" [matTooltip]="getTagsTooltip(libraryItem)">
+    @if (libraryItem.fileType == fileTypes.Video) {
+      <a class="gallery-item" href="" [attr.data-video]="getVideoData(libraryItem)"
+         [matTooltip]="getTagsTooltip(libraryItem)">
         <img class="gallery-item-image" [src]="getFullThumbnailPath(libraryItem.thumbnailPath)" alt=""/>
         <span class="video-duration">{{ libraryItem.videoDuration }}</span>
       </a>

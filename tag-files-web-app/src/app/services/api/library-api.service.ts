@@ -21,8 +21,7 @@ export interface LibraryItem {
   thumbnailPath?: string;
   description?: string;
   uploadedOn: string;
-  type: FileType;
-  mediaType?: string;
+  fileType: FileType;
   videoDuration?: string
   tags: string[];
 }

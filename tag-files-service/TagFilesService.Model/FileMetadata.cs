@@ -8,8 +8,8 @@ public class FileMetadata
         return fileNameWithoutExtension + newExtension;
     }
 
-    public FileMetadata(string fileName, string mediaType, string? description)
-        : this(0u, DateTime.UtcNow, fileName, mediaType, description, ThumbnailStatus.NotGenerated, [])
+    public FileMetadata(string fileName, FileType fileType, string? description)
+        : this(0u, DateTime.UtcNow, fileName, fileType, description, ThumbnailStatus.NotGenerated, [])
     {
     }
 
@@ -19,9 +19,7 @@ public class FileMetadata
 
     public DateTime UploadedOn { get; private set; }
 
-    public FileType Type { get; private set; }
-
-    public string MediaType { get; private set; }
+    public FileType FileType { get; private set; }
 
     public string? Description { get; private set; }
 
@@ -57,33 +55,17 @@ public class FileMetadata
         }
     }
 
-    private FileMetadata(uint id, DateTime uploadedOn, string fileName, string mediaType, string? description,
+    private FileMetadata(uint id, DateTime uploadedOn, string fileName, FileType fileType, string? description,
         ThumbnailStatus thumbnailStatus, List<Tag> tags)
     {
         ValidateDescription(description);
         Id = id;
         UploadedOn = uploadedOn;
         FileName = fileName;
-        Type = GetFileType(mediaType);
-        MediaType = mediaType;
+        FileType = fileType;
         Description = description;
         ThumbnailStatus = thumbnailStatus;
         Tags = tags;
         IsFavorite = false;
-    }
-
-    private FileType GetFileType(string mediaType)
-    {
-        if (mediaType.StartsWith("image/"))
-        {
-            return FileType.Image;
-        }
-
-        if (mediaType.StartsWith("video/"))
-        {
-            return FileType.Video;
-        }
-
-        return FileType.Unknown;
     }
 }

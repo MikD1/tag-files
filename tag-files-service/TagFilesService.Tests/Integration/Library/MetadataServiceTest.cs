@@ -11,7 +11,7 @@ public class MetadataServiceTest : InMemoryDatabaseTestBase
     public async Task SaveMetadata_ShouldAddNewMetadata_WhenMetadataIsNew()
     {
         MetadataService service = new(DbContext);
-        FileMetadata metadata = new("path1", "image/jpeg", "some desc.");
+        FileMetadata metadata = new("path1", FileType.Image, "some desc.");
 
         FileMetadata savedMetadata = await service.SaveMetadata(metadata);
         FileMetadata metadataFromDb = await DbContext.FilesMetadata
@@ -21,16 +21,16 @@ public class MetadataServiceTest : InMemoryDatabaseTestBase
         Assert.AreEqual(1u, savedMetadata.Id);
         Assert.AreNotEqual(default, savedMetadata.UploadedOn);
         Assert.AreEqual("path1", savedMetadata.FileName);
-        Assert.AreEqual(FileType.Image, savedMetadata.Type);
-        Assert.AreEqual("image/jpeg", savedMetadata.MediaType);
+        Assert.AreEqual(FileType.Image, savedMetadata.FileType);
+        Assert.AreEqual(FileType.Image, savedMetadata.FileType);
         Assert.AreEqual("some desc.", savedMetadata.Description);
         Assert.AreEqual(0, savedMetadata.Tags.Count);
 
         Assert.AreEqual(1u, metadataFromDb.Id);
         Assert.AreNotEqual(default, metadataFromDb.UploadedOn);
         Assert.AreEqual("path1", metadataFromDb.FileName);
-        Assert.AreEqual(FileType.Image, metadataFromDb.Type);
-        Assert.AreEqual("image/jpeg", metadataFromDb.MediaType);
+        Assert.AreEqual(FileType.Image, metadataFromDb.FileType);
+        Assert.AreEqual(FileType.Image, metadataFromDb.FileType);
         Assert.AreEqual("some desc.", metadataFromDb.Description);
         Assert.AreEqual(0, metadataFromDb.Tags.Count);
     }
@@ -39,7 +39,7 @@ public class MetadataServiceTest : InMemoryDatabaseTestBase
     public async Task SaveMetadata_ShouldUpdateExistingMetadata_WhenMetadataIsNotNew()
     {
         MetadataService service = new(DbContext);
-        await service.SaveMetadata(new("path1", "image/jpeg", "some desc."));
+        await service.SaveMetadata(new("path1", FileType.Image, "some desc."));
 
         FileMetadata metadataFromDb = await DbContext.FilesMetadata
             .Include(x => x.Tags)
@@ -53,14 +53,14 @@ public class MetadataServiceTest : InMemoryDatabaseTestBase
         Assert.AreEqual(1u, updatedMetadata.Id);
         Assert.AreEqual(metadataFromDb.UploadedOn, updatedMetadata.UploadedOn);
         Assert.AreEqual("path1", updatedMetadata.FileName);
-        Assert.AreEqual(FileType.Image, updatedMetadata.Type);
+        Assert.AreEqual(FileType.Image, updatedMetadata.FileType);
         Assert.AreEqual("new desc.", updatedMetadata.Description);
         Assert.AreEqual(0, updatedMetadata.Tags.Count);
 
         Assert.AreEqual(1u, updatedMetadataFromDb.Id);
         Assert.AreEqual(metadataFromDb.UploadedOn, updatedMetadataFromDb.UploadedOn);
         Assert.AreEqual("path1", updatedMetadataFromDb.FileName);
-        Assert.AreEqual(FileType.Image, updatedMetadataFromDb.Type);
+        Assert.AreEqual(FileType.Image, updatedMetadataFromDb.FileType);
         Assert.AreEqual("new desc.", updatedMetadataFromDb.Description);
         Assert.AreEqual(0, updatedMetadataFromDb.Tags.Count);
     }
@@ -68,7 +68,7 @@ public class MetadataServiceTest : InMemoryDatabaseTestBase
     [TestMethod]
     public async Task GetMetadata_ShouldReturnMetadata_WhenMetadataExists()
     {
-        DbContext.FilesMetadata.Add(new("path1", "image/jpeg", "some desc."));
+        DbContext.FilesMetadata.Add(new("path1", FileType.Image, "some desc."));
         await DbContext.SaveChangesAsync();
 
         MetadataService service = new(DbContext);
@@ -77,18 +77,18 @@ public class MetadataServiceTest : InMemoryDatabaseTestBase
         Assert.AreEqual(1u, metadata.Id);
         Assert.AreNotEqual(default, metadata.UploadedOn);
         Assert.AreEqual("path1", metadata.FileName);
-        Assert.AreEqual(FileType.Image, metadata.Type);
+        Assert.AreEqual(FileType.Image, metadata.FileType);
         Assert.AreEqual("some desc.", metadata.Description);
     }
 
     [TestMethod]
     public async Task GetLastMetadataItems_ShouldReturnLastMetadataItems_WhenItemsExist()
     {
-        DbContext.FilesMetadata.Add(new("path1", "image/jpeg", "some desc."));
+        DbContext.FilesMetadata.Add(new("path1", FileType.Image, "some desc."));
         await Task.Delay(50);
-        DbContext.FilesMetadata.Add(new("path2", "image/jpeg", "some desc."));
+        DbContext.FilesMetadata.Add(new("path2", FileType.Image, "some desc."));
         await Task.Delay(50);
-        DbContext.FilesMetadata.Add(new("path3", "image/jpeg", "some desc."));
+        DbContext.FilesMetadata.Add(new("path3", FileType.Image, "some desc."));
         await DbContext.SaveChangesAsync();
 
         MetadataService service = new(DbContext);

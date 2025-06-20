@@ -34,8 +34,7 @@ namespace TagFilesService.Infrastructure.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     FileName = table.Column<string>(type: "TEXT", nullable: false),
                     UploadedOn = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    Type = table.Column<string>(type: "TEXT", nullable: false),
-                    MediaType = table.Column<string>(type: "TEXT", nullable: false),
+                    FileType = table.Column<string>(type: "TEXT", nullable: false),
                     Description = table.Column<string>(type: "TEXT", nullable: true),
                     VideoDuration = table.Column<TimeSpan>(type: "TEXT", nullable: true),
                     ThumbnailStatus = table.Column<string>(type: "TEXT", nullable: false),
@@ -54,7 +53,6 @@ namespace TagFilesService.Infrastructure.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     OriginalFileName = table.Column<string>(type: "TEXT", nullable: false),
                     LibraryFileName = table.Column<string>(type: "TEXT", nullable: false),
-                    ContentType = table.Column<string>(type: "TEXT", nullable: false),
                     FileType = table.Column<int>(type: "INTEGER", nullable: false),
                     Status = table.Column<int>(type: "INTEGER", nullable: false)
                 },

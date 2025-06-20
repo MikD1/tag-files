@@ -17,7 +17,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<FileMetadata>()
-            .Property(e => e.Type).HasConversion<string>();
+            .Property(e => e.FileType).HasConversion<string>();
         modelBuilder.Entity<FileMetadata>()
             .Property(e => e.ThumbnailStatus).HasConversion<string>();
         modelBuilder.Entity<FileMetadata>()

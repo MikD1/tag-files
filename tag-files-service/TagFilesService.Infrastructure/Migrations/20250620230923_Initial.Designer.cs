@@ -11,7 +11,7 @@ using TagFilesService.Infrastructure;
 namespace TagFilesService.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250617181603_Initial")]
+    [Migration("20250620230923_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -69,18 +69,14 @@ namespace TagFilesService.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("FileType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsFavorite")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("MediaType")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("ThumbnailStatus")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Type")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -100,10 +96,6 @@ namespace TagFilesService.Infrastructure.Migrations
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
 
                     b.Property<int>("FileType")
                         .HasColumnType("INTEGER");

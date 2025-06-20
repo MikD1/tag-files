@@ -10,9 +10,9 @@ public class SearchRequestHandlerTest : InMemoryDatabaseTestBase
     [TestMethod]
     public async Task Search_ShouldReturnLastItems_WhenRequestEmpty()
     {
-        DbContext.FilesMetadata.Add(new("file1", "image/png", null));
-        DbContext.FilesMetadata.Add(new("file2", "image/png", null));
-        DbContext.FilesMetadata.Add(new("file3", "image/png", null));
+        DbContext.FilesMetadata.Add(new("file1", FileType.Image, null));
+        DbContext.FilesMetadata.Add(new("file2", FileType.Image, null));
+        DbContext.FilesMetadata.Add(new("file3", FileType.Image, null));
         await DbContext.SaveChangesAsync();
 
         SearchRequestHandler handler = new(DbContext);
@@ -38,11 +38,11 @@ public class SearchRequestHandlerTest : InMemoryDatabaseTestBase
         DbContext.Tags.AddRange(tags);
         await DbContext.SaveChangesAsync();
 
-        FileMetadata metadata1 = new("file1", "image/png", null);
+        FileMetadata metadata1 = new("file1", FileType.Image, null);
         metadata1.Tags.AddRange(tags[0], tags[1]);
-        FileMetadata metadata2 = new("file2", "image/png", null);
+        FileMetadata metadata2 = new("file2", FileType.Image, null);
         metadata2.Tags.AddRange(tags[0], tags[2]);
-        FileMetadata metadata3 = new("file3", "image/png", null);
+        FileMetadata metadata3 = new("file3", FileType.Image, null);
         metadata3.Tags.AddRange(tags[0], tags[2], tags[3]);
         DbContext.FilesMetadata.AddRange(metadata1, metadata2, metadata3);
         await DbContext.SaveChangesAsync();
@@ -62,12 +62,12 @@ public class SearchRequestHandlerTest : InMemoryDatabaseTestBase
     [DataRow(FileType.Video, new[] { 2u, 6u })]
     public async Task Search_ShouldReturnCorrectItems_WhenItemTypeSpecified(FileType itemType, uint[] expectedIds)
     {
-        DbContext.FilesMetadata.Add(new("file1", "image/png", null)); // id: 1
-        DbContext.FilesMetadata.Add(new("file2", "video/mp4", null)); // id: 2
-        DbContext.FilesMetadata.Add(new("file3", "image/jpg", null)); // id: 3
-        DbContext.FilesMetadata.Add(new("file4", "image/webp", null)); // id: 4
-        DbContext.FilesMetadata.Add(new("file5", "application/json", null)); // id: 5
-        DbContext.FilesMetadata.Add(new("file5", "video/mkv", null)); // id: 6
+        DbContext.FilesMetadata.Add(new("file1", FileType.Image, null)); // id: 1
+        DbContext.FilesMetadata.Add(new("file2", FileType.Video, null)); // id: 2
+        DbContext.FilesMetadata.Add(new("file3", FileType.Image, null)); // id: 3
+        DbContext.FilesMetadata.Add(new("file4", FileType.Image, null)); // id: 4
+        DbContext.FilesMetadata.Add(new("file5", FileType.Unknown, null)); // id: 5
+        DbContext.FilesMetadata.Add(new("file5", FileType.Video, null)); // id: 6
         await DbContext.SaveChangesAsync();
 
         SearchRequestHandler handler = new(DbContext);
@@ -93,13 +93,13 @@ public class SearchRequestHandlerTest : InMemoryDatabaseTestBase
         DbContext.Tags.AddRange(tags);
         await DbContext.SaveChangesAsync();
 
-        FileMetadata metadata1 = new("file1", "image/png", null);
+        FileMetadata metadata1 = new("file1", FileType.Image, null);
         metadata1.Tags.AddRange(tags[0], tags[1]);
-        FileMetadata metadata2 = new("file2", "video/mp4", null);
+        FileMetadata metadata2 = new("file2", FileType.Video, null);
         metadata2.Tags.AddRange(tags[0], tags[2]);
-        FileMetadata metadata3 = new("file3", "image/jpg", null);
+        FileMetadata metadata3 = new("file3", FileType.Image, null);
         metadata3.Tags.AddRange(tags[2]);
-        FileMetadata metadata4 = new("file4", "image/jpg", null);
+        FileMetadata metadata4 = new("file4", FileType.Image, null);
         metadata4.Tags.AddRange(tags[1]);
         DbContext.FilesMetadata.AddRange(metadata1, metadata2, metadata3);
         await DbContext.SaveChangesAsync();
@@ -126,7 +126,7 @@ public class SearchRequestHandlerTest : InMemoryDatabaseTestBase
         DbContext.Tags.AddRange(tags);
         await DbContext.SaveChangesAsync();
 
-        FileMetadata metadata = new("file1", "image/png", null);
+        FileMetadata metadata = new("file1", FileType.Image, null);
         metadata.Tags.AddRange(tags);
         DbContext.FilesMetadata.Add(metadata);
         await DbContext.SaveChangesAsync();

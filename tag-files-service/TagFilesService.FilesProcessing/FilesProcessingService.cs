@@ -38,7 +38,7 @@ public class FilesProcessingService(
             try
             {
                 ProcessingFile processingFile = await queue.Dequeue(stoppingToken);
-                logger.LogInformation("Start processing file");
+                logger.LogInformation("Start processing file ({ProcessingFileFileType})", processingFile.FileType);
                 await ProcessFile(processingFile, stoppingToken);
                 logger.LogInformation("Finished processing file");
             }
@@ -78,7 +78,7 @@ public class FilesProcessingService(
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
 
-            if (metadata.Type is FileType.Image or FileType.Video)
+            if (metadata.FileType is FileType.Image or FileType.Video)
             {
                 await MakeThumbnail(dbContext, metadata, cancellationToken);
             }
@@ -189,7 +189,7 @@ public class FilesProcessingService(
     private async Task<FileMetadata> SaveMetadata(AppDbContext dbContext, ProcessingFile processingFile,
         CancellationToken cancellationToken)
     {
-        FileMetadata metadata = new(processingFile.LibraryFileName, processingFile.ContentType, null);
+        FileMetadata metadata = new(processingFile.LibraryFileName, processingFile.FileType, null);
         await dbContext.FilesMetadata.AddAsync(metadata, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 

@@ -11,7 +11,7 @@ public class ToggleFavoriteRequestHandlerTest : InMemoryDatabaseTestBase
     [TestMethod]
     public async Task Handle_ShouldToggleFavoriteStatus()
     {
-        FileMetadata metadata = new("test-file.jpg", "image/jpeg", null);
+        FileMetadata metadata = new("test-file.jpg", FileType.Image, null);
         await DbContext.FilesMetadata.AddAsync(metadata);
         await DbContext.SaveChangesAsync();
 

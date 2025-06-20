@@ -23,13 +23,13 @@ public class GetTagsStatisticsHandlerTest : InMemoryDatabaseTestBase
 
         List<FileMetadata> metadata =
         [
-            new("file1", "image/png", null),
-            new("file2", "image/png", null),
-            new("file3", "image/png", null),
-            new("file4", "image/png", null),
-            new("file5", "image/png", null),
-            new("file6", "image/png", null),
-            new("file7", "image/png", null),
+            new("file1", FileType.Image, null),
+            new("file2", FileType.Image, null),
+            new("file3", FileType.Image, null),
+            new("file4", FileType.Image, null),
+            new("file5", FileType.Image, null),
+            new("file6", FileType.Image, null),
+            new("file7", FileType.Image, null),
         ];
 
         metadata[0].Tags.AddRange(tags[1], tags[4]);

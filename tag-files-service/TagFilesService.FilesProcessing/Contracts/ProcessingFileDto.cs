@@ -6,7 +6,6 @@ public record ProcessingFileDto(
     uint Id,
     string OriginalFileName,
     string LibraryFileName,
-    string ContentType,
     ProcessingStatus Status)
 {
     public static ProcessingFileDto FromModel(ProcessingFile model)
@@ -15,7 +14,6 @@ public record ProcessingFileDto(
             model.Id,
             model.OriginalFileName,
             model.LibraryFileName,
-            model.ContentType,
             model.Status);
     }
 }

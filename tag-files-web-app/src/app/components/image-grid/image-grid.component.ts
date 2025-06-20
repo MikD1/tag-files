@@ -73,7 +73,7 @@ export class ImageGridComponent implements OnChanges, AfterViewChecked {
       source: [
         {
           src: `${this.getFullContentPath(item.path)}`,
-          type: item.mediaType,
+          type: "video/mp4",
         }
       ],
       attributes: {

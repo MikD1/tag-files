@@ -33,7 +33,7 @@ public class SearchRequestHandler(AppDbContext dbContext)
 
         if (request.ItemType is not null)
         {
-            queryable = queryable.Where(x => x.Type == request.ItemType);
+            queryable = queryable.Where(x => x.FileType == request.ItemType);
         }
 
         queryable = queryable

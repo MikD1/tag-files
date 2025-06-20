@@ -8,8 +8,7 @@ public record LibraryItemDto(
     string? ThumbnailPath,
     string? Description,
     DateTime UploadedOn,
-    FileType Type,
-    string MediaType,
+    FileType FileType,
     TimeSpan? VideoDuration,
     List<string> Tags,
     bool IsFavorite)
@@ -26,8 +25,7 @@ public record LibraryItemDto(
             thumbnailPath,
             metadata.Description,
             metadata.UploadedOn,
-            metadata.Type,
-            metadata.MediaType,
+            metadata.FileType,
             metadata.VideoDuration,
             metadata.Tags
                 .OrderBy(t => t.Name)
