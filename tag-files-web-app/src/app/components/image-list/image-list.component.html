@@ -3,12 +3,12 @@
     <ng-container matColumnDef="image">
       <th *matHeaderCellDef mat-header-cell></th>
       <td *matCellDef="let element" mat-cell>
-        @if (element.type == fileTypes.Image) {
+        @if (element.fileType == fileTypes.Image) {
           <div class="gallery-item" [attr.data-src]="getFullContentPath(element.path)">
             <img class="gallery-item-image" [src]="getFullThumbnailPath(element.thumbnailPath)" alt=""/>
           </div>
         }
-        @if (element.type == fileTypes.Video) {
+        @if (element.fileType == fileTypes.Video) {
           <div class="gallery-item" [attr.data-video]="getVideoData(element)">
             <img class="gallery-item-image" [src]="getFullThumbnailPath(element.thumbnailPath)" alt=""/>
           </div>
