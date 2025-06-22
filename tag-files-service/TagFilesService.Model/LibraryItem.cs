@@ -1,6 +1,6 @@
 namespace TagFilesService.Model;
 
-public class FileMetadata
+public class LibraryItem
 {
     public static string ChangeFileExtension(string fileName, string newExtension)
     {
@@ -8,7 +8,7 @@ public class FileMetadata
         return fileNameWithoutExtension + newExtension;
     }
 
-    public FileMetadata(string fileName, FileType fileType, string? description)
+    public LibraryItem(string fileName, FileType fileType, string? description)
         : this(0u, DateTime.UtcNow, fileName, fileType, description, ThumbnailStatus.NotGenerated, [])
     {
     }
@@ -55,7 +55,7 @@ public class FileMetadata
         }
     }
 
-    private FileMetadata(uint id, DateTime uploadedOn, string fileName, FileType fileType, string? description,
+    private LibraryItem(uint id, DateTime uploadedOn, string fileName, FileType fileType, string? description,
         ThumbnailStatus thumbnailStatus, List<Tag> tags)
     {
         ValidateDescription(description);

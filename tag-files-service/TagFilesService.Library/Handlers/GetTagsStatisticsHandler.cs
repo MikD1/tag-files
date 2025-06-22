@@ -13,9 +13,9 @@ public class GetTagsStatisticsHandler(AppDbContext dbContext)
     {
         FormattableString sql =
             $"""
-                 SELECT t.Name AS TagName, COUNT(ft.FileMetadataId) AS UsageCount
+                 SELECT t.Name AS TagName, COUNT(ft.LibraryItemId) AS UsageCount
                  FROM Tags t
-                 LEFT JOIN FileMetadataTag ft ON t.Id = ft.TagsId
+                 LEFT JOIN LibraryItemTag ft ON t.Id = ft.TagsId
                  GROUP BY t.Name
                  ORDER BY UsageCount DESC, TagName ASC
              """;

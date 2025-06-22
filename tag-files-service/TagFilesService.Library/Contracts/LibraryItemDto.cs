@@ -13,24 +13,24 @@ public record LibraryItemDto(
     List<string> Tags,
     bool IsFavorite)
 {
-    public static LibraryItemDto FromMetadata(FileMetadata metadata)
+    public static LibraryItemDto FromModel(LibraryItem model)
     {
-        string? thumbnailPath = metadata.ThumbnailStatus is ThumbnailStatus.Generated
-            ? System.IO.Path.Combine(Buckets.Thumbnail, FileMetadata.ChangeFileExtension(metadata.FileName, ".jpg"))
+        string? thumbnailPath = model.ThumbnailStatus is ThumbnailStatus.Generated
+            ? System.IO.Path.Combine(Buckets.Thumbnail, LibraryItem.ChangeFileExtension(model.FileName, ".jpg"))
             : null;
 
         return new(
-            metadata.Id,
-            System.IO.Path.Combine(Buckets.Library, metadata.FileName),
+            model.Id,
+            System.IO.Path.Combine(Buckets.Library, model.FileName),
             thumbnailPath,
-            metadata.Description,
-            metadata.UploadedOn,
-            metadata.FileType,
-            metadata.VideoDuration,
-            metadata.Tags
+            model.Description,
+            model.UploadedOn,
+            model.FileType,
+            model.VideoDuration,
+            model.Tags
                 .OrderBy(t => t.Name)
                 .Select(t => t.Name)
                 .ToList(),
-            metadata.IsFavorite);
+            model.IsFavorite);
     }
 }

@@ -12,16 +12,16 @@ public class GetLibraryItemByIdHandler(ILogger<GetLibraryItemByIdHandler> logger
 {
     public async Task<LibraryItemDto?> Handle(GetLibraryItemByIdRequest request, CancellationToken cancellationToken)
     {
-        FileMetadata? metadata = await dbContext.FilesMetadata
+        LibraryItem? libraryItem = await dbContext.LibraryItems
             .Where(x => x.Id == request.Id)
             .Include(x => x.Tags)
             .SingleOrDefaultAsync(cancellationToken);
-        if (metadata is null)
+        if (libraryItem is null)
         {
             logger.LogWarning("Library item with ID {id} not found.", request.Id);
             return null;
         }
 
-        return LibraryItemDto.FromMetadata(metadata);
+        return LibraryItemDto.FromModel(libraryItem);
     }
 }

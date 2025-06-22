@@ -6,7 +6,7 @@ public enum ProcessingStatus
     Converting,
     AddedToLibrary,
     TemporaryFileDeleted,
-    MetadataSaved,
+    LibraryItemSaved,
     Done,
     Failed,
 }

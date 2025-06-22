@@ -8,7 +8,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 {
     public DbSet<Tag> Tags => Set<Tag>();
 
-    public DbSet<FileMetadata> FilesMetadata => Set<FileMetadata>();
+    public DbSet<LibraryItem> LibraryItems => Set<LibraryItem>();
 
     public DbSet<ProcessingFile> ProcessingFiles => Set<ProcessingFile>();
 
@@ -16,11 +16,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<FileMetadata>()
+        modelBuilder.Entity<LibraryItem>()
             .Property(e => e.FileType).HasConversion<string>();
-        modelBuilder.Entity<FileMetadata>()
+        modelBuilder.Entity<LibraryItem>()
             .Property(e => e.ThumbnailStatus).HasConversion<string>();
-        modelBuilder.Entity<FileMetadata>()
+        modelBuilder.Entity<LibraryItem>()
             .HasMany(e => e.Tags).WithMany();
 
         modelBuilder.Entity<Category>()

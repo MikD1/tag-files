@@ -12,16 +12,16 @@ public class SearchRequestHandler(AppDbContext dbContext)
 {
     public async Task<PaginatedList<LibraryItemDto>> Handle(SearchRequest request, CancellationToken cancellationToken)
     {
-        PaginatedList<FileMetadata> searchResults = await Search(request);
+        PaginatedList<LibraryItem> searchResults = await Search(request);
         List<LibraryItemDto> itemsDto = searchResults.Items
-            .Select(LibraryItemDto.FromMetadata)
+            .Select(LibraryItemDto.FromModel)
             .ToList();
         return new(itemsDto, searchResults.TotalItems, searchResults.PageIndex, searchResults.TotalPages);
     }
 
-    private async Task<PaginatedList<FileMetadata>> Search(SearchRequest request)
+    private async Task<PaginatedList<LibraryItem>> Search(SearchRequest request)
     {
-        IQueryable<FileMetadata> queryable = dbContext.FilesMetadata
+        IQueryable<LibraryItem> queryable = dbContext.LibraryItems
             .Include(x => x.Tags);
 
         if (!string.IsNullOrWhiteSpace(request.TagQuery))
@@ -38,6 +38,6 @@ public class SearchRequestHandler(AppDbContext dbContext)
 
         queryable = queryable
             .OrderByDescending(x => x.UploadedOn);
-        return await QueryablePaginatedList<FileMetadata>.CreateAsync(queryable, request.PageIndex, request.PageSize);
+        return await QueryablePaginatedList<LibraryItem>.CreateAsync(queryable, request.PageIndex, request.PageSize);
     }
 }

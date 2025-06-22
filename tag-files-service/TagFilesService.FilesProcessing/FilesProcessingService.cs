@@ -71,16 +71,16 @@ public class FilesProcessingService(
             }
 
             await DeleteTemporaryFile(dbContext, processingFile, cancellationToken);
-            FileMetadata metadata = await SaveMetadata(dbContext, processingFile, cancellationToken);
+            LibraryItem libraryItem = await SaveLibraryItem(dbContext, processingFile, cancellationToken);
             if (duration is not null)
             {
-                metadata.VideoDuration = duration.Value;
+                libraryItem.VideoDuration = duration.Value;
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
 
-            if (metadata.FileType is FileType.Image or FileType.Video)
+            if (libraryItem.FileType is FileType.Image or FileType.Video)
             {
-                await MakeThumbnail(dbContext, metadata, cancellationToken);
+                await MakeThumbnail(dbContext, libraryItem, cancellationToken);
             }
 
             processingFile.Status = ProcessingStatus.Done;
@@ -186,36 +186,36 @@ public class FilesProcessingService(
         logger.LogInformation("Temporary file deleted - {id}", processingFile.Id);
     }
 
-    private async Task<FileMetadata> SaveMetadata(AppDbContext dbContext, ProcessingFile processingFile,
+    private async Task<LibraryItem> SaveLibraryItem(AppDbContext dbContext, ProcessingFile processingFile,
         CancellationToken cancellationToken)
     {
-        FileMetadata metadata = new(processingFile.LibraryFileName, processingFile.FileType, null);
-        await dbContext.FilesMetadata.AddAsync(metadata, cancellationToken);
+        LibraryItem libraryItem = new(processingFile.LibraryFileName, processingFile.FileType, null);
+        await dbContext.LibraryItems.AddAsync(libraryItem, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        Dictionary<string, string> tags = new() { ["metadata-id"] = metadata.Id.ToString() };
+        Dictionary<string, string> tags = new() { ["item-id"] = libraryItem.Id.ToString() };
         SetObjectTagsArgs args = new SetObjectTagsArgs()
             .WithBucket(Buckets.Library)
-            .WithObject(metadata.FileName)
+            .WithObject(libraryItem.FileName)
             .WithTagging(Tagging.GetObjectTags(tags));
         await minio.SetObjectTagsAsync(args, cancellationToken);
 
-        processingFile.Status = ProcessingStatus.MetadataSaved;
+        processingFile.Status = ProcessingStatus.LibraryItemSaved;
         await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Metadata saved - {id}", processingFile.Id);
-        return metadata;
+        logger.LogInformation("Library item saved - {id}", processingFile.Id);
+        return libraryItem;
     }
 
-    private async Task MakeThumbnail(AppDbContext dbContext, FileMetadata metadata, CancellationToken cancellationToken)
+    private async Task MakeThumbnail(AppDbContext dbContext, LibraryItem libraryItem, CancellationToken cancellationToken)
     {
         try
         {
-            string fileUrl = Path.Combine(minio.Config.Endpoint, Buckets.Library, metadata.FileName);
+            string fileUrl = Path.Combine(minio.Config.Endpoint, Buckets.Library, libraryItem.FileName);
 
             string timestampArg = string.Empty;
-            if (metadata.VideoDuration.HasValue)
+            if (libraryItem.VideoDuration.HasValue)
             {
-                TimeSpan thumbnailTimestamp = TimeSpan.FromTicks((long)(metadata.VideoDuration.Value.Ticks * 0.1));
+                TimeSpan thumbnailTimestamp = TimeSpan.FromTicks((long)(libraryItem.VideoDuration.Value.Ticks * 0.1));
                 timestampArg = $"-ss {thumbnailTimestamp}";
             }
 
@@ -246,21 +246,21 @@ public class FilesProcessingService(
 
             PutObjectArgs args = new PutObjectArgs()
                 .WithBucket(Buckets.Thumbnail)
-                .WithObject(FileMetadata.ChangeFileExtension(metadata.FileName, ".jpg"))
+                .WithObject(LibraryItem.ChangeFileExtension(libraryItem.FileName, ".jpg"))
                 .WithStreamData(thumbnailStream)
                 .WithObjectSize(thumbnailStream.Length)
                 .WithContentType("image/jpeg");
             await minio.PutObjectAsync(args, cancellationToken);
 
-            metadata.UpdateThumbnailStatus(ThumbnailStatus.Generated);
+            libraryItem.UpdateThumbnailStatus(ThumbnailStatus.Generated);
             await dbContext.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Thumbnail generated for file {fileName}", metadata.FileName);
+            logger.LogInformation("Thumbnail generated for file {fileName}", libraryItem.FileName);
         }
         catch (Exception ex)
         {
-            metadata.UpdateThumbnailStatus(ThumbnailStatus.Failed);
+            libraryItem.UpdateThumbnailStatus(ThumbnailStatus.Failed);
             await dbContext.SaveChangesAsync(cancellationToken);
-            logger.LogError("Failed to generate thumbnail for file {fileName}: {error}", metadata.FileName, ex.Message);
+            logger.LogError("Failed to generate thumbnail for file {fileName}: {error}", libraryItem.FileName, ex.Message);
         }
     }
 

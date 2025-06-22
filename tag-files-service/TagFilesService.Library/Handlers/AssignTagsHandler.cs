@@ -10,30 +10,30 @@ public class AssignTagsHandler(AppDbContext dbContext) : IRequestHandler<AssignT
 {
     public async Task<List<LibraryItemDto>> Handle(AssignTagsRequest request, CancellationToken cancellationToken)
     {
-        List<FileMetadata> metadata = await GetMetadataByIdOrThrow(request.ItemsList);
+        List<LibraryItem> libraryItems = await GetLibraryItemByIdOrThrow(request.ItemsList);
         List<Tag> tags = await GetTagsByNameOrThrow(request.Tags);
-        foreach (FileMetadata item in metadata)
+        foreach (LibraryItem item in libraryItems)
         {
             item.Tags.Clear();
             item.Tags.AddRange(tags);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return metadata.Select(LibraryItemDto.FromMetadata).ToList();
+        return libraryItems.Select(LibraryItemDto.FromModel).ToList();
     }
 
-    private async Task<List<FileMetadata>> GetMetadataByIdOrThrow(List<uint> ids)
+    private async Task<List<LibraryItem>> GetLibraryItemByIdOrThrow(List<uint> ids)
     {
-        List<FileMetadata> metadata = await dbContext.FilesMetadata
+        List<LibraryItem> libraryItems = await dbContext.LibraryItems
             .Include(x => x.Tags)
             .Where(x => ids.Contains(x.Id))
             .ToListAsync();
-        if (metadata.Count != ids.Count)
+        if (libraryItems.Count != ids.Count)
         {
-            throw new ApplicationException("Some metadata not found");
+            throw new ApplicationException("Some items not found");
         }
 
-        return metadata;
+        return libraryItems;
     }
 
     private async Task<List<Tag>> GetTagsByNameOrThrow(List<string> tagNames)

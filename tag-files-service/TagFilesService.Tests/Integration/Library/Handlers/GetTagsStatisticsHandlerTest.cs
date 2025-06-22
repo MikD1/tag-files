@@ -21,7 +21,7 @@ public class GetTagsStatisticsHandlerTest : InMemoryDatabaseTestBase
         DbContext.Tags.AddRange(tags);
         await DbContext.SaveChangesAsync();
 
-        List<FileMetadata> metadata =
+        List<LibraryItem> libraryItems =
         [
             new("file1", FileType.Image, null),
             new("file2", FileType.Image, null),
@@ -32,14 +32,14 @@ public class GetTagsStatisticsHandlerTest : InMemoryDatabaseTestBase
             new("file7", FileType.Image, null),
         ];
 
-        metadata[0].Tags.AddRange(tags[1], tags[4]);
-        metadata[1].Tags.AddRange(tags[1]);
-        metadata[2].Tags.AddRange(tags[1], tags[0]);
-        metadata[3].Tags.AddRange(tags[1]);
-        metadata[4].Tags.AddRange(tags[1], tags[0], tags[3]);
-        metadata[5].Tags.AddRange();
-        metadata[6].Tags.AddRange(tags[1]);
-        DbContext.FilesMetadata.AddRange(metadata);
+        libraryItems[0].Tags.AddRange(tags[1], tags[4]);
+        libraryItems[1].Tags.AddRange(tags[1]);
+        libraryItems[2].Tags.AddRange(tags[1], tags[0]);
+        libraryItems[3].Tags.AddRange(tags[1]);
+        libraryItems[4].Tags.AddRange(tags[1], tags[0], tags[3]);
+        libraryItems[5].Tags.AddRange();
+        libraryItems[6].Tags.AddRange(tags[1]);
+        DbContext.LibraryItems.AddRange(libraryItems);
         await DbContext.SaveChangesAsync();
 
         GetTagsStatisticsHandler handler = new(DbContext);

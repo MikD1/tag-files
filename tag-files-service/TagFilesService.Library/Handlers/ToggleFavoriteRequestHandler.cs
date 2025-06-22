@@ -10,14 +10,14 @@ public class ToggleFavoriteRequestHandler(AppDbContext dbContext) : IRequestHand
 {
     public async Task Handle(ToggleFavoriteRequest request, CancellationToken cancellationToken)
     {
-        FileMetadata? metadata = await dbContext.FilesMetadata
+        LibraryItem? libraryItem = await dbContext.LibraryItems
             .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-        if (metadata is null)
+        if (libraryItem is null)
         {
-            throw new ApplicationException($"Metadata '{request.Id}' not found");
+            throw new ApplicationException($"Item '{request.Id}' not found");
         }
 
-        metadata.ToggleFavorite();
+        libraryItem.ToggleFavorite();
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

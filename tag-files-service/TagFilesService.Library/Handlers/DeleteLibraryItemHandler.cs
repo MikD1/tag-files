@@ -17,21 +17,21 @@ public class DeleteLibraryItemHandler(
 {
     public async Task Handle(DeleteLibraryItemRequest request, CancellationToken cancellationToken)
     {
-        // TODO: If metadata not found -> try to find the object with metadata.id tag in library bucket
-        FileMetadata metadata = await dbContext.FilesMetadata
+        // TODO: If item not found -> try to find the object with item.id tag in library bucket
+        LibraryItem libraryItem = await dbContext.LibraryItems
             .FirstAsync(x => x.Id == request.Id, cancellationToken);
 
-        if (metadata.ThumbnailStatus is ThumbnailStatus.Generated)
+        if (libraryItem.ThumbnailStatus is ThumbnailStatus.Generated)
         {
-            string thumbnailFileName = FileMetadata.ChangeFileExtension(metadata.FileName, ".jpg");
+            string thumbnailFileName = LibraryItem.ChangeFileExtension(libraryItem.FileName, ".jpg");
             await TryRemoveObject(Buckets.Thumbnail, thumbnailFileName, cancellationToken);
         }
 
-        await TryRemoveObject(Buckets.Library, metadata.FileName, cancellationToken);
+        await TryRemoveObject(Buckets.Library, libraryItem.FileName, cancellationToken);
 
-        dbContext.Remove(metadata);
+        dbContext.Remove(libraryItem);
         await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Deleted file id '{Id}' from library", metadata.Id);
+        logger.LogInformation("Deleted file id '{Id}' from library", libraryItem.Id);
     }
 
     private async Task TryRemoveObject(string bucket, string objectName, CancellationToken cancellationToken)

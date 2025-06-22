@@ -3,7 +3,7 @@ using TagFilesService.Model;
 namespace TagFilesService.Tests.Unit.Model;
 
 [TestClass]
-public class FileMetadataTest
+public class LibraryItemTest
 {
     [DataTestMethod]
     [DataRow("test-file.txt", ".jpg", "test-file.jpg")]
@@ -11,7 +11,7 @@ public class FileMetadataTest
     [DataRow("no-extension", ".txt", "no-extension.txt")]
     public void ChangeFileExtension_ShouldReturnCorrectFileName(string fileName, string newExtension, string expected)
     {
-        string result = FileMetadata.ChangeFileExtension(fileName, newExtension);
+        string result = LibraryItem.ChangeFileExtension(fileName, newExtension);
 
         Assert.AreEqual(expected, result);
     }
@@ -19,13 +19,13 @@ public class FileMetadataTest
     [TestMethod]
     public void ToggleFavorite_ShouldToggleFavoriteStatus()
     {
-        FileMetadata metadata = new("test-file.jpg", FileType.Image, null);
-        Assert.IsFalse(metadata.IsFavorite);
+        LibraryItem libraryItem = new("test-file.jpg", FileType.Image, null);
+        Assert.IsFalse(libraryItem.IsFavorite);
 
-        metadata.ToggleFavorite();
-        Assert.IsTrue(metadata.IsFavorite);
+        libraryItem.ToggleFavorite();
+        Assert.IsTrue(libraryItem.IsFavorite);
 
-        metadata.ToggleFavorite();
-        Assert.IsFalse(metadata.IsFavorite);
+        libraryItem.ToggleFavorite();
+        Assert.IsFalse(libraryItem.IsFavorite);
     }
 }
