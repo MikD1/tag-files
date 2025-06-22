@@ -2,8 +2,9 @@ using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Minio;
 using TagFilesService.FilesProcessing;
+using TagFilesService.FilesProcessing.Handlers;
 using TagFilesService.Infrastructure;
-using TagFilesService.Library;
+using TagFilesService.Library.Handlers;
 using TagFilesService.Model;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -14,8 +15,8 @@ builder.Services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddMediatR(cfg => cfg
-    .RegisterServicesFromAssemblyContaining<MetadataService>()
-    .RegisterServicesFromAssemblyContaining<FilesProcessingService>());
+    .RegisterServicesFromAssemblyContaining<AssignTagsHandler>()
+    .RegisterServicesFromAssemblyContaining<FileProcessingHandler>());
 builder.Services.AddCors(x => x.AddPolicy("AllowAll", policy =>
 {
     policy
@@ -31,7 +32,6 @@ builder.Services.AddMinio(configure => configure
     .WithCredentials(builder.Configuration["S3:Username"], builder.Configuration["S3:Password"])
     .WithSSL(false)
     .Build());
-builder.Services.AddScoped<MetadataService>();
 builder.Services.AddScoped<ITagsRepository, TagsRepository>();
 builder.Services.AddScoped<ICategoriesRepository, CategoriesRepository>();
 
