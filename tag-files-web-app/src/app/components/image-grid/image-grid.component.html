@@ -5,13 +5,21 @@
     @if (libraryItem.fileType == fileTypes.Image) {
       <a class="gallery-item" [href]="getFullContentPath(libraryItem.path)" [matTooltip]="getTagsTooltip(libraryItem)">
         <img class="gallery-item-image" [src]="getFullThumbnailPath(libraryItem.thumbnailPath)" alt=""/>
+        <span class="favorite-label"
+              [ngClass]="{'visible': libraryItem.isFavorite, 'invisible': !libraryItem.isFavorite}">
+          <mat-icon fontIcon="star"></mat-icon>
+        </span>
       </a>
     }
     @if (libraryItem.fileType == fileTypes.Video) {
       <a class="gallery-item" href="" [attr.data-video]="getVideoData(libraryItem)"
          [matTooltip]="getTagsTooltip(libraryItem)">
         <img class="gallery-item-image" [src]="getFullThumbnailPath(libraryItem.thumbnailPath)" alt=""/>
-        <span class="video-duration">{{ libraryItem.videoDuration }}</span>
+        <span class="video-duration-label">{{ libraryItem.videoDuration }}</span>
+        <span class="favorite-label"
+              [ngClass]="{'visible': libraryItem.isFavorite, 'invisible': !libraryItem.isFavorite}">
+          <mat-icon fontIcon="star"></mat-icon>
+        </span>
       </a>
     }
   }

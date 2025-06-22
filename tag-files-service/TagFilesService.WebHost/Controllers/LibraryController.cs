@@ -52,7 +52,7 @@ public class LibraryController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id}/toggle-favorite")]
-    public async Task<ActionResult<LibraryItemDto>> ToggleFavorite(uint id)
+    public async Task<ActionResult> ToggleFavorite(uint id)
     {
         ToggleFavoriteRequest request = new(id);
         await mediator.Send(request);

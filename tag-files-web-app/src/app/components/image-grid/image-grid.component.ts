@@ -11,17 +11,19 @@ import {
 import {MatGridListModule} from '@angular/material/grid-list';
 import {AppStateService} from '../../services/app-state.service';
 import {LightgalleryModule} from 'lightgallery/angular';
-import {LibraryItem, LibraryItemPaginatedList} from '../../services/api/library-api.service';
+import {LibraryApiService, LibraryItem, LibraryItemPaginatedList} from '../../services/api/library-api.service';
 import {FileType} from '../../services/api/file-type';
 import {LightGallerySettings} from 'lightgallery/lg-settings';
 import {LightGallery} from 'lightgallery/lightgallery';
 import {MatTooltipModule} from '@angular/material/tooltip';
+import {MatIconModule} from '@angular/material/icon';
+import {NgClass} from '@angular/common';
 
 const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 
 @Component({
   selector: 'app-image-grid',
-  imports: [MatGridListModule, LightgalleryModule, MatTooltipModule],
+  imports: [MatGridListModule, LightgalleryModule, MatTooltipModule, MatIconModule, NgClass],
   templateUrl: './image-grid.component.html',
   styleUrl: './image-grid.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,6 +40,7 @@ export class ImageGridComponent implements OnChanges, AfterViewChecked {
     const level = this.appStateService.getGalleryThumbnailSize();
     return 4 + (max - level);
   })
+  private readonly libraryApi = inject(LibraryApiService);
 
   ngAfterViewChecked(): void {
     if (this.needRefresh && this.lightGallery) {
@@ -50,6 +53,12 @@ export class ImageGridComponent implements OnChanges, AfterViewChecked {
     if (changes['itemsList'].currentValue != changes['itemsList'].previousValue) {
       this.needRefresh = true;
     }
+  }
+
+  toggleFavorite(item: LibraryItem) {
+    this.libraryApi.toggleFavorite(item.id).subscribe({
+      next: () => item.isFavorite = !item.isFavorite
+    });
   }
 
   protected onGalleryInit = (detail: any): void => {

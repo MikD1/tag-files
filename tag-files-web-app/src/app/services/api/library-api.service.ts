@@ -22,8 +22,9 @@ export interface LibraryItem {
   description?: string;
   uploadedOn: string;
   fileType: FileType;
-  videoDuration?: string
+  videoDuration?: string;
   tags: string[];
+  isFavorite: boolean;
 }
 
 export interface LibraryItemPaginatedList {
@@ -58,6 +59,10 @@ export class LibraryApiService {
 
   assignTags(request: AssignTagsRequest): Observable<LibraryItem[]> {
     return this.http.post<LibraryItem[]>(`${this.baseUrl}/library/assign-tags`, request);
+  }
+
+  toggleFavorite(id: number): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/library/${id}/toggle-favorite`, null);
   }
 }
 
