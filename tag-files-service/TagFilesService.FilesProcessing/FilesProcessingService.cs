@@ -277,7 +277,7 @@ public class FilesProcessingService(
             }
 
             previousPercent = progress.Percent;
-            logger.LogInformation("Progress: {current} / {total} ({percent}%)", progress.Current ?? TimeSpan.Zero,
+            logger.LogTrace("Progress: {current} / {total} ({percent}%)", progress.Current ?? TimeSpan.Zero,
                 progress.Total,
                 progress.Percent);
         }

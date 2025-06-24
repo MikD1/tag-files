@@ -47,7 +47,7 @@ public class FileProcessingHandler(
             {
                 FileName = "ffprobe",
                 Arguments =
-                    $"-select_streams v -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 {fileUrl}",
+                    $"-select_streams v -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 \"{fileUrl}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
