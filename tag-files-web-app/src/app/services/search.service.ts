@@ -37,7 +37,7 @@ export class SearchService {
       tagQuery: this.searchQuery.value ? this.searchQuery.value : undefined,
       itemType: itemType,
       pageIndex: 1,
-      pageSize: 100
+      pageSize: 300
     }).subscribe((result) => {
       this.searchResults.set(result);
     })
