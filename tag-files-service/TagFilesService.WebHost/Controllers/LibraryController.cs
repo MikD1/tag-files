@@ -58,4 +58,12 @@ public class LibraryController(IMediator mediator) : ControllerBase
         await mediator.Send(request);
         return Ok();
     }
+
+    [HttpGet("{id}/similar")]
+    public async Task<ActionResult<List<LibraryItemDto>>> GetSimilar(uint id)
+    {
+        GetSimilarLibraryItemsRequest request = new(id);
+        List<LibraryItemDto> result = await mediator.Send(request);
+        return Ok(result);
+    }
 }
