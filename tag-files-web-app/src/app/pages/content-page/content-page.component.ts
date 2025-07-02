@@ -31,7 +31,7 @@ export class ContentPageComponent {
   protected getVideoOptions() {
     // See options: https://videojs.com/guides/options
     return {
-      fluid: true,
+      fill: true,
       autoplay: true,
       muted: true,
       sources: {
