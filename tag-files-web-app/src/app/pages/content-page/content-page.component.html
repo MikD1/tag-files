@@ -1,0 +1,14 @@
+@if (!item()) {
+  <div>Loading...</div>
+} @else {
+  @if (item()!.fileType === 'Video') {
+    <div class="video-container">
+      <app-video-player [options]=getVideoOptions()></app-video-player>
+    </div>
+  }
+  <mat-chip-set>
+    @for (tag of item()!.tags; track $index) {
+      <mat-chip>{{ tag }}</mat-chip>
+    }
+  </mat-chip-set>
+}
