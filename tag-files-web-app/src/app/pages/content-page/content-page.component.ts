@@ -4,13 +4,15 @@ import {CommonModule} from '@angular/common';
 import {MatChipsModule} from '@angular/material/chips';
 import {LibraryApiService, LibraryItem} from '../../services/api/library-api.service';
 import {VideoPlayerComponent} from '../../components/video-player/video-player.component';
+import {MatIconModule} from '@angular/material/icon';
+import {MatButtonModule} from '@angular/material/button';
 
 const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 
 @Component({
   selector: 'app-content-page',
   standalone: true,
-  imports: [CommonModule, MatChipsModule, VideoPlayerComponent],
+  imports: [CommonModule, MatChipsModule, VideoPlayerComponent, MatIconModule, MatButtonModule],
   templateUrl: './content-page.component.html',
   styleUrl: './content-page.component.scss'
 })
@@ -42,11 +44,16 @@ export class ContentPageComponent {
     };
   }
 
-  protected getThumbnailUrl() {
-    return ContentBaseUrl + this.item()!.thumbnailPath;
-  }
-
   protected getContentUrl() {
     return ContentBaseUrl + this.item()!.path;
+  }
+
+  protected toggleFavorite() {
+    const item = this.item()!;
+    this.libraryApi.toggleFavorite(item.id).subscribe({
+      next: () => {
+        this.item.set({...item, isFavorite: !item.isFavorite});
+      }
+    });
   }
 }

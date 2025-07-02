@@ -12,9 +12,15 @@
     </div>
   }
 
-  <mat-chip-set class="tags-section">
-    @for (tag of item()!.tags; track $index) {
-      <mat-chip>{{ tag }}</mat-chip>
-    }
-  </mat-chip-set>
+  <div class="controls-section">
+    <mat-chip-set>
+      @for (tag of item()!.tags; track $index) {
+        <mat-chip>{{ tag }}</mat-chip>
+      }
+    </mat-chip-set>
+
+    <button mat-icon-button (click)="toggleFavorite()">
+      <mat-icon>{{ item()!.isFavorite ? 'star' : 'star_border' }}</mat-icon>
+    </button>
+  </div>
 }
