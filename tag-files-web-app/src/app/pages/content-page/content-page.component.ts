@@ -32,12 +32,21 @@ export class ContentPageComponent {
     // See options: https://videojs.com/guides/options
     return {
       fill: true,
-      autoplay: true,
-      muted: true,
+      autoplay: false,
+      muted: false,
+      preload: 'auto',
       sources: {
-        src: ContentBaseUrl + this.item()!.path,
+        src: this.getContentUrl(),
         type: "video/mp4",
       },
     };
+  }
+
+  protected getThumbnailUrl() {
+    return ContentBaseUrl + this.item()!.thumbnailPath;
+  }
+
+  protected getContentUrl() {
+    return ContentBaseUrl + this.item()!.path;
   }
 }

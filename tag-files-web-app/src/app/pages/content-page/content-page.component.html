@@ -6,7 +6,13 @@
       <app-video-player [options]=getVideoOptions()></app-video-player>
     </div>
   }
-  <mat-chip-set>
+  @if (item()!.fileType === 'Image') {
+    <div class="image-container">
+      <img [src]="getContentUrl()" alt="Content">
+    </div>
+  }
+
+  <mat-chip-set class="tags-section">
     @for (tag of item()!.tags; track $index) {
       <mat-chip>{{ tag }}</mat-chip>
     }
