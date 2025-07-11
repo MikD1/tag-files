@@ -1,26 +1,13 @@
-<lightgallery [onInit]="onGalleryInit" [settings]="gallerySettings()"
-              [style.grid-template-columns]="'repeat(' + getGridColumns() + ', 1fr)'"
-              class="gallery">
+<div [style.grid-template-columns]="'repeat(' + getGridColumns() + ', 1fr)'" class="gallery">
   @for (libraryItem of itemsList().items; track $index) {
-    @if (libraryItem.fileType == fileTypes.Image) {
-      <a class="gallery-item" [href]="getFullContentPath(libraryItem.path)" [matTooltip]="getTagsTooltip(libraryItem)">
-        <img class="gallery-item-image" [src]="getFullThumbnailPath(libraryItem.thumbnailPath)" alt=""/>
-        <span class="favorite-label"
-              [ngClass]="{'visible': libraryItem.isFavorite, 'invisible': !libraryItem.isFavorite}">
+    <a class="gallery-item" [routerLink]="['/content', libraryItem.id]"
+       [matTooltip]="getTagsTooltip(libraryItem)">
+      <img class="gallery-item-image" [src]="getFullThumbnailPath(libraryItem.thumbnailPath)" alt=""/>
+      <span class="video-duration-label">{{ libraryItem.videoDuration }}</span>
+      <span class="favorite-label"
+            [ngClass]="{'visible': libraryItem.isFavorite, 'invisible': !libraryItem.isFavorite}">
           <mat-icon fontIcon="star"></mat-icon>
         </span>
-      </a>
-    }
-    @if (libraryItem.fileType == fileTypes.Video) {
-      <a class="gallery-item" href="" [attr.data-video]="getVideoData(libraryItem)"
-         [matTooltip]="getTagsTooltip(libraryItem)">
-        <img class="gallery-item-image" [src]="getFullThumbnailPath(libraryItem.thumbnailPath)" alt=""/>
-        <span class="video-duration-label">{{ libraryItem.videoDuration }}</span>
-        <span class="favorite-label"
-              [ngClass]="{'visible': libraryItem.isFavorite, 'invisible': !libraryItem.isFavorite}">
-          <mat-icon fontIcon="star"></mat-icon>
-        </span>
-      </a>
-    }
+    </a>
   }
-</lightgallery>
+</div>
