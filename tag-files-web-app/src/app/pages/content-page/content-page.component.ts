@@ -34,7 +34,7 @@ export class ContentPageComponent {
     // See options: https://videojs.com/guides/options
     return {
       fill: true,
-      autoplay: false,
+      autoplay: true,
       muted: false,
       preload: 'auto',
       sources: {

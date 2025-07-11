@@ -1,4 +1,4 @@
-import {Component, ElementRef, Input, OnDestroy, OnInit, ViewChild} from '@angular/core';
+import {Component, ElementRef, HostListener, Input, OnDestroy, OnInit, ViewChild} from '@angular/core';
 import videojs from 'video.js';
 import VideoJsPlayer from "video.js/dist/types/player"
 
@@ -16,11 +16,38 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.player = videojs(this.target.nativeElement, this.options);
+    this.player.volume(0.5);
   }
 
   ngOnDestroy() {
     if (this.player) {
       this.player.dispose();
+    }
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  handleKeyDown(event: KeyboardEvent) {
+    if (!this.player) {
+      return;
+    }
+
+    switch (event.key) {
+      case ' ':
+        event.preventDefault(); // Prevent page scroll
+        this.player.paused() ? this.player.play() : this.player.pause();
+        break;
+      case 'ArrowRight':
+        this.player.currentTime(this.player.currentTime()! + 5);
+        break;
+      case 'ArrowLeft':
+        this.player.currentTime(Math.max(0, this.player.currentTime()! - 3));
+        break;
+      case 'ArrowUp':
+        this.player.volume(Math.min(1, this.player.volume()! + 0.1));
+        break;
+      case 'ArrowDown':
+        this.player.volume(Math.max(0, this.player.volume()! - 0.1));
+        break;
     }
   }
 }

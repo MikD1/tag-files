@@ -1,4 +1,4 @@
-import {Component, computed, HostListener, inject} from '@angular/core';
+import {Component, computed, inject} from '@angular/core';
 import {ImageGridComponent} from '../../components/image-grid/image-grid.component';
 import {AppStateService, GalleryViewType} from '../../services/app-state.service';
 import {ImageListComponent} from '../../components/image-list/image-list.component';
@@ -34,32 +34,4 @@ export class LibraryPageComponent {
   protected readonly searchResults = computed(() => {
     return this.searchService.searchResults()
   });
-
-  @HostListener('document:keydown', ['$event'])
-  handleKeyboardEvent(event: KeyboardEvent): void {
-    const videoElement = document.querySelector('video');
-    if (videoElement) {
-      switch (event.code) {
-        case 'Space':
-          if (videoElement.paused) {
-            videoElement.play();
-          } else {
-            videoElement.pause();
-          }
-          break;
-        case 'ArrowRight':
-          videoElement.currentTime += 4;
-          break;
-        case 'ArrowLeft':
-          videoElement.currentTime -= 2;
-          break;
-        case 'ArrowUp':
-          videoElement.volume = Math.min(videoElement.volume + 0.1, 1);
-          break;
-        case 'ArrowDown':
-          videoElement.volume = Math.max(videoElement.volume - 0.1, 0);
-          break;
-      }
-    }
-  }
 }
