@@ -3,7 +3,6 @@ import {MatGridListModule} from '@angular/material/grid-list';
 import {AppStateService} from '../../services/app-state.service';
 import {LightgalleryModule} from 'lightgallery/angular';
 import {LibraryApiService, LibraryItem, LibraryItemPaginatedList} from '../../services/api/library-api.service';
-import {LightGallerySettings} from 'lightgallery/lg-settings';
 import {MatTooltipModule} from '@angular/material/tooltip';
 import {MatIconModule} from '@angular/material/icon';
 import {NgClass} from '@angular/common';
@@ -19,7 +18,6 @@ const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ImageGridComponent {
-  gallerySettings = input.required<LightGallerySettings>();
   itemsList = input.required<LibraryItemPaginatedList>();
   private readonly appStateService = inject(AppStateService);
   protected readonly getGridColumns = computed(() => {

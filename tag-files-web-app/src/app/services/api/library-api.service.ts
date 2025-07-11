@@ -64,6 +64,15 @@ export class LibraryApiService {
   toggleFavorite(id: number): Observable<void> {
     return this.http.post<void>(`${this.baseUrl}/library/${id}/toggle-favorite`, null);
   }
+
+  getSimilarItems(id: number): Observable<LibraryItem[]> {
+    return this.http.get<LibraryItem[]>(`${this.baseUrl}/library/${id}/similar`).pipe(
+      map(items => items.map(item => ({
+        ...item,
+        videoDuration: item.videoDuration ? convertDuration(item.videoDuration) : undefined
+      })))
+    );
+  }
 }
 
 function convertDuration(input: string): string {

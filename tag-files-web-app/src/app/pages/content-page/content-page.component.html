@@ -24,3 +24,8 @@
     </button>
   </div>
 }
+
+@if (similarItems().length > 0) {
+  <h3>Similar items</h3>
+  <app-image-grid [itemsList]="getSimilarItemsPaginatedList()"></app-image-grid>
+}
