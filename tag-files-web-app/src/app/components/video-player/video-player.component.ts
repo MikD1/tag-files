@@ -31,9 +31,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
       return;
     }
 
+    event.preventDefault(); // Prevent page scroll
     switch (event.key) {
       case ' ':
-        event.preventDefault(); // Prevent page scroll
         this.player.paused() ? this.player.play() : this.player.pause();
         break;
       case 'ArrowRight':
