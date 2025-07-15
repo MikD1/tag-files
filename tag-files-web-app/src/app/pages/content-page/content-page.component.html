@@ -19,9 +19,14 @@
       }
     </mat-chip-set>
 
-    <button mat-icon-button (click)="toggleFavorite()">
-      <mat-icon>{{ item()!.isFavorite ? 'star' : 'star_border' }}</mat-icon>
-    </button>
+    <div>
+      <button mat-icon-button (click)="toggleFavorite()">
+        <mat-icon>{{ item()!.isFavorite ? 'star' : 'star_border' }}</mat-icon>
+      </button>
+      <button mat-icon-button (click)="edit()">
+        <mat-icon>more_vert</mat-icon>
+      </button>
+    </div>
   </div>
 }
 

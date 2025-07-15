@@ -22,7 +22,6 @@ export class LibraryPageComponent {
     flipHorizontal: false,
     flipVertical: false,
     rotateLeft: false,
-    keyPress: false,
     gotoNextSlideOnVideoEnd: false
   };
   protected galleryViewTypes = GalleryViewType;

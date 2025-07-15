@@ -7,6 +7,9 @@ import {VideoPlayerComponent} from '../../components/video-player/video-player.c
 import {MatIconModule} from '@angular/material/icon';
 import {MatButtonModule} from '@angular/material/button';
 import {ImageGridComponent} from '../../components/image-grid/image-grid.component';
+import {SearchService} from '../../services/search.service';
+import {LibraryItemEditModalComponent} from '../library-item-edit-modal/library-item-edit-modal.component';
+import {MatDialog} from '@angular/material/dialog';
 
 const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 
@@ -23,15 +26,14 @@ export class ContentPageComponent {
   protected readonly similarItems = signal<LibraryItem[]>([]);
   private readonly route = inject(ActivatedRoute);
   private readonly libraryApi = inject(LibraryApiService);
+  private readonly searchService = inject(SearchService);
+  private dialog = inject(MatDialog);
 
   constructor() {
     this.route.paramMap.subscribe(params => {
       const id = Number(params.get('id'));
       if (id) {
-        this.item.set(null);
-        this.similarItems.set([]);
-        this.libraryApi.getItem(id).subscribe(item => this.item.set(item));
-        this.libraryApi.getSimilarItems(id).subscribe(items => this.similarItems.set(items));
+        this.loadItem(id);
       }
     });
   }
@@ -59,6 +61,25 @@ export class ContentPageComponent {
     this.libraryApi.toggleFavorite(item.id).subscribe({
       next: () => {
         this.item.set({...item, isFavorite: !item.isFavorite});
+        this.searchService.search();
+      }
+    });
+  }
+
+  protected edit() {
+    const itemId = this.item()!.id;
+    const dialogRef = this.dialog.open(LibraryItemEditModalComponent, {
+      data: {
+        item: this.item()!,
+      },
+      width: '800px',
+      height: '600px',
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result === true) {
+        this.loadItem(itemId);
+        this.searchService.search();
       }
     });
   }
@@ -71,5 +92,12 @@ export class ContentPageComponent {
       pageIndex: 0,
       totalPages: 1,
     };
+  }
+
+  protected loadItem(id: number) {
+    this.item.set(null);
+    this.similarItems.set([]);
+    this.libraryApi.getItem(id).subscribe(item => this.item.set(item));
+    this.libraryApi.getSimilarItems(id).subscribe(items => this.similarItems.set(items));
   }
 }
