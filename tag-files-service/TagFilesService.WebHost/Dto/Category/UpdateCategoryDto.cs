@@ -1,6 +1,6 @@
 using TagFilesService.Model;
 
-namespace TagFilesService.WebHost.Dto;
+namespace TagFilesService.WebHost.Dto.Category;
 
 public record UpdateCategoryDto(
     string? Name,

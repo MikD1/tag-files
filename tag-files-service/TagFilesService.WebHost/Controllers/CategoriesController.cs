@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using TagFilesService.Model;
-using TagFilesService.WebHost.Dto;
+using TagFilesService.WebHost.Dto.Category;
 
 namespace TagFilesService.WebHost.Controllers;
 

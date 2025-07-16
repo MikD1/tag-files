@@ -14,6 +14,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<Category> Categories => Set<Category>();
 
+    public DbSet<LibraryCollection> Collections => Set<LibraryCollection>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<LibraryItem>()

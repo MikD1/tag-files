@@ -9,7 +9,7 @@ public class LibraryItem
     }
 
     public LibraryItem(string fileName, FileType fileType, string? description)
-        : this(0u, DateTime.UtcNow, fileName, fileType, description, ThumbnailStatus.NotGenerated, [])
+        : this(0u, DateTime.UtcNow, fileName, fileType, description, null, ThumbnailStatus.NotGenerated, [])
     {
     }
 
@@ -22,6 +22,8 @@ public class LibraryItem
     public FileType FileType { get; private set; }
 
     public string? Description { get; private set; }
+
+    public uint? CollectionId { get; set; }
 
     public TimeSpan? VideoDuration { get; set; }
 
@@ -56,7 +58,7 @@ public class LibraryItem
     }
 
     private LibraryItem(uint id, DateTime uploadedOn, string fileName, FileType fileType, string? description,
-        ThumbnailStatus thumbnailStatus, List<Tag> tags)
+        uint? collectionId, ThumbnailStatus thumbnailStatus, List<Tag> tags)
     {
         ValidateDescription(description);
         Id = id;
@@ -64,6 +66,7 @@ public class LibraryItem
         FileName = fileName;
         FileType = fileType;
         Description = description;
+        CollectionId = collectionId;
         ThumbnailStatus = thumbnailStatus;
         Tags = tags;
         IsFavorite = false;

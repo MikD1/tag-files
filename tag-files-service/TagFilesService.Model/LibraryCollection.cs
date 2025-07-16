@@ -1,14 +1,9 @@
 namespace TagFilesService.Model;
 
-/*
- * Series?
- * How to return collections and items as search results?
- */
-
 public class LibraryCollection
 {
     public LibraryCollection(string name)
-        : this(0u, name, [])
+        : this(0u, name)
     {
     }
 
@@ -16,17 +11,24 @@ public class LibraryCollection
 
     public string Name { get; private set; }
 
-    public List<Tag> Tags { get; private set; }
-
     public void Rename(string newName)
     {
+        ValidateName(newName);
         Name = newName;
     }
 
-    private LibraryCollection(uint id, string name, List<Tag> tags)
+    private void ValidateName(string name)
     {
+        if (name.Length is 0 or > 200)
+        {
+            throw new ApplicationException("Category Name cannot be empty or longer than 200 characters");
+        }
+    }
+
+    private LibraryCollection(uint id, string name)
+    {
+        ValidateName(name);
         Id = id;
         Name = name;
-        Tags = tags;
     }
 }

@@ -6,16 +6,17 @@ using TagFilesService.Model;
 
 namespace TagFilesService.Library.Handlers;
 
-public class AssignTagsHandler(AppDbContext dbContext) : IRequestHandler<AssignTagsRequest, List<LibraryItemDto>>
+public class AssignItemsToCollectionHandler(AppDbContext dbContext)
+    : IRequestHandler<AssignItemsToCollectionRequest, List<LibraryItemDto>>
 {
-    public async Task<List<LibraryItemDto>> Handle(AssignTagsRequest request, CancellationToken cancellationToken)
+    public async Task<List<LibraryItemDto>> Handle(AssignItemsToCollectionRequest request,
+        CancellationToken cancellationToken)
     {
         List<LibraryItem> libraryItems = await GetLibraryItemsByIdOrThrow(request.ItemsList);
-        List<Tag> tags = await GetTagsByNameOrThrow(request.Tags);
+        await EnsureCollectionExists(request.CollectionId);
         foreach (LibraryItem item in libraryItems)
         {
-            item.Tags.Clear();
-            item.Tags.AddRange(tags);
+            item.CollectionId = request.CollectionId;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -36,16 +37,12 @@ public class AssignTagsHandler(AppDbContext dbContext) : IRequestHandler<AssignT
         return libraryItems;
     }
 
-    private async Task<List<Tag>> GetTagsByNameOrThrow(List<string> tagNames)
+    private async Task EnsureCollectionExists(uint collectionId)
     {
-        List<Tag> tags = await dbContext.Tags
-            .Where(x => tagNames.Contains(x.Name))
-            .ToListAsync();
-        if (tags.Count != tagNames.Count)
+        bool exists = await dbContext.Collections.AnyAsync(x => x.Id == collectionId);
+        if (!exists)
         {
-            throw new ApplicationException("Some tags not found");
+            throw new ApplicationException($"Collection '{collectionId}' not found");
         }
-
-        return tags;
     }
 }

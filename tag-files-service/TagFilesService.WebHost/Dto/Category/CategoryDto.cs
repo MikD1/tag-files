@@ -1,6 +1,6 @@
 using TagFilesService.Model;
 
-namespace TagFilesService.WebHost.Dto;
+namespace TagFilesService.WebHost.Dto.Category;
 
 public record CategoryDto(
     uint Id,
@@ -8,7 +8,7 @@ public record CategoryDto(
     string? TagQuery,
     FileType? ItemsType)
 {
-    public static CategoryDto FromModel(Category model) => new(
+    public static CategoryDto FromModel(Model.Category model) => new(
         model.Id,
         model.Name,
         model.TagQuery,

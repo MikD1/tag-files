@@ -44,6 +44,14 @@ public class LibraryController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("assign-to-collection")]
+    public async Task<ActionResult<List<LibraryItemDto>>> AssignToCollection(
+        [FromBody] AssignItemsToCollectionRequest request)
+    {
+        List<LibraryItemDto> result = await mediator.Send(request);
+        return Ok(result);
+    }
+
     [HttpPost("generate-upload-urls")]
     public async Task<ActionResult<List<string>>> GenerateUploadUrls([FromBody] GeneratePresignedUrlsRequest request)
     {
