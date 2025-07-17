@@ -20,6 +20,7 @@ export interface LibraryItem {
   path: string;
   thumbnailPath?: string;
   description?: string;
+  collectionId?: number;
   uploadedOn: string;
   fileType: FileType;
   videoDuration?: string;
@@ -75,7 +76,7 @@ export class LibraryApiService {
   }
 }
 
-function convertDuration(input: string): string {
+export function convertDuration(input: string): string {
   const [hoursStr, minutesStr, secondsFractionStr] = input.split(":");
 
   const hours = parseInt(hoursStr, 10);

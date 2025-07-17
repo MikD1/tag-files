@@ -1,7 +1,7 @@
 import {inject, Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
-import {Observable} from 'rxjs';
-import {LibraryItem} from './library-api.service';
+import {map, Observable} from 'rxjs';
+import {convertDuration, LibraryItem} from './library-api.service';
 
 export interface LibraryCollectionDto {
   id: number;
@@ -34,7 +34,15 @@ export class LibraryCollectionsApiService {
   }
 
   getCollection(id: number): Observable<LibraryCollectionWithItemsDto> {
-    return this.http.get<LibraryCollectionWithItemsDto>(`${this.baseUrl}/library-collections/${id}`);
+    return this.http.get<LibraryCollectionWithItemsDto>(`${this.baseUrl}/library-collections/${id}`).pipe(
+      map(collection => ({
+        ...collection,
+        items: collection.items.map(item => ({
+          ...item,
+          videoDuration: item.videoDuration ? convertDuration(item.videoDuration) : undefined
+        }))
+      }))
+    );
   }
 
   createCollection(collection: CreateLibraryCollectionDto): Observable<LibraryCollectionDto> {

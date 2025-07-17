@@ -30,7 +30,12 @@
   </div>
 }
 
+@if (collectionItems().length > 0) {
+  <h4>Collection</h4>
+  <app-image-grid [itemsList]="makeItemsPaginatedList(collectionItems())"></app-image-grid>
+}
+
 @if (similarItems().length > 0) {
-  <h3>Similar items</h3>
-  <app-image-grid [itemsList]="getSimilarItemsPaginatedList()"></app-image-grid>
+  <h4>Similar items</h4>
+  <app-image-grid [itemsList]="makeItemsPaginatedList(similarItems())"></app-image-grid>
 }

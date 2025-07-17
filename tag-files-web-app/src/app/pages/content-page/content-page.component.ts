@@ -10,6 +10,7 @@ import {ImageGridComponent} from '../../components/image-grid/image-grid.compone
 import {SearchService} from '../../services/search.service';
 import {LibraryItemEditModalComponent} from '../library-item-edit-modal/library-item-edit-modal.component';
 import {MatDialog} from '@angular/material/dialog';
+import {LibraryCollectionsApiService} from '../../services/api/library-collections-api.service';
 
 const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 
@@ -24,8 +25,10 @@ const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 export class ContentPageComponent {
   protected readonly item = signal<LibraryItem | null>(null);
   protected readonly similarItems = signal<LibraryItem[]>([]);
+  protected readonly collectionItems = signal<LibraryItem[]>([]);
   private readonly route = inject(ActivatedRoute);
   private readonly libraryApi = inject(LibraryApiService);
+  private readonly libraryCollectionsApi = inject(LibraryCollectionsApiService);
   private readonly searchService = inject(SearchService);
   private dialog = inject(MatDialog);
 
@@ -84,8 +87,7 @@ export class ContentPageComponent {
     });
   }
 
-  protected getSimilarItemsPaginatedList() {
-    const items = this.similarItems();
+  protected makeItemsPaginatedList(items: LibraryItem[]) {
     return {
       items,
       totalItems: items.length,
@@ -97,7 +99,17 @@ export class ContentPageComponent {
   protected loadItem(id: number) {
     this.item.set(null);
     this.similarItems.set([]);
-    this.libraryApi.getItem(id).subscribe(item => this.item.set(item));
+    this.collectionItems.set([]);
+
+    this.libraryApi.getItem(id).subscribe(item => {
+      this.item.set(item);
+      if (item.collectionId) {
+        this.libraryCollectionsApi.getCollection(item.collectionId).subscribe(collection => {
+          this.collectionItems.set(collection.items.filter(collectionItem => collectionItem.id !== item.id));
+        });
+      }
+    });
+
     this.libraryApi.getSimilarItems(id).subscribe(items => this.similarItems.set(items));
   }
 }
