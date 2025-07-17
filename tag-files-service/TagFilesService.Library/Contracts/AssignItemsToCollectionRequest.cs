@@ -4,5 +4,5 @@ namespace TagFilesService.Library.Contracts;
 
 public record AssignItemsToCollectionRequest(
     List<uint> ItemsList,
-    uint CollectionId)
+    uint? CollectionId)
     : IRequest<List<LibraryItemDto>>;

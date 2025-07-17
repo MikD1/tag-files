@@ -37,8 +37,13 @@ public class AssignItemsToCollectionHandler(AppDbContext dbContext)
         return libraryItems;
     }
 
-    private async Task EnsureCollectionExists(uint collectionId)
+    private async Task EnsureCollectionExists(uint? collectionId)
     {
+        if (collectionId is null)
+        {
+            return;
+        }
+
         bool exists = await dbContext.Collections.AnyAsync(x => x.Id == collectionId);
         if (!exists)
         {

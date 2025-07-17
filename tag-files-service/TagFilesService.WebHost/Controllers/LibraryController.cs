@@ -48,6 +48,16 @@ public class LibraryController(IMediator mediator) : ControllerBase
     public async Task<ActionResult<List<LibraryItemDto>>> AssignToCollection(
         [FromBody] AssignItemsToCollectionRequest request)
     {
+        if (request.ItemsList.Count == 0)
+        {
+            return BadRequest("Items list cannot be empty.");
+        }
+
+        if (request.CollectionId is 0)
+        {
+            request = request with { CollectionId = null };
+        }
+
         List<LibraryItemDto> result = await mediator.Send(request);
         return Ok(result);
     }
