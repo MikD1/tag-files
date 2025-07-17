@@ -17,10 +17,12 @@
       <span>Categories</span>
     </mat-list-item>
   </a>
-  <mat-list-item>
-    <mat-icon matListItemIcon>folder_copy</mat-icon>
-    <span>Collections</span>
-  </mat-list-item>
+  <a routerLink="/collections">
+    <mat-list-item [ngClass]="{'item-active': currentRoute() === '/collections'}">
+      <mat-icon matListItemIcon>folder_copy</mat-icon>
+      <span>Collections</span>
+    </mat-list-item>
+  </a>
   <mat-list-item>
     <mat-icon matListItemIcon>star</mat-icon>
     <span>Favorites</span>

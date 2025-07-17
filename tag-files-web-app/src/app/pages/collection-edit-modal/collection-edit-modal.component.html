@@ -1,0 +1,23 @@
+<div class="header" mat-dialog-title>
+  {{ data.collection ? 'Edit collection' : 'New collection' }}
+  <button class="close-button" mat-dialog-close mat-icon-button>
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+
+<mat-dialog-content class="mat-typography">
+  <form [formGroup]="form" class="collection-form">
+    <mat-form-field appearance="outline" class="form-field">
+      <mat-label>Name</mat-label>
+      <input cdkFocusInitial formControlName="name" matInput>
+    </mat-form-field>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  @if (data.collection) {
+    <button (click)="deleteClick()" mat-button>Delete</button>
+  }
+  <button mat-button mat-dialog-close>Cancel</button>
+  <button (click)="saveClick()" mat-button>Save</button>
+</mat-dialog-actions> 
