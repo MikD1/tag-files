@@ -12,6 +12,8 @@ import {
 import {MatButton, MatIconButton} from '@angular/material/button';
 import {DatePipe} from '@angular/common';
 import {TagsFormComponent} from '../../components/tags-form/tags-form.component';
+import {firstValueFrom} from 'rxjs';
+import {SelectCollectionComponent} from '../../components/select-collection/select-collection.component';
 
 const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 
@@ -31,6 +33,7 @@ export interface LibraryItemEditModalData {
     TagsFormComponent,
     MatDialogActions,
     MatButton,
+    SelectCollectionComponent
   ],
   templateUrl: './library-item-edit-modal.component.html',
   styleUrl: './library-item-edit-modal.component.scss',
@@ -39,6 +42,7 @@ export interface LibraryItemEditModalData {
 export class LibraryItemEditModalComponent {
   protected readonly data: LibraryItemEditModalData = inject(MAT_DIALOG_DATA);
   protected tags: string[] = this.data.item.tags;
+  protected collectionId?: number = this.data.item.collectionId;
   private readonly libraryService = inject(LibraryApiService);
   private readonly dialogRef = inject(MatDialogRef<LibraryItemEditModalComponent>);
 
@@ -51,19 +55,21 @@ export class LibraryItemEditModalComponent {
     return ContentBaseUrl + thumbnailPath;
   }
 
-  protected saveClick() {
+  protected async saveClick() {
     const request = {
       itemsList: [this.data.item.id],
       tags: this.tags
     };
 
-    this.libraryService.assignTags(request).subscribe({
-      next: () => {
-        this.dialogRef.close(true);
-      },
-      error: (err) => {
-        console.error('Error assign tags:', err);
-      },
-    });
+    await firstValueFrom(this.libraryService.assignTags(request));
+
+    if (this.collectionId !== this.data.item.collectionId) {
+      await firstValueFrom(this.libraryService.assignToCollection({
+        itemsList: [this.data.item.id],
+        collectionId: this.collectionId
+      }));
+    }
+
+    this.dialogRef.close(true);
   }
 }

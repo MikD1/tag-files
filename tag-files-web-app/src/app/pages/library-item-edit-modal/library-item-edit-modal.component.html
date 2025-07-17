@@ -21,7 +21,12 @@
   <div class="tags-section">
     <app-tags-form [(tags)]="tags"></app-tags-form>
   </div>
+
+  <div class="collection-section">
+    <app-select-collection [(collectionId)]="collectionId"></app-select-collection>
+  </div>
 </mat-dialog-content>
+
 <mat-dialog-actions align="end">
   <button (click)="saveClick()" mat-button>Save</button>
 </mat-dialog-actions>

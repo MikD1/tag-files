@@ -35,6 +35,11 @@ export interface LibraryItemPaginatedList {
   totalPages: number;
 }
 
+export interface AssignItemsToCollectionRequest {
+  itemsList: number[];
+  collectionId?: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -60,6 +65,10 @@ export class LibraryApiService {
 
   assignTags(request: AssignTagsRequest): Observable<LibraryItem[]> {
     return this.http.post<LibraryItem[]>(`${this.baseUrl}/library/assign-tags`, request);
+  }
+
+  assignToCollection(request: AssignItemsToCollectionRequest): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/library/assign-to-collection`, request);
   }
 
   toggleFavorite(id: number): Observable<void> {

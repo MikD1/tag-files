@@ -24,7 +24,7 @@ export class TagsFormComponent {
   public readonly tags = model<string[]>([]);
   protected readonly separatorKeysCodes: number[] = [ENTER, COMMA];
   protected readonly allTags = signal<string[]>([]);
-  protected readonly currentTag = model('');
+  protected currentTag = model('');
   protected readonly filteredTags = computed(() => {
     const currentTag = this.currentTag().toLowerCase();
     return this.allTags()

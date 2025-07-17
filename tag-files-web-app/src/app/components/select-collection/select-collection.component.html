@@ -1,0 +1,16 @@
+<form>
+  <mat-form-field appearance="outline" class="form-field">
+    <mat-label>Collection</mat-label>
+    <mat-select
+      (ngModelChange)="collectionId.set($event)"
+      [ngModel]="collectionId()"
+      name="collectionId">
+      <mat-option [value]="undefined">[None]</mat-option>
+      @for (collection of allCollections(); track collection) {
+        <mat-option [value]="collection.id">
+          {{ collection.name }}
+        </mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</form>
