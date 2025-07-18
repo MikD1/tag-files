@@ -3,20 +3,20 @@ import {HttpClient} from '@angular/common/http';
 import {map, Observable} from 'rxjs';
 import {convertDuration, LibraryItem} from './library-api.service';
 
-export interface LibraryCollectionDto {
+export interface LibraryCollection {
   id: number;
   name: string;
 }
 
-export interface CreateLibraryCollectionDto {
+export interface CreateLibraryCollection {
   name: string;
 }
 
-export interface UpdateLibraryCollectionDto {
+export interface UpdateLibraryCollection {
   name: string;
 }
 
-export interface LibraryCollectionWithItemsDto {
+export interface LibraryCollectionWithItems {
   id: number;
   name: string;
   items: LibraryItem[];
@@ -29,12 +29,12 @@ export class LibraryCollectionsApiService {
   private baseUrl = 'http://localhost:5001/api';
   private readonly http = inject(HttpClient);
 
-  getCollections(): Observable<LibraryCollectionDto[]> {
-    return this.http.get<LibraryCollectionDto[]>(`${this.baseUrl}/library-collections`);
+  getCollections(): Observable<LibraryCollection[]> {
+    return this.http.get<LibraryCollection[]>(`${this.baseUrl}/library-collections`);
   }
 
-  getCollection(id: number): Observable<LibraryCollectionWithItemsDto> {
-    return this.http.get<LibraryCollectionWithItemsDto>(`${this.baseUrl}/library-collections/${id}`).pipe(
+  getCollection(id: number): Observable<LibraryCollectionWithItems> {
+    return this.http.get<LibraryCollectionWithItems>(`${this.baseUrl}/library-collections/${id}`).pipe(
       map(collection => ({
         ...collection,
         items: collection.items.map(item => ({
@@ -45,12 +45,12 @@ export class LibraryCollectionsApiService {
     );
   }
 
-  createCollection(collection: CreateLibraryCollectionDto): Observable<LibraryCollectionDto> {
-    return this.http.post<LibraryCollectionDto>(`${this.baseUrl}/library-collections`, collection);
+  createCollection(collection: CreateLibraryCollection): Observable<LibraryCollection> {
+    return this.http.post<LibraryCollection>(`${this.baseUrl}/library-collections`, collection);
   }
 
-  updateCollection(id: number, collection: UpdateLibraryCollectionDto): Observable<LibraryCollectionDto> {
-    return this.http.put<LibraryCollectionDto>(`${this.baseUrl}/library-collections/${id}`, collection);
+  updateCollection(id: number, collection: UpdateLibraryCollection): Observable<LibraryCollection> {
+    return this.http.put<LibraryCollection>(`${this.baseUrl}/library-collections/${id}`, collection);
   }
 
   deleteCollection(id: number): Observable<void> {

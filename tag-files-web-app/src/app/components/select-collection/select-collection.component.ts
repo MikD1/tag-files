@@ -3,7 +3,7 @@ import {CommonModule} from '@angular/common';
 import {MatFormFieldModule} from '@angular/material/form-field';
 import {MatSelectModule} from '@angular/material/select';
 import {FormsModule} from '@angular/forms';
-import {LibraryCollectionDto, LibraryCollectionsApiService} from '../../services/api/library-collections-api.service';
+import {LibraryCollection, LibraryCollectionsApiService} from '../../services/api/library-collections-api.service';
 
 @Component({
   selector: 'app-select-collection',
@@ -15,7 +15,7 @@ import {LibraryCollectionDto, LibraryCollectionsApiService} from '../../services
 })
 export class SelectCollectionComponent {
   public readonly collectionId = model<number | undefined>(undefined);
-  protected readonly allCollections = signal<LibraryCollectionDto[]>([]);
+  protected readonly allCollections = signal<LibraryCollection[]>([]);
   private readonly collectionsService = inject(LibraryCollectionsApiService);
 
   constructor() {

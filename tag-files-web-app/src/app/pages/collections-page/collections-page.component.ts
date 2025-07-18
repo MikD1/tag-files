@@ -1,5 +1,5 @@
 import {ChangeDetectionStrategy, Component, effect, inject, signal} from '@angular/core';
-import {LibraryCollectionDto, LibraryCollectionsApiService} from '../../services/api/library-collections-api.service';
+import {LibraryCollection, LibraryCollectionsApiService} from '../../services/api/library-collections-api.service';
 import {MatTableModule} from '@angular/material/table';
 import {MatButtonModule} from '@angular/material/button';
 import {MatChipsModule} from '@angular/material/chips';
@@ -23,7 +23,7 @@ import {CollectionEditModalComponent} from '../collection-edit-modal/collection-
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CollectionsPageComponent {
-  protected readonly collections = signal<LibraryCollectionDto[]>([]);
+  protected readonly collections = signal<LibraryCollection[]>([]);
   protected readonly displayedColumns = ['name', 'actions'];
   private readonly collectionsService = inject(LibraryCollectionsApiService);
   private dialog = inject(MatDialog);
@@ -34,7 +34,7 @@ export class CollectionsPageComponent {
     });
   }
 
-  protected editItem(collection: LibraryCollectionDto) {
+  protected editItem(collection: LibraryCollection) {
     const dialogRef = this.dialog.open(CollectionEditModalComponent, {
       data: {
         collection: collection,

@@ -30,9 +30,9 @@
   </div>
 }
 
-@if (collectionItems().length > 0) {
-  <h4>Collection (Name)</h4>
-  <app-image-grid [itemsList]="makeItemsPaginatedList(collectionItems())"></app-image-grid>
+@if (collection()) {
+  <h4>{{ collection()!.name }}</h4>
+  <app-image-grid [itemsList]="makeItemsPaginatedList(collection()!.items)"></app-image-grid>
 }
 
 @if (similarItems().length > 0) {

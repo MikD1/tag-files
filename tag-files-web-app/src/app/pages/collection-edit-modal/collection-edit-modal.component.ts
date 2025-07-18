@@ -9,10 +9,10 @@ import {
   MatDialogTitle,
 } from '@angular/material/dialog';
 import {
-  CreateLibraryCollectionDto,
-  LibraryCollectionDto,
+  CreateLibraryCollection,
+  LibraryCollection,
   LibraryCollectionsApiService,
-  UpdateLibraryCollectionDto
+  UpdateLibraryCollection
 } from '../../services/api/library-collections-api.service';
 import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {MatButton, MatIconButton} from '@angular/material/button';
@@ -22,7 +22,7 @@ import {MatIconModule} from '@angular/material/icon';
 import {ConfirmDialogComponent} from '../../components/confirm-dialog/confirm-dialog.component';
 
 export interface CollectionEditModalData {
-  collection?: LibraryCollectionDto;
+  collection?: LibraryCollection;
 }
 
 @Component({
@@ -84,7 +84,7 @@ export class CollectionEditModalComponent {
     }
 
     const formValue = this.form.value;
-    const payload: CreateLibraryCollectionDto | UpdateLibraryCollectionDto = {
+    const payload: CreateLibraryCollection | UpdateLibraryCollection = {
       name: formValue.name!
     };
 
