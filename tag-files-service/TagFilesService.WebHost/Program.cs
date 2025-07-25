@@ -34,7 +34,6 @@ builder.Services.AddMinio(configure => configure
     .Build());
 builder.Services.AddScoped<ITagsRepository, TagsRepository>();
 builder.Services.AddScoped<ICategoriesRepository, CategoriesRepository>();
-builder.Services.AddScoped<ILibraryCollectionsRepository, LibraryCollectionsRepository>();
 
 builder.Services.AddSingleton<FilesProcessingQueue>();
 builder.Services.AddHostedService<BucketInitializer>();

@@ -1,6 +1,4 @@
-using TagFilesService.Library.Contracts;
-
-namespace TagFilesService.WebHost.Dto.LibraryCollection;
+namespace TagFilesService.Library.Contracts.LibraryCollections;
 
 public record LibraryCollectionWithItemsDto(
     uint Id,

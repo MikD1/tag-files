@@ -1,59 +1,51 @@
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using TagFilesService.Library.Contracts;
-using TagFilesService.Model;
-using TagFilesService.WebHost.Dto.LibraryCollection;
+using TagFilesService.Library.Contracts.LibraryCollections;
 
 namespace TagFilesService.WebHost.Controllers;
 
 [ApiController]
 [Route("api/library-collections")]
-public class LibraryCollectionsController(ILibraryCollectionsRepository collectionsRepository) : ControllerBase
+public class LibraryCollectionsController(IMediator mediator)
+    : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<List<LibraryCollectionDto>>> GetCollections()
     {
-        List<LibraryCollection> collections = await collectionsRepository.GetCollections();
-        List<LibraryCollectionDto> dto = collections.Select(LibraryCollectionDto.FromModel).ToList();
-        return Ok(dto);
+        GetLibraryCollectionsRequest request = new();
+        List<LibraryCollectionDto> collections = await mediator.Send(request);
+        return Ok(collections);
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<LibraryCollectionWithItemsDto>> GetCollection(uint id)
     {
-        LibraryCollection collection = await collectionsRepository.GetCollection(id);
-        List<LibraryItem> collectionItems = await collectionsRepository.GetCollectionItems(id);
-        LibraryCollectionWithItemsDto dto = new(
-            collection.Id,
-            collection.Name,
-            collectionItems.Select(LibraryItemDto.FromModel).ToList());
-        return Ok(dto);
+        GetLibraryCollectionRequest request = new(id);
+        LibraryCollectionWithItemsDto collection = await mediator.Send(request);
+        return Ok(collection);
     }
 
     [HttpPost]
-    public async Task<ActionResult<LibraryCollectionDto>> CreateCollection([FromBody] CreateLibraryCollectionDto dto)
+    public async Task<ActionResult<LibraryCollectionDto>> CreateCollection(
+        [FromBody] CreateLibraryCollectionRequest request)
     {
-        LibraryCollection collection = new(dto.Name);
-        await collectionsRepository.SaveCollection(collection);
-        LibraryCollectionDto createdDto = LibraryCollectionDto.FromModel(collection);
-        return Ok(createdDto);
+        LibraryCollectionDto collection = await mediator.Send(request);
+        return Ok(collection);
     }
 
-    [HttpPut("{id}")]
-    public async Task<ActionResult<LibraryCollectionDto>> UpdateCollection(uint id,
-        [FromBody] UpdateLibraryCollectionDto dto)
+    [HttpPut]
+    public async Task<ActionResult<LibraryCollectionDto>> UpdateCollection(
+        [FromBody] UpdateLibraryCollectionRequest request)
     {
-        LibraryCollection collection = await collectionsRepository.GetCollection(id);
-        collection.Rename(dto.Name);
-        await collectionsRepository.SaveCollection(collection);
-
-        LibraryCollectionDto updatedDto = LibraryCollectionDto.FromModel(collection);
-        return Ok(updatedDto);
+        LibraryCollectionDto collection = await mediator.Send(request);
+        return Ok(collection);
     }
 
     [HttpDelete("{id}")]
     public async Task<ActionResult> DeleteCollection(uint id)
     {
-        await collectionsRepository.DeleteCollection(id);
+        DeleteLibraryCollectionRequest request = new(id);
+        await mediator.Send(request);
         return Ok();
     }
 }
