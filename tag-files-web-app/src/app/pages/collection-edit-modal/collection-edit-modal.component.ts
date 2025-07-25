@@ -9,10 +9,10 @@ import {
   MatDialogTitle,
 } from '@angular/material/dialog';
 import {
-  CreateLibraryCollection,
+  CreateLibraryCollectionRequest,
   LibraryCollection,
   LibraryCollectionsApiService,
-  UpdateLibraryCollection
+  UpdateLibraryCollectionRequest
 } from '../../services/api/library-collections-api.service';
 import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {MatButton, MatIconButton} from '@angular/material/button';
@@ -84,13 +84,13 @@ export class CollectionEditModalComponent {
     }
 
     const formValue = this.form.value;
-    const payload: CreateLibraryCollection | UpdateLibraryCollection = {
+    const payload: CreateLibraryCollectionRequest | UpdateLibraryCollectionRequest = {
       name: formValue.name!
     };
 
     const request = this.data.collection
-      ? this.collectionsService.updateCollection(this.data.collection.id, payload)
-      : this.collectionsService.createCollection(payload);
+      ? this.collectionsService.updateCollection({id: this.data.collection.id, name: formValue.name!})
+      : this.collectionsService.createCollection({name: formValue.name!});
 
     request.subscribe({
       next: () => {

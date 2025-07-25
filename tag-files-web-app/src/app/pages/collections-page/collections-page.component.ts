@@ -8,6 +8,8 @@ import {MatIconModule} from '@angular/material/icon';
 import {MatDialog} from '@angular/material/dialog';
 import {CollectionEditModalComponent} from '../collection-edit-modal/collection-edit-modal.component';
 
+const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
+
 @Component({
   selector: 'app-collections-table',
   standalone: true,
@@ -24,7 +26,7 @@ import {CollectionEditModalComponent} from '../collection-edit-modal/collection-
 })
 export class CollectionsPageComponent {
   protected readonly collections = signal<LibraryCollection[]>([]);
-  protected readonly displayedColumns = ['name', 'actions'];
+  protected readonly displayedColumns = ['cover', 'name', 'actions'];
   private readonly collectionsService = inject(LibraryCollectionsApiService);
   private dialog = inject(MatDialog);
 
@@ -62,6 +64,14 @@ export class CollectionsPageComponent {
         this.loadCollections();
       }
     });
+  }
+
+  protected getFullCoverPath(coverPath?: string | null): string {
+    if (!coverPath) {
+      return 'https://via.placeholder.com/80x80?text=No+Cover';
+    }
+
+    return ContentBaseUrl + coverPath;
   }
 
   private loadCollections() {

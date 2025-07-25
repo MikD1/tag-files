@@ -6,13 +6,15 @@ import {convertDuration, LibraryItem} from './library-api.service';
 export interface LibraryCollection {
   id: number;
   name: string;
+  coverPath?: string | null;
 }
 
-export interface CreateLibraryCollection {
+export interface CreateLibraryCollectionRequest {
   name: string;
 }
 
-export interface UpdateLibraryCollection {
+export interface UpdateLibraryCollectionRequest {
+  id: number;
   name: string;
 }
 
@@ -45,12 +47,12 @@ export class LibraryCollectionsApiService {
     );
   }
 
-  createCollection(collection: CreateLibraryCollection): Observable<LibraryCollection> {
+  createCollection(collection: CreateLibraryCollectionRequest): Observable<LibraryCollection> {
     return this.http.post<LibraryCollection>(`${this.baseUrl}/library-collections`, collection);
   }
 
-  updateCollection(id: number, collection: UpdateLibraryCollection): Observable<LibraryCollection> {
-    return this.http.put<LibraryCollection>(`${this.baseUrl}/library-collections/${id}`, collection);
+  updateCollection(collection: UpdateLibraryCollectionRequest): Observable<LibraryCollection> {
+    return this.http.put<LibraryCollection>(`${this.baseUrl}/library-collections/`, collection);
   }
 
   deleteCollection(id: number): Observable<void> {

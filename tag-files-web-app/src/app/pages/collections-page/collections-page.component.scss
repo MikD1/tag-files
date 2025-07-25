@@ -25,3 +25,17 @@
   bottom: 30px;
   right: 30px;
 }
+
+.cover-container {
+  display: flex;
+  padding: 5px;
+}
+
+.cover-image {
+  object-fit: cover;
+  object-position: top;
+  border-radius: 0.2rem;
+  width: 150px;
+  height: 150px;
+  margin: 2px;
+}
