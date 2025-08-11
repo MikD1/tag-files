@@ -1,10 +1,12 @@
 import {
   AfterViewChecked,
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   inject,
   input,
   OnChanges,
+  OnInit,
   SimpleChanges
 } from '@angular/core';
 import {LightgalleryModule} from 'lightgallery/angular';
@@ -19,6 +21,7 @@ import {MatDialog} from '@angular/material/dialog';
 import {LibraryItemEditModalComponent} from '../../pages/library-item-edit-modal/library-item-edit-modal.component';
 import {LightGallery} from 'lightgallery/lightgallery';
 import {FileType} from '../../services/api/file-type';
+import {LibraryCollectionsApiService, LibraryCollection} from '../../services/api/library-collections-api.service';
 
 const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 
@@ -29,14 +32,26 @@ const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
   styleUrl: './image-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ImageListComponent implements OnChanges, AfterViewChecked {
+export class ImageListComponent implements OnChanges, OnInit, AfterViewChecked {
   gallerySettings = input.required<LightGallerySettings>();
   itemsList = input.required<LibraryItemPaginatedList>();
   protected readonly fileTypes = FileType;
-  protected readonly displayedColumns = ['image', 'duration', 'tags', 'uploadedOn', 'actions'];
+  protected readonly displayedColumns = ['image', 'duration', 'tags', 'collection', 'uploadedOn', 'actions'];
   private lightGallery?: LightGallery;
   private needRefresh = true;
   private dialog = inject(MatDialog);
+  private readonly collectionsApi = inject(LibraryCollectionsApiService);
+  private readonly changeDetectorRef = inject(ChangeDetectorRef);
+  private collectionIdToName = new Map<number, string>();
+
+  ngOnInit(): void {
+    this.collectionsApi.getCollections().subscribe((collections: LibraryCollection[]) => {
+      for (const collection of collections) {
+        this.collectionIdToName.set(collection.id, collection.name);
+      }
+      this.changeDetectorRef.markForCheck();
+    });
+  }
 
   ngAfterViewChecked(): void {
     if (this.needRefresh && this.lightGallery) {
@@ -81,6 +96,13 @@ export class ImageListComponent implements OnChanges, AfterViewChecked {
         controls: true
       }
     });
+  }
+
+  protected getCollectionName(collectionId?: number): string {
+    if (!collectionId) {
+      return '';
+    }
+    return this.collectionIdToName.get(collectionId) ?? '';
   }
 
   protected editItem(item: LibraryItem) {

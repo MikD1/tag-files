@@ -36,6 +36,13 @@
       </td>
     </ng-container>
 
+    <ng-container matColumnDef="collection">
+      <th *matHeaderCellDef mat-header-cell> Collection</th>
+      <td *matCellDef="let element" mat-cell>
+        {{ getCollectionName(element.collectionId) }}
+      </td>
+    </ng-container>
+
     <ng-container matColumnDef="uploadedOn">
       <th *matHeaderCellDef mat-header-cell> Uploaded on</th>
       <td *matCellDef="let element" mat-cell> {{ element.uploadedOn | date: 'dd.MM.yyyy' }}</td>
