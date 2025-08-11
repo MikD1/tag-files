@@ -1,10 +1,30 @@
-.table {
-  background-color: rgba($color: #000000, $alpha: 0.0);
-  width: 100%;
+.collections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
 
-  td, th {
-    border-bottom: 1px solid #353637;
-  }
+.collection-card {
+  cursor: pointer;
+}
+
+.cover-container {
+  width: 100%;
+}
+
+.cover-image {
+  object-fit: cover;
+  object-position: center;
+  border-radius: 0.2rem;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+.collection-title {
+  font-size: 14px;
+  padding: 0 2px 2px;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .total-row {
@@ -12,30 +32,8 @@
   margin-left: 15px;
 }
 
-.edit-button {
-  opacity: 0;
-}
-
-.table tr:hover .edit-button {
-  opacity: 1;
-}
-
 .add-button {
   position: fixed;
   bottom: 30px;
   right: 30px;
-}
-
-.cover-container {
-  display: flex;
-  padding: 5px;
-}
-
-.cover-image {
-  object-fit: cover;
-  object-position: top;
-  border-radius: 0.2rem;
-  width: 150px;
-  height: 150px;
-  margin: 2px;
 }

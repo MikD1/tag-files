@@ -1,8 +1,7 @@
 @if (collections().length > 0) {
-  <table class="mat-elevation-z8 table" mat-table [dataSource]="collections()">
-    <ng-container matColumnDef="cover">
-      <th mat-header-cell *matHeaderCellDef></th>
-      <td mat-cell *matCellDef="let element">
+  <div class="collections-grid">
+    @for (element of collections(); track element.id) {
+      <div class="collection-card" (click)="editItem(element)">
         <div class="cover-container">
           @if (element.coverPath) {
             <img [src]="getFullCoverPath(element.coverPath)" alt="cover" class="cover-image"/>
@@ -10,26 +9,10 @@
             <mat-icon>hide_image</mat-icon>
           }
         </div>
-      </td>
-    </ng-container>
-
-    <ng-container matColumnDef="name">
-      <th mat-header-cell *matHeaderCellDef>Name</th>
-      <td mat-cell *matCellDef="let element">
-        <mat-chip>{{ element.name }}</mat-chip>
-      </td>
-    </ng-container>
-
-    <ng-container matColumnDef="actions">
-      <th mat-header-cell *matHeaderCellDef></th>
-      <td mat-cell *matCellDef="let element">
-        <button (click)="editItem(element)" class="edit-button" mat-button>Edit</button>
-      </td>
-    </ng-container>
-
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-  </table>
+        <div class="collection-title">{{ element.name }}</div>
+      </div>
+    }
+  </div>
 
   <div class="total-row">
     Total: {{ collections().length }}
