@@ -4,6 +4,7 @@ import {TagsPageComponent} from './pages/tags-page/tags-page.component';
 import {CategoriesPageComponent} from './pages/categories-page/categories-page.component';
 import {ContentPageComponent} from './pages/content-page/content-page.component';
 import {CollectionsPageComponent} from './pages/collections-page/collections-page.component';
+import {CollectionPageComponent} from './pages/collection-page/collection-page.component';
 
 export const routes: Routes = [
   {path: '', redirectTo: '/library', pathMatch: 'full'},
@@ -11,5 +12,6 @@ export const routes: Routes = [
   {path: 'tags', component: TagsPageComponent},
   {path: 'categories', component: CategoriesPageComponent},
   {path: 'collections', component: CollectionsPageComponent},
+  {path: 'collections/:id', component: CollectionPageComponent},
   {path: 'content/:id', component: ContentPageComponent},
 ];

@@ -6,6 +6,7 @@ import {MatChipsModule} from '@angular/material/chips';
 import {MatListModule} from '@angular/material/list';
 import {MatIconModule} from '@angular/material/icon';
 import {MatDialog} from '@angular/material/dialog';
+import {RouterLink} from '@angular/router';
 import {CollectionEditModalComponent} from '../collection-edit-modal/collection-edit-modal.component';
 
 const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
@@ -18,7 +19,8 @@ const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
     MatButtonModule,
     MatChipsModule,
     MatListModule,
-    MatIconModule
+    MatIconModule,
+    RouterLink
   ],
   templateUrl: './collections-page.component.html',
   styleUrl: './collections-page.component.scss',
@@ -33,21 +35,6 @@ export class CollectionsPageComponent {
   constructor() {
     effect(() => {
       this.loadCollections();
-    });
-  }
-
-  protected editItem(collection: LibraryCollection) {
-    const dialogRef = this.dialog.open(CollectionEditModalComponent, {
-      data: {
-        collection: collection,
-      },
-      width: '600px',
-    });
-
-    dialogRef.afterClosed().subscribe((result) => {
-      if (result === true) {
-        this.loadCollections();
-      }
     });
   }
 

@@ -1,7 +1,7 @@
 @if (collections().length > 0) {
   <div class="collections-grid">
     @for (element of collections(); track element.id) {
-      <div class="collection-card" (click)="editItem(element)">
+      <a class="collection-card" [routerLink]="['/collections', element.id]">
         <div class="cover-container">
           @if (element.coverPath) {
             <img [src]="getFullCoverPath(element.coverPath)" alt="cover" class="cover-image"/>
@@ -10,7 +10,7 @@
           }
         </div>
         <div class="collection-title">{{ element.name }}</div>
-      </div>
+      </a>
     }
   </div>
 

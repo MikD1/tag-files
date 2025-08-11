@@ -1,0 +1,10 @@
+@if (collection(); as collection) {
+  <div class="header-row">
+    <h2 class="title">{{ collection.name }}</h2>
+    <button mat-button (click)="editCollection()">
+      Edit
+    </button>
+  </div>
+
+  <app-image-grid [itemsList]="makeItemsPaginatedList(collection.items)"></app-image-grid>
+}
