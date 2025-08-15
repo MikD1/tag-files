@@ -33,6 +33,10 @@ public class LibraryItem
 
     public bool IsFavorite { get; private set; }
 
+    public DateTime? LastView { get; private set; }
+
+    public int ViewCount { get; private set; }
+
     public void ToggleFavorite()
     {
         IsFavorite = !IsFavorite;
@@ -47,6 +51,12 @@ public class LibraryItem
     public void UpdateThumbnailStatus(ThumbnailStatus thumbnailStatus)
     {
         ThumbnailStatus = thumbnailStatus;
+    }
+
+    public void IncrementViewCount()
+    {
+        LastView = DateTime.UtcNow;
+        ++ViewCount;
     }
 
     private void ValidateDescription(string? description)
@@ -70,5 +80,7 @@ public class LibraryItem
         ThumbnailStatus = thumbnailStatus;
         Tags = tags;
         IsFavorite = false;
+        LastView = null;
+        ViewCount = 0;
     }
 }

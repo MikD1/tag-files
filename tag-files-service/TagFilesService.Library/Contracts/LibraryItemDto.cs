@@ -12,7 +12,9 @@ public record LibraryItemDto(
     FileType FileType,
     TimeSpan? VideoDuration,
     List<string> Tags,
-    bool IsFavorite)
+    bool IsFavorite,
+    DateTime? LastView,
+    int ViewCount)
 {
     public static LibraryItemDto FromModel(LibraryItem model)
     {
@@ -33,6 +35,8 @@ public record LibraryItemDto(
                 .OrderBy(t => t.Name)
                 .Select(t => t.Name)
                 .ToList(),
-            model.IsFavorite);
+            model.IsFavorite,
+            model.LastView,
+            model.ViewCount);
     }
 }
