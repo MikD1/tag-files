@@ -13,7 +13,14 @@ builder.Services
     .AddControllers()
     .AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.CustomSchemaIds(type =>
+    {
+        string name = type.Name;
+        return name.EndsWith("Dto") ? name.Substring(0, name.Length - 3) : name;
+    });
+});
 builder.Services.AddMediatR(cfg => cfg
     .RegisterServicesFromAssemblyContaining<AssignTagsHandler>()
     .RegisterServicesFromAssemblyContaining<FileProcessingHandler>());
