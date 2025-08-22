@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Minio;
 using TagFilesService.FilesProcessing;
@@ -18,7 +19,21 @@ builder.Services.AddSwaggerGen(options =>
     options.CustomSchemaIds(type =>
     {
         string name = type.Name;
-        return name.EndsWith("Dto") ? name.Substring(0, name.Length - 3) : name;
+        return name.EndsWith("Dto") ? name[..^3] : name;
+    });
+
+    options.CustomSchemaIds(type =>
+    {
+        string typeName = type.Name;
+
+        if (type.IsGenericType)
+        {
+            string name = type.Name[..type.Name.IndexOf('`')];
+            string arg = string.Join("And", type.GetGenericArguments().First().Name);
+            typeName = $"{name}Of{arg}";
+        }
+
+        return typeName.EndsWith("Dto") ? typeName[..^3] : typeName;
     });
 });
 builder.Services.AddMediatR(cfg => cfg
