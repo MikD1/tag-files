@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Minio;
 using TagFilesService.FilesProcessing;
