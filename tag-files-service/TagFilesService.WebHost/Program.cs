@@ -6,6 +6,7 @@ using TagFilesService.FilesProcessing.Handlers;
 using TagFilesService.Infrastructure;
 using TagFilesService.Library.Handlers;
 using TagFilesService.Model;
+using TagFilesService.WebHost;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<FfmpegOptions>(builder.Configuration.GetSection("Ffmpeg"));
@@ -15,12 +16,6 @@ builder.Services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.CustomSchemaIds(type =>
-    {
-        string name = type.Name;
-        return name.EndsWith("Dto") ? name[..^3] : name;
-    });
-
     options.CustomSchemaIds(type =>
     {
         string typeName = type.Name;
@@ -34,6 +29,9 @@ builder.Services.AddSwaggerGen(options =>
 
         return typeName.EndsWith("Dto") ? typeName[..^3] : typeName;
     });
+
+    options.SchemaFilter<RequireNonNullablePropertiesSchemaFilter>();
+    options.SupportNonNullableReferenceTypes();
 });
 builder.Services.AddMediatR(cfg => cfg
     .RegisterServicesFromAssemblyContaining<AssignTagsHandler>()
