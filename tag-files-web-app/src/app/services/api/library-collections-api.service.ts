@@ -6,7 +6,7 @@ import {convertDuration, LibraryItem} from './library-api.service';
 export interface LibraryCollection {
   id: number;
   name: string;
-  coverPath?: string | null;
+  coverPath: string | null;
 }
 
 export interface CreateLibraryCollectionRequest {
@@ -41,7 +41,7 @@ export class LibraryCollectionsApiService {
         ...collection,
         items: collection.items.map(item => ({
           ...item,
-          videoDuration: item.videoDuration ? convertDuration(item.videoDuration) : undefined
+          videoDuration: item.videoDuration ? convertDuration(item.videoDuration) : null
         }))
       }))
     );
@@ -52,7 +52,7 @@ export class LibraryCollectionsApiService {
   }
 
   updateCollection(collection: UpdateLibraryCollectionRequest): Observable<LibraryCollection> {
-    return this.http.put<LibraryCollection>(`${this.baseUrl}/library-collections/`, collection);
+    return this.http.put<LibraryCollection>(`${this.baseUrl}/library-collections`, collection);
   }
 
   deleteCollection(id: number): Observable<void> {

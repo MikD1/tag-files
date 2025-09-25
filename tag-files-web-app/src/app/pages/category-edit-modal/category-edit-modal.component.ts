@@ -91,7 +91,7 @@ export class CategoryEditModalComponent {
 
     const formValue = this.form.value;
     const payload: CreateCategory | UpdateCategory = {
-      name: formValue.name ?? null,
+      name: formValue.name!,
       tagQuery: formValue.tagQuery ?? null,
       itemsType: formValue.itemsType ?? null
     };

@@ -14,7 +14,7 @@ import {LibraryCollection, LibraryCollectionsApiService} from '../../services/ap
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SelectCollectionComponent {
-  public readonly collectionId = model<number | undefined>(undefined);
+  public readonly collectionId = model<number | null>(null);
   protected readonly allCollections = signal<LibraryCollection[]>([]);
   private readonly collectionsService = inject(LibraryCollectionsApiService);
 

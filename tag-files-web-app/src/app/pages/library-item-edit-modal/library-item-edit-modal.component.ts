@@ -42,7 +42,7 @@ export interface LibraryItemEditModalData {
 export class LibraryItemEditModalComponent {
   protected readonly data: LibraryItemEditModalData = inject(MAT_DIALOG_DATA);
   protected tags: string[] = this.data.item.tags;
-  protected collectionId?: number = this.data.item.collectionId;
+  protected collectionId: number | null = this.data.item.collectionId;
   private readonly libraryService = inject(LibraryApiService);
   private readonly dialogRef = inject(MatDialogRef<LibraryItemEditModalComponent>);
 

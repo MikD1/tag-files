@@ -4,8 +4,8 @@ import {map, Observable} from 'rxjs';
 import {FileType} from './file-type';
 
 export interface SearchRequest {
-  tagQuery?: string;
-  itemType?: FileType;
+  tagQuery: string | null;
+  itemType: FileType | null;
   pageIndex: number;
   pageSize: number;
 }
@@ -18,14 +18,16 @@ export interface AssignTagsRequest {
 export interface LibraryItem {
   id: number;
   path: string;
-  thumbnailPath?: string;
-  description?: string;
-  collectionId?: number;
+  thumbnailPath: string | null;
+  description: string | null;
+  collectionId: number | null;
   uploadedOn: string;
   fileType: FileType;
-  videoDuration?: string;
+  videoDuration: string | null;
   tags: string[];
   isFavorite: boolean;
+  lastView: string | null;
+  viewCount: number;
 }
 
 export interface LibraryItemPaginatedList {
@@ -37,7 +39,7 @@ export interface LibraryItemPaginatedList {
 
 export interface AssignItemsToCollectionRequest {
   itemsList: number[];
-  collectionId?: number;
+  collectionId: number | null;
 }
 
 @Injectable({
@@ -57,7 +59,7 @@ export class LibraryApiService {
         ...response,
         items: response.items.map(item => ({
           ...item,
-          videoDuration: item.videoDuration ? convertDuration(item.videoDuration) : undefined
+          videoDuration: item.videoDuration ? convertDuration(item.videoDuration) : null
         }))
       }))
     );
@@ -67,8 +69,8 @@ export class LibraryApiService {
     return this.http.post<LibraryItem[]>(`${this.baseUrl}/library/assign-tags`, request);
   }
 
-  assignToCollection(request: AssignItemsToCollectionRequest): Observable<void> {
-    return this.http.post<void>(`${this.baseUrl}/library/assign-to-collection`, request);
+  assignToCollection(request: AssignItemsToCollectionRequest): Observable<LibraryItem[]> {
+    return this.http.post<LibraryItem[]>(`${this.baseUrl}/library/assign-to-collection`, request);
   }
 
   toggleFavorite(id: number): Observable<void> {
@@ -79,9 +81,17 @@ export class LibraryApiService {
     return this.http.get<LibraryItem[]>(`${this.baseUrl}/library/${id}/similar`).pipe(
       map(items => items.map(item => ({
         ...item,
-        videoDuration: item.videoDuration ? convertDuration(item.videoDuration) : undefined
+        videoDuration: item.videoDuration ? convertDuration(item.videoDuration) : null
       })))
     );
+  }
+
+  deleteItem(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/library/${id}`);
+  }
+
+  updateViewCount(id: number): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/library/${id}/view-count`, null);
   }
 }
 

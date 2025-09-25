@@ -33,7 +33,7 @@ export class ImageGridComponent {
     });
   }
 
-  protected getFullThumbnailPath(thumbnailPath?: string): string {
+  protected getFullThumbnailPath(thumbnailPath: string | null): string {
     if (!thumbnailPath) {
       return '#';
     }

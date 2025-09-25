@@ -5,19 +5,19 @@ import {FileType} from './file-type';
 
 export interface Category {
   id: number;
-  name: string | null;
+  name: string;
   tagQuery: string | null;
-  itemsType: FileType | null;
+  itemsType: FileType;
 }
 
 export interface CreateCategory {
-  name: string | null;
+  name: string;
   tagQuery: string | null;
   itemsType: FileType | null;
 }
 
 export interface UpdateCategory {
-  name: string | null;
+  name: string;
   tagQuery: string | null;
   itemsType: FileType | null;
 }

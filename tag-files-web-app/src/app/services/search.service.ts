@@ -25,7 +25,7 @@ export class SearchService {
   }
 
   search() {
-    let itemType = undefined
+    let itemType = null
     if (this.isImageSelected() && !this.isVideoSelected()) {
       itemType = FileType.Image;
     }
@@ -34,7 +34,7 @@ export class SearchService {
     }
 
     this.libraryApiService.search({
-      tagQuery: this.searchQuery.value ? this.searchQuery.value : undefined,
+      tagQuery: this.searchQuery.value ? this.searchQuery.value : null,
       itemType: itemType,
       pageIndex: 1,
       pageSize: 300
