@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, inject, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, inject, OnDestroy, signal} from '@angular/core';
 import {ActivatedRoute} from '@angular/router';
 import {CommonModule} from '@angular/common';
 import {MatChipsModule} from '@angular/material/chips';
@@ -25,7 +25,7 @@ const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
   styleUrl: './content-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ContentPageComponent {
+export class ContentPageComponent implements OnDestroy {
   protected readonly item = signal<LibraryItem | null>(null);
   protected readonly similarItems = signal<LibraryItem[]>([]);
   protected readonly collection = signal<LibraryCollectionWithItems | null>(null);
@@ -34,6 +34,7 @@ export class ContentPageComponent {
   private readonly libraryCollectionsApi = inject(LibraryCollectionsApiService);
   private readonly searchService = inject(SearchService);
   private dialog = inject(MatDialog);
+  private viewCountTimer: number | null = null;
 
   constructor() {
     this.route.paramMap.subscribe(params => {
@@ -42,6 +43,10 @@ export class ContentPageComponent {
         this.loadItem(id);
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.clearViewCountTimer();
   }
 
   protected getVideoOptions() {
@@ -103,9 +108,12 @@ export class ContentPageComponent {
     this.item.set(null);
     this.similarItems.set([]);
     this.collection.set(null);
+    this.clearViewCountTimer();
 
     this.libraryApi.getItem(id).subscribe(item => {
       this.item.set(item);
+      this.startViewCountTimer(item.id);
+
       if (item.collectionId) {
         this.libraryCollectionsApi.getCollection(item.collectionId).subscribe(collection => {
           this.collection.set({
@@ -117,5 +125,19 @@ export class ContentPageComponent {
     });
 
     this.libraryApi.getSimilarItems(id).subscribe(items => this.similarItems.set(items));
+  }
+
+  private startViewCountTimer(itemId: number): void {
+    this.viewCountTimer = window.setTimeout(() => {
+      this.libraryApi.updateViewCount(itemId).subscribe();
+      this.viewCountTimer = null;
+    }, 3000);
+  }
+
+  private clearViewCountTimer(): void {
+    if (this.viewCountTimer !== null) {
+      clearTimeout(this.viewCountTimer);
+      this.viewCountTimer = null;
+    }
   }
 }
