@@ -19,7 +19,10 @@
       }
     </mat-chip-set>
 
-    <div>
+    <div class="right-side-controls">
+      <div>
+        <mat-chip>{{ item()!.viewCount }} views</mat-chip>
+      </div>
       <button mat-icon-button (click)="toggleFavorite()">
         <mat-icon>{{ item()!.isFavorite ? 'star' : 'star_border' }}</mat-icon>
       </button>
