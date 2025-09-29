@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TagFilesService.Model;
 using TagFilesService.Model.Processing;
 
@@ -18,10 +19,17 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        ValueConverter<TimeSpan?, long?> timeSpanTicksConverter = new(
+            x => x.HasValue ? x.Value.Ticks : null,
+            x => x.HasValue ? TimeSpan.FromTicks(x.Value) : null);
+
         modelBuilder.Entity<LibraryItem>()
             .Property(e => e.FileType).HasConversion<string>();
         modelBuilder.Entity<LibraryItem>()
             .Property(e => e.ThumbnailStatus).HasConversion<string>();
+        modelBuilder.Entity<LibraryItem>()
+            .Property(e => e.VideoDuration)
+            .HasConversion(timeSpanTicksConverter);
         modelBuilder.Entity<LibraryItem>()
             .HasMany(e => e.Tags).WithMany();
 
