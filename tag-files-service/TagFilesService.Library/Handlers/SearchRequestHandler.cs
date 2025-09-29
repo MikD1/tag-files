@@ -21,23 +21,31 @@ public class SearchRequestHandler(AppDbContext dbContext)
 
     private async Task<PaginatedList<LibraryItem>> Search(SearchRequest request)
     {
-        IQueryable<LibraryItem> queryable = dbContext.LibraryItems
+        IQueryable<LibraryItem> query = dbContext.LibraryItems
             .Include(x => x.Tags);
 
         if (!string.IsNullOrWhiteSpace(request.TagQuery))
         {
             string dynamicQuery = TagQueryConverter.ConvertToDynamicQuery(request.TagQuery);
-            queryable = queryable
+            query = query
                 .Where(dynamicQuery);
         }
 
         if (request.ItemType is not null)
         {
-            queryable = queryable.Where(x => x.FileType == request.ItemType);
+            query = query.Where(x => x.FileType == request.ItemType);
         }
 
-        queryable = queryable
-            .OrderByDescending(x => x.UploadedOn);
-        return await QueryablePaginatedList<LibraryItem>.CreateAsync(queryable, request.PageIndex, request.PageSize);
+        query = request.SortBy switch
+        {
+            SortType.UploadedAsc => query.OrderBy(x => x.UploadedOn),
+            SortType.VideoDurationDesc => query.OrderByDescending(x => x.VideoDuration),
+            SortType.VideoDurationAsc => query.OrderBy(x => x.VideoDuration),
+            SortType.ViewCountDesc => query.OrderByDescending(x => x.ViewCount),
+            SortType.ViewCountAsc => query.OrderBy(x => x.ViewCount),
+            SortType.Random => query.OrderBy(x => EF.Functions.Random()),
+            _ => query.OrderByDescending(x => x.UploadedOn)
+        };
+        return await QueryablePaginatedList<LibraryItem>.CreateAsync(query, request.PageIndex, request.PageSize);
     }
 }

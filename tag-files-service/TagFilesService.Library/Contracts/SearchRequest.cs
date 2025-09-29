@@ -7,5 +7,6 @@ public record SearchRequest(
     string? TagQuery,
     FileType? ItemType,
     int PageIndex,
-    int PageSize)
+    int PageSize,
+    SortType SortBy = SortType.UploadedDesc)
     : IRequest<PaginatedList<LibraryItemDto>>;
