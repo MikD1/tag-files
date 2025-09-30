@@ -2,6 +2,7 @@ import {inject, Injectable, signal} from '@angular/core';
 import {LibraryApiService, LibraryItemPaginatedList} from './api/library-api.service';
 import {FormControl} from '@angular/forms';
 import {FileType} from './api/file-type';
+import {SortType} from './api/sort-type';
 
 const emptyResults = {
   items: [],
@@ -37,7 +38,8 @@ export class SearchService {
       tagQuery: this.searchQuery.value ? this.searchQuery.value : null,
       itemType: itemType,
       pageIndex: 1,
-      pageSize: 300
+      pageSize: 300,
+      sortBy: SortType.UploadedDesc
     }).subscribe((result) => {
       this.searchResults.set(result);
     })

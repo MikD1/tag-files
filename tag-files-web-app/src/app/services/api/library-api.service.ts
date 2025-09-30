@@ -2,12 +2,14 @@ import {inject, Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {map, Observable} from 'rxjs';
 import {FileType} from './file-type';
+import {SortType} from './sort-type';
 
 export interface SearchRequest {
   tagQuery: string | null;
   itemType: FileType | null;
   pageIndex: number;
   pageSize: number;
+  sortBy: SortType;
 }
 
 export interface AssignTagsRequest {
