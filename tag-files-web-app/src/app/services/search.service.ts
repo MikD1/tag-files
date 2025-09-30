@@ -18,6 +18,7 @@ export class SearchService {
   readonly searchQuery = new FormControl<string>('');
   readonly isImageSelected = signal<boolean>(false);
   readonly isVideoSelected = signal<boolean>(false);
+  readonly sortBy = signal<SortType>(SortType.UploadedDesc);
   readonly searchResults = signal<LibraryItemPaginatedList>(emptyResults);
   private readonly libraryApiService = inject(LibraryApiService);
 
@@ -39,7 +40,7 @@ export class SearchService {
       itemType: itemType,
       pageIndex: 1,
       pageSize: 300,
-      sortBy: SortType.UploadedDesc
+      sortBy: this.sortBy()
     }).subscribe((result) => {
       this.searchResults.set(result);
     })

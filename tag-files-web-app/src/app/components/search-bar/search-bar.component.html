@@ -9,6 +9,40 @@
 <button (click)="toggleVideo()" mat-icon-button>
   <mat-icon [style.color]="searchService.isVideoSelected() ? '#5c77aa' : ''">smart_display</mat-icon>
 </button>
+<button [matMenuTriggerFor]="sortMenu" mat-icon-button>
+  <mat-icon>{{ getSortIcon() }}</mat-icon>
+</button>
 <button (click)="clearSearch()" mat-icon-button>
   <mat-icon>close</mat-icon>
 </button>
+
+<mat-menu #sortMenu="matMenu">
+  <button (click)="selectSort(SortType.UploadedDesc)" mat-menu-item>
+    <mat-icon>history</mat-icon>
+    <span>Uploaded ↓</span>
+  </button>
+  <button (click)="selectSort(SortType.UploadedAsc)" mat-menu-item>
+    <mat-icon>history</mat-icon>
+    <span>Uploaded ↑</span>
+  </button>
+  <button (click)="selectSort(SortType.VideoDurationDesc)" mat-menu-item>
+    <mat-icon>timelapse</mat-icon>
+    <span>Duration ↓</span>
+  </button>
+  <button (click)="selectSort(SortType.VideoDurationAsc)" mat-menu-item>
+    <mat-icon>timelapse</mat-icon>
+    <span>Duration ↑</span>
+  </button>
+  <button (click)="selectSort(SortType.ViewCountDesc)" mat-menu-item>
+    <mat-icon>visibility</mat-icon>
+    <span>Views ↓</span>
+  </button>
+  <button (click)="selectSort(SortType.ViewCountAsc)" mat-menu-item>
+    <mat-icon>visibility</mat-icon>
+    <span>Views ↑</span>
+  </button>
+  <button (click)="selectSort(SortType.Random)" mat-menu-item>
+    <mat-icon>shuffle</mat-icon>
+    <span>Random</span>
+  </button>
+</mat-menu>
