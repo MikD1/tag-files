@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, inject, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, inject, OnDestroy, signal} from '@angular/core';
 import {
   MatDialogActions,
   MatDialogContent,
@@ -14,6 +14,7 @@ import {MatFormFieldModule} from '@angular/material/form-field';
 import {FormsModule} from '@angular/forms';
 import {LibraryApiService} from '../../services/api/library-api.service';
 import {LibraryCollectionsApiService} from '../../services/api/library-collections-api.service';
+import {FilesProcessingApiService, ProcessingFileDto, ProcessingStatus} from '../../services/api/files-processing-api.service';
 import {SelectCollectionComponent} from '../select-collection/select-collection.component';
 
 export interface UploadFileEntry {
@@ -42,15 +43,25 @@ export interface UploadFileEntry {
   styleUrl: './upload-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class UploadDialogComponent {
+export class UploadDialogComponent implements OnDestroy {
   protected readonly files = signal<UploadFileEntry[]>([]);
   protected readonly collectionId = signal<number | null>(null);
-  protected readonly isUploading = signal(false);
-  protected readonly isDone = signal(false);
+  protected readonly phase = signal<'selecting' | 'uploading' | 'processing' | 'done'>('selecting');
+  protected readonly processingFiles = signal<ProcessingFileDto[]>([]);
 
   private readonly dialogRef = inject(MatDialogRef<UploadDialogComponent>);
   private readonly libraryApi = inject(LibraryApiService);
   private readonly collectionsApi = inject(LibraryCollectionsApiService);
+  private readonly processingApi = inject(FilesProcessingApiService);
+  private pollingInterval?: ReturnType<typeof setInterval>;
+
+  protected get isUploading(): boolean {
+    return this.phase() === 'uploading';
+  }
+
+  protected get isDone(): boolean {
+    return this.phase() === 'done';
+  }
 
   protected onFilesSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -71,7 +82,7 @@ export class UploadDialogComponent {
     const entries = this.files();
     if (entries.length === 0) return;
 
-    this.isUploading.set(true);
+    this.phase.set('uploading');
 
     const fileNames = entries.map(e => e.file.name);
     const collectionId = this.collectionId();
@@ -81,7 +92,7 @@ export class UploadDialogComponent {
         this.uploadAll(entries, urlMap);
       },
       error: () => {
-        this.isUploading.set(false);
+        this.phase.set('selecting');
       }
     });
   }
@@ -96,7 +107,7 @@ export class UploadDialogComponent {
       if (!url) {
         this.updateEntry(i, {status: 'error', progress: 0});
         completed++;
-        if (completed === total) this.onAllDone();
+        if (completed === total) this.startProcessingPhase();
         continue;
       }
 
@@ -109,12 +120,12 @@ export class UploadDialogComponent {
         complete: () => {
           this.updateEntry(i, {status: 'done', progress: 100});
           completed++;
-          if (completed === total) this.onAllDone();
+          if (completed === total) this.startProcessingPhase();
         },
         error: () => {
           this.updateEntry(i, {status: 'error'});
           completed++;
-          if (completed === total) this.onAllDone();
+          if (completed === total) this.startProcessingPhase();
         },
       });
     }
@@ -128,13 +139,54 @@ export class UploadDialogComponent {
     });
   }
 
-  private onAllDone(): void {
-    this.isUploading.set(false);
-    this.isDone.set(true);
+  private startProcessingPhase(): void {
+    this.phase.set('processing');
+    this.pollProcessingStatus();
+    this.pollingInterval = setInterval(() => this.pollProcessingStatus(), 2500);
+  }
+
+  private pollProcessingStatus(): void {
+    this.processingApi.getProcessingFiles().subscribe({
+      next: (files) => {
+        this.processingFiles.set(files);
+        if (files.length === 0) {
+          this.stopPolling();
+          this.phase.set('done');
+        }
+      },
+    });
+  }
+
+  private stopPolling(): void {
+    if (this.pollingInterval !== undefined) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = undefined;
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.stopPolling();
   }
 
   protected close(): void {
-    this.dialogRef.close(this.isDone());
+    this.stopPolling();
+    this.dialogRef.close(this.isDone);
+  }
+
+  protected statusLabel(status: ProcessingStatus): string {
+    switch (status) {
+      case 'WaitingForUpload':
+      case 'Pending':
+        return 'Waiting...';
+      case 'Converting':
+        return 'Converting...';
+      case 'AddedToLibrary':
+      case 'TemporaryFileDeleted':
+      case 'LibraryItemSaved':
+        return 'Finalizing...';
+      default:
+        return status;
+    }
   }
 
   protected formatSize(bytes: number): string {
