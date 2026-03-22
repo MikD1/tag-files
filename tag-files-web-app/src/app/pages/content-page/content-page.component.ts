@@ -1,5 +1,5 @@
-import {ChangeDetectionStrategy, Component, inject, OnDestroy, signal} from '@angular/core';
-import {ActivatedRoute} from '@angular/router';
+import {ChangeDetectionStrategy, Component, computed, HostListener, inject, OnDestroy, signal} from '@angular/core';
+import {ActivatedRoute, Router, RouterLink} from '@angular/router';
 import {CommonModule} from '@angular/common';
 import {MatChipsModule} from '@angular/material/chips';
 import {LibraryApiService, LibraryItem} from '../../services/api/library-api.service';
@@ -8,6 +8,7 @@ import {MatIconModule} from '@angular/material/icon';
 import {MatButtonModule} from '@angular/material/button';
 import {ImageGridComponent} from '../../components/image-grid/image-grid.component';
 import {SearchService} from '../../services/search.service';
+import {NavigationContextService} from '../../services/navigation-context.service';
 import {LibraryItemEditModalComponent} from '../library-item-edit-modal/library-item-edit-modal.component';
 import {MatDialog} from '@angular/material/dialog';
 import {
@@ -20,7 +21,7 @@ const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 @Component({
   selector: 'app-content-page',
   standalone: true,
-  imports: [CommonModule, MatChipsModule, VideoPlayerComponent, MatIconModule, MatButtonModule, ImageGridComponent],
+  imports: [CommonModule, MatChipsModule, VideoPlayerComponent, MatIconModule, MatButtonModule, ImageGridComponent, RouterLink],
   templateUrl: './content-page.component.html',
   styleUrl: './content-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,7 +30,17 @@ export class ContentPageComponent implements OnDestroy {
   protected readonly item = signal<LibraryItem | null>(null);
   protected readonly similarItems = signal<LibraryItem[]>([]);
   protected readonly collection = signal<LibraryCollectionWithItems | null>(null);
+  private readonly navContextService = inject(NavigationContextService);
+  protected readonly prevId = computed(() => {
+    const id = this.item()?.id;
+    return id != null ? this.navContextService.getPrevId(id) : null;
+  });
+  protected readonly nextId = computed(() => {
+    const id = this.item()?.id;
+    return id != null ? this.navContextService.getNextId(id) : null;
+  });
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly libraryApi = inject(LibraryApiService);
   private readonly libraryCollectionsApi = inject(LibraryCollectionsApiService);
   private readonly searchService = inject(SearchService);
@@ -43,6 +54,18 @@ export class ContentPageComponent implements OnDestroy {
         this.loadItem(id);
       }
     });
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeydown(event: KeyboardEvent): void {
+    if (this.item()?.fileType !== 'Image') {
+      return;
+    }
+    if (event.key === 'ArrowLeft' && this.prevId()) {
+      this.router.navigate(['/content', this.prevId()]);
+    } else if (event.key === 'ArrowRight' && this.nextId()) {
+      this.router.navigate(['/content', this.nextId()]);
+    }
   }
 
   ngOnDestroy(): void {

@@ -7,6 +7,7 @@ import {MatTooltipModule} from '@angular/material/tooltip';
 import {MatIconModule} from '@angular/material/icon';
 import {NgClass} from '@angular/common';
 import {RouterLink} from '@angular/router';
+import {NavigationContextService} from '../../services/navigation-context.service';
 
 const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 
@@ -19,6 +20,7 @@ const ContentBaseUrl = "http://localhost:5010/"; // TODO: Move to config
 })
 export class ImageGridComponent {
   itemsList = input.required<LibraryItemPaginatedList>();
+  navigationContext = input<number[]>([]);
   private readonly appStateService = inject(AppStateService);
   protected readonly getGridColumns = computed(() => {
     const max = 7;
@@ -26,6 +28,14 @@ export class ImageGridComponent {
     return 4 + (max - level);
   })
   private readonly libraryApi = inject(LibraryApiService);
+  private readonly navContextService = inject(NavigationContextService);
+
+  protected onItemClick(): void {
+    const ids = this.navigationContext();
+    if (ids.length > 0) {
+      this.navContextService.setContext(ids);
+    }
+  }
 
   toggleFavorite(item: LibraryItem) {
     this.libraryApi.toggleFavorite(item.id).subscribe({

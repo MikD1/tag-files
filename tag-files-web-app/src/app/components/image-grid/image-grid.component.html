@@ -1,7 +1,7 @@
 <div [style.grid-template-columns]="'repeat(' + getGridColumns() + ', 1fr)'" class="gallery">
   @for (libraryItem of itemsList().items; track $index) {
     <a class="gallery-item" [routerLink]="['/content', libraryItem.id]"
-       [matTooltip]="getTagsTooltip(libraryItem)">
+       [matTooltip]="getTagsTooltip(libraryItem)" (click)="onItemClick()">
       <img class="gallery-item-image" [src]="getFullThumbnailPath(libraryItem.thumbnailPath)" alt=""/>
       <span class="video-duration-label">{{ libraryItem.videoDuration }}</span>
       <span class="favorite-label"

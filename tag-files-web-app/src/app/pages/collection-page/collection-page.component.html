@@ -6,5 +6,5 @@
     </button>
   </div>
 
-  <app-image-grid [itemsList]="makeItemsPaginatedList(collection.items)"></app-image-grid>
+  <app-image-grid [itemsList]="makeItemsPaginatedList(collection.items)" [navigationContext]="collectionItemIds()"></app-image-grid>
 }

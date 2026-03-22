@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, inject, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, inject, signal} from '@angular/core';
 import {ActivatedRoute, Router} from '@angular/router';
 import {CommonModule} from '@angular/common';
 import {ImageGridComponent} from '../../components/image-grid/image-grid.component';
@@ -21,6 +21,7 @@ import {CollectionEditModalComponent} from '../collection-edit-modal/collection-
 })
 export class CollectionPageComponent {
   protected readonly collection = signal<LibraryCollectionWithItems | null>(null);
+  protected readonly collectionItemIds = computed(() => this.collection()?.items.map(i => i.id) ?? []);
   private readonly route = inject(ActivatedRoute);
   private readonly libraryCollectionsApi = inject(LibraryCollectionsApiService);
   private readonly dialog = inject(MatDialog);

@@ -33,4 +33,5 @@ export class LibraryPageComponent {
   protected readonly searchResults = computed(() => {
     return this.searchService.searchResults()
   });
+  protected readonly searchResultIds = computed(() => this.searchResults().items.map(i => i.id));
 }

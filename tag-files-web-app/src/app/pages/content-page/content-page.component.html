@@ -19,6 +19,15 @@
       }
     </mat-chip-set>
 
+    <div class="nav-buttons">
+      <button mat-icon-button [disabled]="!prevId()" [routerLink]="prevId() ? ['/content', prevId()] : null">
+        <mat-icon>chevron_left</mat-icon>
+      </button>
+      <button mat-icon-button [disabled]="!nextId()" [routerLink]="nextId() ? ['/content', nextId()] : null">
+        <mat-icon>chevron_right</mat-icon>
+      </button>
+    </div>
+
     <div class="right-side-controls">
       <div>
         <mat-chip>{{ item()!.viewCount }} views</mat-chip>
