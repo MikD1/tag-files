@@ -1,30 +1,39 @@
-<mat-selection-list>
-  <a routerLink="/library">
-    <mat-list-item [ngClass]="{'item-active': currentRoute() === '/library'}">
-      <mat-icon matListItemIcon>photo_library</mat-icon>
-      <span>Library</span>
+<div class="sidebar-wrapper">
+  <mat-selection-list>
+    <a routerLink="/library">
+      <mat-list-item [ngClass]="{'item-active': currentRoute() === '/library'}">
+        <mat-icon matListItemIcon>photo_library</mat-icon>
+        <span>Library</span>
+      </mat-list-item>
+    </a>
+    <a routerLink="/tags">
+      <mat-list-item [ngClass]="{'item-active': currentRoute() === '/tags'}">
+        <mat-icon matListItemIcon>bookmarks</mat-icon>
+        <span matListItemTitle>Tags</span>
+      </mat-list-item>
+    </a>
+    <a routerLink="/categories">
+      <mat-list-item [ngClass]="{'item-active': currentRoute() === '/categories'}">
+        <mat-icon matListItemIcon>library_books</mat-icon>
+        <span>Categories</span>
+      </mat-list-item>
+    </a>
+    <a routerLink="/collections">
+      <mat-list-item [ngClass]="{'item-active': currentRoute() === '/collections'}">
+        <mat-icon matListItemIcon>folder_copy</mat-icon>
+        <span>Collections</span>
+      </mat-list-item>
+    </a>
+    <mat-list-item>
+      <mat-icon matListItemIcon>star</mat-icon>
+      <span>Favorites</span>
     </mat-list-item>
-  </a>
-  <a routerLink="/tags">
-    <mat-list-item [ngClass]="{'item-active': currentRoute() === '/tags'}">
-      <mat-icon matListItemIcon>bookmarks</mat-icon>
-      <span matListItemTitle>Tags</span>
-    </mat-list-item>
-  </a>
-  <a routerLink="/categories">
-    <mat-list-item [ngClass]="{'item-active': currentRoute() === '/categories'}">
-      <mat-icon matListItemIcon>library_books</mat-icon>
-      <span>Categories</span>
-    </mat-list-item>
-  </a>
-  <a routerLink="/collections">
-    <mat-list-item [ngClass]="{'item-active': currentRoute() === '/collections'}">
-      <mat-icon matListItemIcon>folder_copy</mat-icon>
-      <span>Collections</span>
-    </mat-list-item>
-  </a>
-  <mat-list-item>
-    <mat-icon matListItemIcon>star</mat-icon>
-    <span>Favorites</span>
-  </mat-list-item>
-</mat-selection-list>
+  </mat-selection-list>
+
+  <div class="upload-section">
+    <button mat-flat-button title="Upload files" (click)="openUploadDialog()">
+      <mat-icon>upload</mat-icon>
+      Upload
+    </button>
+  </div>
+</div>

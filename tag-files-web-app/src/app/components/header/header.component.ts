@@ -7,8 +7,6 @@ import {SearchBarComponent} from '../search-bar/search-bar.component';
 import {MatButtonToggleModule} from '@angular/material/button-toggle';
 import {NavigationEnd, Router} from '@angular/router';
 import {filter} from 'rxjs';
-import {MatDialog} from '@angular/material/dialog';
-import {UploadDialogComponent} from '../upload-dialog/upload-dialog.component';
 
 @Component({
   selector: 'app-header',
@@ -25,15 +23,10 @@ export class AppHeaderComponent {
     return this.appStateService.getGalleryViewType();
   })
   private readonly router = inject(Router);
-  private readonly dialog = inject(MatDialog);
 
   constructor() {
     this.router.events.pipe(filter(event => event instanceof NavigationEnd)).subscribe(() => {
       this.isLibraryPage.set(this.router.url === '/library');
     });
-  }
-
-  protected openUploadDialog(): void {
-    this.dialog.open(UploadDialogComponent);
   }
 }

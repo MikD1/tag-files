@@ -1,6 +1,22 @@
 :host {
   display: block;
   margin: 0 12px;
+  height: 100%;
+}
+
+.sidebar-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.upload-section {
+  margin-top: auto;
+  padding: 12px 0;
+
+  button {
+    width: 100%;
+  }
 }
 
 a {
