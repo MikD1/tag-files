@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Minio;
 using TagFilesService.FilesProcessing.Contracts;
@@ -22,18 +23,30 @@ public class FileProcessingHandler(
         if (fileType is FileType.Unknown)
         {
             logger.LogInformation("Unknown file type. Try detecting with ffprobe");
-            FileType? detectFileType = await TryDetectFileType(request.FileName, cancellationToken);
-            if (detectFileType is not null)
+            FileType? detectedFileType = await TryDetectFileType(request.FileName, cancellationToken);
+            if (detectedFileType is not null)
             {
-                logger.LogInformation("Detected file type: {FileType}", detectFileType);
-                fileType = detectFileType.Value;
+                logger.LogInformation("Detected file type: {FileType}", detectedFileType);
+                fileType = detectedFileType.Value;
             }
         }
 
-        ProcessingFile processingFile = new(request.FileName, fileType);
-        await dbContext.AddAsync(processingFile, cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        ProcessingFile? processingFile = await dbContext.ProcessingFiles
+            .FirstOrDefaultAsync(
+                f => f.OriginalFileName == request.FileName && f.Status == ProcessingStatus.WaitingForUpload,
+                cancellationToken);
+        if (processingFile is not null)
+        {
+            processingFile.SetFileType(fileType);
+            processingFile.Status = ProcessingStatus.Pending;
+        }
+        else
+        {
+            processingFile = new(request.FileName, fileType);
+            await dbContext.AddAsync(processingFile, cancellationToken);
+        }
 
+        await dbContext.SaveChangesAsync(cancellationToken);
         await processingQueue.Enqueue(processingFile, cancellationToken);
     }
 

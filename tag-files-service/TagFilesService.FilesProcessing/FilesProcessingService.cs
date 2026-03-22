@@ -189,7 +189,10 @@ public class FilesProcessingService(
     private async Task<LibraryItem> SaveLibraryItem(AppDbContext dbContext, ProcessingFile processingFile,
         CancellationToken cancellationToken)
     {
-        LibraryItem libraryItem = new(processingFile.LibraryFileName, processingFile.FileType, null);
+        LibraryItem libraryItem = new(processingFile.LibraryFileName, processingFile.FileType, null)
+        {
+            CollectionId = processingFile.CollectionId
+        };
         await dbContext.LibraryItems.AddAsync(libraryItem, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 

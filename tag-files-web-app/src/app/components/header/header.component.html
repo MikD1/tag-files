@@ -6,6 +6,9 @@
     <h2>Tag Files</h2>
   </div>
   <app-search-bar class="search-bar"></app-search-bar>
+  <button mat-icon-button title="Upload files" (click)="openUploadDialog()">
+    <mat-icon>upload</mat-icon>
+  </button>
   @if (isLibraryPage()) {
     <div class="controls">
       @if (galleryViewType() == galleryViewTypes.Grid) {

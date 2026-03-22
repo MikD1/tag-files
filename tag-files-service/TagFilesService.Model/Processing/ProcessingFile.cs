@@ -2,8 +2,13 @@ namespace TagFilesService.Model.Processing;
 
 public class ProcessingFile
 {
-    public ProcessingFile(string fileName, FileType fileType)
-        : this(0u, fileName, fileType, ProcessingStatus.Pending)
+    public ProcessingFile(string fileName, uint? collectionId = null)
+        : this(0u, fileName, FileType.Unknown, ProcessingStatus.WaitingForUpload, collectionId)
+    {
+    }
+
+    public ProcessingFile(string fileName, FileType fileType, uint? collectionId = null)
+        : this(0u, fileName, fileType, ProcessingStatus.Pending, collectionId)
     {
     }
 
@@ -17,24 +22,27 @@ public class ProcessingFile
 
     public ProcessingStatus Status { get; set; }
 
-    private ProcessingFile(uint id, string originalFileName, FileType fileType, ProcessingStatus status)
-    {
-        string libraryFileName = GenerateLibraryFileName(fileType, originalFileName);
+    public uint? CollectionId { get; private set; }
 
-        Id = id;
-        OriginalFileName = originalFileName;
-        LibraryFileName = libraryFileName;
+    public void SetFileType(FileType fileType)
+    {
         FileType = fileType;
-        Status = status;
+        LibraryFileName = GenerateLibraryFileName(fileType, OriginalFileName);
     }
 
-    private string GenerateLibraryFileName(FileType fileType, string originalFileName)
+    private static string GenerateLibraryFileName(FileType fileType, string originalFileName)
     {
         string fileExtension = fileType is FileType.Video ? ".mp4" : Path.GetExtension(originalFileName);
-        string targetFileName = Guid.NewGuid()
-            .ToString()
-            .Replace("-", string.Empty) + fileExtension
-            .ToLower();
-        return targetFileName;
+        return Guid.NewGuid().ToString().Replace("-", string.Empty) + fileExtension.ToLower();
+    }
+
+    private ProcessingFile(uint id, string originalFileName, FileType fileType, ProcessingStatus status, uint? collectionId)
+    {
+        Id = id;
+        OriginalFileName = originalFileName;
+        LibraryFileName = GenerateLibraryFileName(fileType, originalFileName);
+        FileType = fileType;
+        Status = status;
+        CollectionId = collectionId;
     }
 }

@@ -4,6 +4,11 @@ import {map, Observable} from 'rxjs';
 import {FileType} from './file-type';
 import {SortType} from './sort-type';
 
+export interface InitiateUploadRequest {
+  fileNames: string[];
+  collectionId?: number | null;
+}
+
 export interface SearchRequest {
   tagQuery: string | null;
   itemType: FileType | null;
@@ -94,6 +99,33 @@ export class LibraryApiService {
 
   updateViewCount(id: number): Observable<void> {
     return this.http.put<void>(`${this.baseUrl}/library/${id}/view-count`, null);
+  }
+
+  initiateUpload(request: InitiateUploadRequest): Observable<Record<string, string>> {
+    return this.http.post<Record<string, string>>(`${this.baseUrl}/library/initiate-upload`, request);
+  }
+
+  uploadFile(url: string, file: File): Observable<number> {
+    return new Observable<number>(observer => {
+      const xhr = new XMLHttpRequest();
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          observer.next(Math.round((event.loaded / event.total) * 100));
+        }
+      });
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          observer.next(100);
+          observer.complete();
+        } else {
+          observer.error(new Error(`Upload failed: ${xhr.status}`));
+        }
+      });
+      xhr.addEventListener('error', () => observer.error(new Error('Upload failed')));
+      xhr.open('PUT', url);
+      xhr.setRequestHeader('Content-Type', file.type);
+      xhr.send(file);
+    });
   }
 }
 

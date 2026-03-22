@@ -1,0 +1,81 @@
+mat-dialog-content {
+  min-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.collection-section {
+  app-select-collection {
+    display: block;
+    width: 100%;
+  }
+}
+
+.file-picker {
+  &:not(.has-files) {
+    display: flex;
+    justify-content: center;
+  }
+}
+
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px;
+  border: 2px dashed rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: rgba(0, 0, 0, 0.4);
+  }
+
+  span {
+    font-size: 14px;
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  .hint {
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.4);
+  }
+
+  &:hover {
+    border-color: rgba(0, 0, 0, 0.4);
+  }
+}
+
+.file-list {
+  max-height: 360px;
+  overflow-y: auto;
+
+  .file-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-size {
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.5);
+  }
+
+  mat-icon {
+    &.done { color: #4caf50; }
+    &.error { color: #f44336; }
+    &.uploading { color: #2196f3; }
+  }
+
+  mat-progress-bar {
+    width: 100%;
+  }
+}

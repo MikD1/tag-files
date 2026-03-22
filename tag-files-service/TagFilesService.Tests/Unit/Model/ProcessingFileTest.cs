@@ -30,4 +30,44 @@ public class ProcessingFileTest
         Assert.IsTrue(processingFile.LibraryFileName.EndsWith(expectedLibraryFileExtensin));
         Assert.AreEqual(FileType.Image, processingFile.FileType);
     }
+
+    [DataTestMethod]
+    [DataRow("photo.jpg", null)]
+    [DataRow("photo.jpg", 42u)]
+    public void WaitingForUpload_ShouldInitializeCorrect(string fileName, uint? collectionId)
+    {
+        ProcessingFile processingFile = new(fileName, collectionId);
+
+        Assert.AreEqual(fileName, processingFile.OriginalFileName);
+        Assert.AreEqual(FileType.Unknown, processingFile.FileType);
+        Assert.AreEqual(ProcessingStatus.WaitingForUpload, processingFile.Status);
+        Assert.AreEqual(collectionId, processingFile.CollectionId);
+        Assert.IsTrue(processingFile.LibraryFileName.EndsWith(Path.GetExtension(fileName)));
+    }
+
+    [DataTestMethod]
+    [DataRow("clip.mov")]
+    [DataRow("clip.webm")]
+    public void SetFileType_ToVideo_ShouldUpdateLibraryFileNameToMp4(string fileName)
+    {
+        ProcessingFile processingFile = new(fileName);
+
+        processingFile.SetFileType(FileType.Video);
+
+        Assert.AreEqual(FileType.Video, processingFile.FileType);
+        Assert.IsTrue(processingFile.LibraryFileName.EndsWith(".mp4"));
+    }
+
+    [DataTestMethod]
+    [DataRow("photo.jpg", ".jpg")]
+    [DataRow("photo.png", ".png")]
+    public void SetFileType_ToImage_ShouldKeepOriginalExtension(string fileName, string expectedExtension)
+    {
+        ProcessingFile processingFile = new(fileName);
+
+        processingFile.SetFileType(FileType.Image);
+
+        Assert.AreEqual(FileType.Image, processingFile.FileType);
+        Assert.IsTrue(processingFile.LibraryFileName.EndsWith(expectedExtension));
+    }
 }

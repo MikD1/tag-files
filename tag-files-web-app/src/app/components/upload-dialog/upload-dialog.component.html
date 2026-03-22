@@ -1,0 +1,65 @@
+<h2 mat-dialog-title>Upload Files</h2>
+
+<mat-dialog-content>
+  <div class="collection-section">
+    <app-select-collection [(collectionId)]="collectionId" />
+  </div>
+
+  <div class="file-picker" [class.has-files]="files().length > 0">
+    @if (files().length === 0) {
+      <label class="drop-zone" for="file-input">
+        <mat-icon>upload_file</mat-icon>
+        <span>Click to select files</span>
+        <span class="hint">Images and videos supported</span>
+      </label>
+    } @else {
+      <button mat-stroked-button (click)="fileInput.click()" [disabled]="isUploading()">
+        <mat-icon>add</mat-icon>
+        Change files
+      </button>
+    }
+    <input #fileInput id="file-input" type="file" multiple accept="image/*,video/*"
+           (change)="onFilesSelected($event)" style="display:none" />
+  </div>
+
+  @if (files().length > 0) {
+    <mat-list class="file-list">
+      @for (entry of files(); track entry.file.name; let i = $index) {
+        <mat-list-item>
+          <mat-icon matListItemIcon [class]="entry.status">
+            @switch (entry.status) {
+              @case ('done') { check_circle }
+              @case ('error') { error }
+              @case ('uploading') { hourglass_top }
+              @default { insert_drive_file }
+            }
+          </mat-icon>
+          <span matListItemTitle class="file-name">{{ entry.file.name }}</span>
+          <span matListItemLine class="file-size">{{ formatSize(entry.file.size) }}</span>
+          @if (entry.status === 'uploading' || entry.status === 'done') {
+            <mat-progress-bar matListItemLine [value]="entry.progress" mode="determinate" />
+          }
+          @if (!isUploading() && !isDone()) {
+            <button matListItemMeta mat-icon-button (click)="removeFile(i)">
+              <mat-icon>close</mat-icon>
+            </button>
+          }
+        </mat-list-item>
+      }
+    </mat-list>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()" [disabled]="isUploading()">
+    {{ isDone() ? 'Close' : 'Cancel' }}
+  </button>
+  @if (!isDone()) {
+    <button mat-flat-button color="primary"
+            [disabled]="files().length === 0 || isUploading()"
+            (click)="upload()">
+      <mat-icon>upload</mat-icon>
+      Upload {{ files().length > 0 ? '(' + files().length + ')' : '' }}
+    </button>
+  }
+</mat-dialog-actions>

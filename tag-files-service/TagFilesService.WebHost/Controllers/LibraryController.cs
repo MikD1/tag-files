@@ -86,8 +86,8 @@ public class LibraryController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("generate-upload-urls")]
-    public async Task<ActionResult<List<string>>> GenerateUploadUrls([FromBody] GeneratePresignedUrlsRequest request)
+    [HttpPost("initiate-upload")]
+    public async Task<ActionResult<Dictionary<string, string>>> InitiateUpload([FromBody] InitiateUploadRequest request)
     {
         Dictionary<string, string> result = await mediator.Send(request);
         return Ok(result);
