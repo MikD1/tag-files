@@ -51,6 +51,7 @@ builder.Services.AddMinio(configure => configure
     .WithCredentials(builder.Configuration["S3:Username"], builder.Configuration["S3:Password"])
     .WithSSL(false)
     .Build());
+builder.Services.AddSingleton<IPresignedService, MinioPresignedService>();
 builder.Services.AddScoped<ITagsRepository, TagsRepository>();
 builder.Services.AddScoped<ICategoriesRepository, CategoriesRepository>();
 

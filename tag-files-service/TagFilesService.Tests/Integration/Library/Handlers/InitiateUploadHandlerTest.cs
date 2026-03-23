@@ -1,6 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Minio;
-using Minio.DataModel.Args;
 using Moq;
 using TagFilesService.Library.Contracts;
 using TagFilesService.Library.Handlers;
@@ -15,11 +13,11 @@ public class InitiateUploadHandlerTest : InMemoryDatabaseTestBase
     [TestInitialize]
     public void SetupMocks()
     {
-        Mock<IMinioClient> minioMock = new();
-        minioMock
-            .Setup(m => m.PresignedPutObjectAsync(It.IsAny<PresignedPutObjectArgs>()))
+        Mock<IPresignedService> presignedMock = new();
+        presignedMock
+            .Setup(m => m.GenerateUploadUrl(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync("http://minio/upload-url");
-        _handler = new(minioMock.Object, DbContext);
+        _handler = new(presignedMock.Object, DbContext);
     }
 
     [TestMethod]

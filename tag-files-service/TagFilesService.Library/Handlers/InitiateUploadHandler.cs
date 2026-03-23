@@ -1,6 +1,4 @@
 using MediatR;
-using Minio;
-using Minio.DataModel.Args;
 using TagFilesService.Infrastructure;
 using TagFilesService.Library.Contracts;
 using TagFilesService.Model;
@@ -8,7 +6,7 @@ using TagFilesService.Model.Processing;
 
 namespace TagFilesService.Library.Handlers;
 
-public class InitiateUploadHandler(IMinioClient minio, AppDbContext dbContext)
+public class InitiateUploadHandler(IPresignedService presignedService, AppDbContext dbContext)
     : IRequestHandler<InitiateUploadRequest, Dictionary<string, string>>
 {
     public async Task<Dictionary<string, string>> Handle(InitiateUploadRequest request,
@@ -17,7 +15,8 @@ public class InitiateUploadHandler(IMinioClient minio, AppDbContext dbContext)
         Dictionary<string, string> result = [];
         foreach (string fileName in request.FileNames)
         {
-            string url = await GeneratePresignedUrl(fileName);
+            string url = await presignedService.GenerateUploadUrl(
+                Buckets.Temporary, fileName, (int)TimeSpan.FromHours(10).TotalSeconds);
             result.Add(fileName, url);
 
             ProcessingFile processingFile = new(fileName, request.CollectionId);
@@ -26,15 +25,5 @@ public class InitiateUploadHandler(IMinioClient minio, AppDbContext dbContext)
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return result;
-    }
-
-    private async Task<string> GeneratePresignedUrl(string fileName)
-    {
-        PresignedPutObjectArgs args = new PresignedPutObjectArgs()
-            .WithBucket(Buckets.Temporary)
-            .WithObject(fileName)
-            .WithExpiry((int)TimeSpan.FromHours(10).TotalSeconds);
-
-        return await minio.PresignedPutObjectAsync(args);
     }
 }
