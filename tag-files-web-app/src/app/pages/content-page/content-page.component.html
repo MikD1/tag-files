@@ -43,7 +43,7 @@
 }
 
 @if (collection()) {
-  <h4>{{ collection()!.name }}</h4>
+  <h4><a [routerLink]="['/collections', collection()!.id]">{{ collection()!.name }}</a></h4>
   <app-image-grid [itemsList]="makeItemsPaginatedList(collection()!.items)"></app-image-grid>
 }
 
