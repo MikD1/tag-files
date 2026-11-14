@@ -26,8 +26,10 @@ in and must be regenerated together through `scripts/generate`.
 and race tests. Integration tests use real temporary SQLite libraries. They do
 not access existing media, MinIO or user databases. `scripts/check-storage`
 runs the optional isolated Docker S3 conformance suite; see the
-[wire profile](internal/objectstore/README.md). Production storage preflight,
-ingestion, FFmpeg/browser/tool and Mac acceptance gates remain open.
+[wire profile](internal/objectstore/README.md) and the separate
+[storage preflight](internal/storageprofile/README.md). Production storage
+bootstrap/readiness wiring, ingestion, FFmpeg/browser/tool and Mac acceptance
+gates remain open.
 
 To prepare module/toolchain caches for offline checks, run the above online
 once. Go generators can then run with `GOPROXY=off` using the installed pinned

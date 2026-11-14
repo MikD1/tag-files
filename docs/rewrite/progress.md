@@ -18,10 +18,11 @@ No release, migration of real data, or production-readiness claim has been made.
   and navigation contexts. Upload/media/system handlers and the full API-only
   acceptance matrix remain open alongside Tasks 4–9.
 - Task 4 started: a direct S3 adapter has passed real pinned SeaweedFS/SDK
-  conformance, including restart and lost responses. Production private storage
-  bootstrap/preflight and all durable ingestion remain open.
-- Next: persisted storage profile validation/negative readiness, then durable
-  ingestion. No executable/SPA image exists yet.
+  conformance, including restart and lost responses. A separate read-only storage
+  preflight binary has passed real-container positive/negative tests. Production
+  private storage bootstrap/readiness wiring and all durable ingestion remain open.
+- Next: owned storage bootstrap (fsync before bucket creation), private image/
+  readiness wiring, then durable ingestion. No executable/SPA image exists yet.
 
 ## Decisions
 
@@ -109,6 +110,26 @@ benchmark allocated about 38KB for both 8MiB and 64MiB parts; this is adapter
 allocation evidence, not a measurement of production HTTP RSS/throughput.
 The ordinary full `scripts/check` also passed with the new modules.
 
+The separate `cmd/storage-check` is built and run inside the pinned storage
+container, without any application DB or Docker socket access from the app.
+It checks the owned LevelDB2 profile and metadata containment in complete /data,
+bounded regular config files, strict private identity shape and explicit
+Read/Write/List permissions, persisted global fsync without overriding false/
+TTL/read-only/WORM rules, anonymous/signed HEAD, access-block settings, bucket
+policy/ACL and lifecycle metadata. It performs no repair or data mutation.
+
+After review fixes, `scripts/check` passed again. `scripts/check-storage` with
+race detection passed for objectstore (43.744s) and storageprofile (24.204s).
+Real negative checks refuse missing/overridden fsync, TTL, disabled public access
+block, bucket policy/public ACL, lifecycle expiry, wrong backend and empty
+credentials. Restart preserves the accepted profile. A real historical object
+ACL allows anonymous GET with the block off, then returns 403 with the block on.
+Unit regressions cover readonly identity permissions, unknown identity-policy
+fields, owner-only ACL/single XML document, FIFO rejection and the io.Copy fast path
+which could otherwise bypass a bounded writer. Fixture resources were removed.
+The fixture still creates its bucket before applying fsync; production bootstrap
+ordering, actual upload admission and the release storage image remain open.
+
 ## Independent review
 
 The requesting-code-review skill was used for read-only foundation/organization
@@ -142,6 +163,17 @@ vet/race tests and additional 1001-entry pagination probes. Those pagination
 cases now also have committed integration coverage. This review explicitly
 defers SQLite intents/bindings, draining/fences/cancel/crash recovery, production
 preflight, HTTP memory/admission, ENOSPC, tools and physical durability.
+
+A further scoped checker review found three Important false positives: promoted
+bytes.Buffer.ReadFrom bypassed the output bound, bucket HEAD did not establish
+object privacy, and read/list-only credentials passed. All were reproduced with
+failing regressions and fixed. Named buffer storage preserves the cap; readonly
+S3 metadata checks require public-access block, private ACL/no policy; strict
+owned action configuration requires write/cleanup permissions. Additional
+inspection covered FIFO blocking, per-object public ACLs and S3 lifecycle rules.
+The reviewer did not re-review the fixes; focused and full checks are evidence.
+Live-process configuration provenance, bootstrap/image/mounts and gating uploads
+remain deferred to deployment wiring; physical flush is not proved here.
 
 Deferred review gates map to the still-open tasks: remaining upload/system/media
 handlers and API parity, real S3/media/poster publication, browser view lifecycle,

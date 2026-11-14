@@ -8,4 +8,4 @@ if ! docker image inspect "$storage_image" >/dev/null 2>&1; then
   exit 1
 fi
 cd "$project_root/app"
-TAG_FILES_INTEGRATION=1 go test -race ./internal/objectstore -count=1 -v
+TAG_FILES_INTEGRATION=1 go test -race ./internal/objectstore ./internal/storageprofile -count=1 -v

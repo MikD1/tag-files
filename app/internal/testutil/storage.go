@@ -16,7 +16,10 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/mikd1/tag-files/app/internal/domain"
+	"github.com/mikd1/tag-files/app/internal/storageprofile"
 )
 
 const SeaweedImage = "chrislusf/seaweedfs:4.53@sha256:ccad23e18639c8b98cee17e7100b95830a06077b56d8e5b006d6dcf8ec5e94a0"
@@ -67,34 +70,29 @@ func StartStorage(t testing.TB) *Storage {
 	f.waitReady()
 	f.Shell("fs.configure -locationPrefix=/ -fsync=true -apply")
 	f.AssertGlobalFsync()
+	f.PublicAccessBlock(true)
 	return f
+}
+
+func (f *Storage) S3() *s3.Client {
+	return s3.NewFromConfig(aws.Config{Region: "us-east-1", HTTPClient: &http.Client{Timeout: 5 * time.Second}, Credentials: aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
+		return aws.Credentials{AccessKeyID: f.AccessKey, SecretAccessKey: f.SecretKey}, nil
+	})}, func(o *s3.Options) { o.BaseEndpoint = aws.String(f.Endpoint); o.UsePathStyle = true })
+}
+
+func (f *Storage) PublicAccessBlock(enabled bool) {
+	f.t.Helper()
+	_, err := f.S3().PutPublicAccessBlock(context.Background(), &s3.PutPublicAccessBlockInput{Bucket: aws.String("tag-files"), PublicAccessBlockConfiguration: &types.PublicAccessBlockConfiguration{BlockPublicAcls: aws.Bool(enabled), IgnorePublicAcls: aws.Bool(enabled), BlockPublicPolicy: aws.Bool(enabled), RestrictPublicBuckets: aws.Bool(enabled)}})
+	if err != nil {
+		f.t.Fatal(err)
+	}
 }
 
 func (f *Storage) AssertGlobalFsync() {
 	f.t.Helper()
 	raw := f.Shell("fs.configure")
-	var config struct {
-		Version   int `json:"version"`
-		Locations []struct {
-			Prefix string `json:"locationPrefix"`
-			Fsync  *bool  `json:"fsync"`
-			TTL    string `json:"ttl"`
-		} `json:"locations"`
-	}
-	if err := json.Unmarshal([]byte(raw), &config); err != nil || config.Version != 2 {
-		f.t.Fatalf("cannot verify persisted storage config: %v\n%s", err, raw)
-	}
-	root := false
-	for _, loc := range config.Locations {
-		if loc.TTL != "" || (loc.Fsync != nil && !*loc.Fsync) {
-			f.t.Fatalf("unsafe storage override: %s", raw)
-		}
-		if loc.Prefix == "/" && loc.Fsync != nil && *loc.Fsync {
-			root = true
-		}
-	}
-	if !root {
-		f.t.Fatal("persisted global fsync is absent")
+	if err := storageprofile.ValidateRules([]byte(raw)); err != nil {
+		f.t.Fatalf("unsafe persisted storage configuration: %v", err)
 	}
 }
 
