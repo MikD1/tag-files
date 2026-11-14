@@ -33,8 +33,12 @@ No release, migration of real data, or production-readiness claim has been made.
   pass full object verification and publish through a leased ready transaction
   that removes visible uploads and creates independent cleanup/poster work.
   Media processing and application/Compose admission wiring remain open.
-- Next: real media probe/conversion, process/scratch lifecycle, poster worker,
-  media HTTP streaming and application/job-runner wiring.
+- Task 5 started: one bounded Linux process supervisor now runs FFmpeg/ffprobe;
+  local scratch probe, full decode, photo passthrough/conversion and H264/AAC
+  video preparation pass actual fixtures on host and the pinned runtime image.
+  This file processor is not yet the durable worker or complete media matrix.
+- Next: broaden the camera/codec/orientation matrix, then worker/scratch lifecycle,
+  poster execution, media HTTP streaming and application runtime wiring.
   No executable application/SPA image exists yet.
 
 ## Decisions
@@ -379,6 +383,51 @@ primary/ready/cleanup/restart case passes again (32.550s under race).
 No real media worker, FFmpeg output validation, generated poster, process/scratch
 cleanup, disk admission, media/system/upload HTTP routes or runnable SPA/app image
 is claimed here; Tasks 5–9 and final startup/pairing gates remain unfinished.
+
+Media processor foundation: installed/tested FFmpeg `7:8.0.1-3ubuntu2` on this
+Linux arm64 host and pinned Ubuntu 26.04's image index plus the same FFmpeg package
+in the app runtime foundation. The image currently exposes only media-runtime/
+media-check stages; it is not a runnable rewritten app. `domain.MediaOutput`
+shares the durable output descriptor rules with ingestion without a media/store
+dependency cycle. Existing publication checks still pass after the extraction.
+
+The Linux supervisor runs direct argv in a separate process group, bounds stdout
+and stderr, cancels with TERM/grace/KILL, always waits, and reaps owned adopted
+descendants. Real subprocess tests cover literal shell-like arguments, output
+flood/failure status, TERM-ignoring descendants, and children surviving successful
+parent exit both with and without inherited pipes. Subreaping is process-wide;
+Wait4 only targets the owned group after its leader has been reaped.
+
+Probe uses local regular files, explicit protocol/demuxer/decoder allowlists,
+bounded metadata/probe time/streams/decoder allocation/pixels and byte-derived
+type. Audio-only/cover art and unsupported FFV1 do not become video. Prepare fully
+decodes supported input/output, keeps usable photo bytes, converts other supported
+photos to PNG, and emits MP4 H264/AAC veryfast CRF23/128k/faststart without resizing.
+Real tests prove MPEG4/PCM conversion, silent rotated video with cleared output
+rotation, PNG identity despite misleading extension, BMP conversion, truncation,
+input preservation and removal of failed output, pixel/byte caps, and zero HTTP
+fetches for an external playlist. A fixture bug was characterized with ffprobe:
+the old rotate tag produced no display matrix in this build; the fixture now
+uses display_rotation and verifies real input rotation before testing conversion.
+
+Ticks use bounded fixed decimal/integer-rational parsing and exact 100ns rounding;
+unknown stays NULL, negatives/overflow/exponent syntax fail. Context-aware local
+copy/hash stops before reading more data after cancellation. An exact-byte-limit
+photo initially failed; the reproduced boundary is now inclusive while the FFmpeg
+stop is one byte beyond it and final output size remains enforced.
+
+Fresh `scripts/check`, `scripts/check-media` (host race), and
+`scripts/check-media-image` pass. The final image is native arm64
+`sha256:ffed523c6ef349c5f9a97a51865a349463312e62e5f0ab25044da990c250e1c2`;
+the package query confirms `ffmpeg=7:8.0.1-3ubuntu2`. Image tests execute ordinary
+Go test binaries as UID/GID10001 with read-only root, no external network and a
+bounded disposable scratch tmpfs; host tests supply the race detector. No fixture
+containers remain. These small fixtures do not prove codec RSS, Mac playback or
+the full matrix: JPEG/EXIF, animated formats, AVIF/HEIC including tile groups,
+aspect/VFR, HDR/color and >4K remain explicit gates. Current odd video/HDR profile
+rejection is documented; it is not a completed media compatibility claim.
+Disk reservation/507, durable scratch/process recovery, one job runner, poster,
+media/upload/system HTTP routes, startup pairing and Tasks 6–9 are still open.
 
 ## Independent review
 

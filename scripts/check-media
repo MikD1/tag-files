@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+project_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+command -v ffmpeg >/dev/null
+command -v ffprobe >/dev/null
+ffmpeg_version=$(ffmpeg -version)
+if [[ "$ffmpeg_version" != "ffmpeg version 8.0.1-"* ]]; then
+  echo "Expected the tested FFmpeg 8.0.1 profile; use scripts/check-media-image for the pinned Linux image." >&2
+  exit 1
+fi
+cd "$project_root/app"
+TAG_FILES_MEDIA_INTEGRATION=1 go test -race ./internal/media ./internal/process -count=1 -v -timeout=3m

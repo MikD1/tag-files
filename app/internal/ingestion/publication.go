@@ -19,40 +19,8 @@ import (
 
 // PrimaryOutput describes a media worker's already validated output. The media
 // module must probe/decode it; these facts never come from browser MIME claims.
-type PrimaryOutput struct {
-	Kind                          domain.MediaKind
-	ContentType, SHA256           string
-	Size, Width, Height, Rotation int64
-	DurationTicks                 *int64
-}
+type PrimaryOutput = domain.MediaOutput
 
-func primaryExtension(kind domain.MediaKind, contentType string) string {
-	if kind == domain.Video && contentType == "video/mp4" {
-		return "mp4"
-	}
-	if kind != domain.Image {
-		return ""
-	}
-	switch contentType {
-	case "image/jpeg":
-		return "jpg"
-	case "image/png":
-		return "png"
-	case "image/webp":
-		return "webp"
-	case "image/gif":
-		return "gif"
-	case "image/avif":
-		return "avif"
-	}
-	return ""
-}
-func (out PrimaryOutput) validate() error {
-	if primaryExtension(out.Kind, out.ContentType) == "" || out.Size < 1 || out.Size > domain.MaxSafeInteger || !validHash(out.SHA256) || out.Width < 1 || out.Width > domain.MaxSafeInteger || out.Height < 1 || out.Height > domain.MaxSafeInteger || out.Rotation < -domain.MaxSafeInteger || out.Rotation > domain.MaxSafeInteger || (out.DurationTicks != nil && (*out.DurationTicks < 0 || out.Kind != domain.Video)) {
-		return domain.Invalid("output", "Invalid validated primary output descriptor")
-	}
-	return nil
-}
 func nullableInt(value *int64) sql.NullInt64 {
 	if value == nil {
 		return sql.NullInt64{}
@@ -103,14 +71,14 @@ func primaryForLease(ctx context.Context, q *dbgen.Queries, job dbgen.Job, asset
 	if asset.DurationTicks.Valid {
 		output.DurationTicks = &asset.DurationTicks.Int64
 	}
-	if err := output.validate(); err != nil {
+	if err := output.ValidatePrimary(); err != nil {
 		return asset, session, err
 	}
 	library, err := q.GetLibraryMeta(ctx)
 	if err != nil {
 		return asset, session, err
 	}
-	if !ownedCandidate(library.LibraryID, asset) || asset.ObjectKey != "primary/"+library.LibraryID+"/"+asset.ID+"/media."+primaryExtension(output.Kind, output.ContentType) {
+	if !ownedCandidate(library.LibraryID, asset) || asset.ObjectKey != "primary/"+library.LibraryID+"/"+asset.ID+"/media."+domain.PrimaryExtension(output.Kind, output.ContentType) {
 		return asset, session, ErrConflict
 	}
 	return asset, session, nil
@@ -120,7 +88,7 @@ func primaryForLease(ctx context.Context, q *dbgen.Queries, job dbgen.Job, asset
 // Every conversion/allocation and every newer lease gets a fresh asset/key.
 func (c *Coordinator) NewPrimary(ctx context.Context, job dbgen.Job, output PrimaryOutput, now time.Time) (dbgen.Asset, error) {
 	started := time.Now()
-	if err := output.validate(); err != nil {
+	if err := output.ValidatePrimary(); err != nil {
 		return dbgen.Asset{}, err
 	}
 	var asset dbgen.Asset
@@ -135,7 +103,7 @@ func (c *Coordinator) NewPrimary(ctx context.Context, job dbgen.Job, output Prim
 			return err
 		}
 		id := domain.NewUUID()
-		asset, err = q.CreatePrimaryCandidate(ctx, dbgen.CreatePrimaryCandidateParams{ID: id, UploadID: sql.NullString{String: session.ID, Valid: true}, JobID: sql.NullString{String: job.ID, Valid: true}, LeaseGeneration: job.LeaseGeneration, ObjectKey: "primary/" + library.LibraryID + "/" + id + "/media." + primaryExtension(output.Kind, output.ContentType), SizeBytes: output.Size, Sha256: output.SHA256, ContentType: output.ContentType, Width: intValue(output.Width), Height: intValue(output.Height), Rotation: intValue(output.Rotation), MediaKind: sql.NullString{String: string(output.Kind), Valid: true}, DurationTicks: nullableInt(output.DurationTicks)})
+		asset, err = q.CreatePrimaryCandidate(ctx, dbgen.CreatePrimaryCandidateParams{ID: id, UploadID: sql.NullString{String: session.ID, Valid: true}, JobID: sql.NullString{String: job.ID, Valid: true}, LeaseGeneration: job.LeaseGeneration, ObjectKey: "primary/" + library.LibraryID + "/" + id + "/media." + domain.PrimaryExtension(output.Kind, output.ContentType), SizeBytes: output.Size, Sha256: output.SHA256, ContentType: output.ContentType, Width: intValue(output.Width), Height: intValue(output.Height), Rotation: intValue(output.Rotation), MediaKind: sql.NullString{String: string(output.Kind), Valid: true}, DurationTicks: nullableInt(output.DurationTicks)})
 		if err != nil {
 			return err
 		}
@@ -313,7 +281,7 @@ func (c *Coordinator) ReconcilePrimaryWrites(ctx context.Context, assetID string
 	if err != nil {
 		return err
 	}
-	if !asset.UploadID.Valid || domain.ValidateUUID(asset.UploadID.String) != nil || asset.Role != "primary" || asset.Bucket != "tag-files" || !asset.MediaKind.Valid || asset.ObjectKey != "primary/"+library.LibraryID+"/"+asset.ID+"/media."+primaryExtension(domain.MediaKind(asset.MediaKind.String), asset.ContentType) {
+	if !asset.UploadID.Valid || domain.ValidateUUID(asset.UploadID.String) != nil || asset.Role != "primary" || asset.Bucket != "tag-files" || !asset.MediaKind.Valid || asset.ObjectKey != "primary/"+library.LibraryID+"/"+asset.ID+"/media."+domain.PrimaryExtension(domain.MediaKind(asset.MediaKind.String), asset.ContentType) {
 		return ErrConflict
 	}
 	if err := c.io.Drain(ctx, asset.ObjectKey, ""); err != nil {

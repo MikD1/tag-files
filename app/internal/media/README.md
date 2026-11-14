@@ -1,0 +1,65 @@
+# Media execution profile
+
+This module processes owned local scratch files. It does not publish S3 objects,
+remove the durable incoming source, own SQLite transactions, or accept browser
+MIME claims. The worker/scratch lifecycle and poster execution are not wired yet.
+`domain.MediaOutput` is shared with ingestion's immutable candidate protocol.
+
+The tested Linux profile is Ubuntu 26.04, FFmpeg package `7:8.0.1-3ubuntu2`.
+The base index digest and package version are pinned in `deploy/app/Dockerfile`.
+The current Docker targets are a runtime foundation and disposable test image;
+there is no rewritten server/SPA image yet. Run `scripts/check-media` for host
+race tests, or `scripts/check-media-image` for the pinned nonroot image with a
+read-only root, bounded tmpfs and no external network. Image tests are ordinary
+Go test binaries; host checks supply the race detector.
+
+All ffprobe/FFmpeg execution uses `internal/process`: direct argv, separate Linux
+process group, bounded stdout/stderr, TERM/grace/KILL, Wait and owned descendant
+reaping. Subreaping is enabled process-wide, but Wait4 only consumes the owned
+process group after its leader has been reaped. A leader that leaves descendants
+is an error even when it reports success. Cancellation also interrupts local
+copy/hash loops between reads.
+
+Input protocols are restricted to local files, with bounded probe bytes/time,
+stream count, decoder allocation and frame pixels. Formats/codecs have explicit
+allowlists. Audio-only files and attached cover art do not become video uploads.
+Selected default/first non-cover video and default/first audio are the working
+tracks. Other auxiliary tracks are not copied by this single-version profile.
+A format/codec being enabled is not evidence that every variant is accepted.
+
+Usable JPEG/PNG/WebP/GIF/AVIF may pass through only after full decode. Other
+supported photos convert to PNG. Video converts to MP4 H.264/AAC, veryfast CRF23,
+128k audio, yuv420p and faststart, matching the legacy video settings. No resize
+or padding filter is applied. Autorotation is checked against the output shape
+and cleared output rotation; output is decoded fully before its hash/descriptor.
+Odd video dimensions and HDR transfer profiles currently report unsupported codec
+rather than silently resizing or claiming a tone-mapping implementation.
+
+Defaults are two codec threads, 64 million pixels, 20 GiB output, 30s probe and
+6h conversion. These are explicit initial resource limits, not measured Mac
+capacity. Output is exclusive, partial output is removed on failure, input stays
+intact, and the byte maximum is inclusive. FFmpeg's file-size stop is set one byte
+past that maximum; the final size/hash and output decode are still checked.
+Scratch free-space reservation, filesystem monitoring/507 and whole-app RSS
+measurement remain gates. The process runner bounds captures, not total codec RSS.
+
+Duration uses timestamp/time-base rational arithmetic or fixed decimal seconds,
+rounded to nearest 100 ns (ties up). Unknown duration stays NULL; invalid syntax,
+negative duration and int64 overflow are rejected. Exponents are rejected before
+big-number allocation. Existing legacy ticks never pass through this module.
+
+Actual fixtures currently cover PNG byte identity despite a misleading filename,
+BMP conversion, invalid/truncated input, unsupported FFV1, audio-only MP4 and M4A
+cover art, MPEG4/PCM to H264/AAC, silent rotated video, faststart, exact ticks,
+pixel/output limits, cancellation and a blocked external playlist URL. Broader
+JPEG/EXIF, animated formats, AVIF/HEIC (including tile groups), HDR/color, aspect/
+VFR, >4K and the real Mac/browser corpus still need their acceptance evidence
+before this is a complete production media matrix.
+
+Primary references: [FFmpeg options](https://ffmpeg.org/ffmpeg.html),
+[ffprobe sections](https://ffmpeg.org/ffprobe.html),
+[protocol allowlists](https://ffmpeg.org/ffmpeg-protocols.html),
+[MOV external references](https://ffmpeg.org/ffmpeg-formats.html#mov_002fmp4_002f3gp).
+The native gate caught that the old rotate metadata fixture did not create a
+display matrix in this build; the fixture now uses `-display_rotation` and ffprobe
+checks that the matrix exists before exercising conversion.
