@@ -28,6 +28,22 @@ func nullableInt(value *int64) sql.NullInt64 {
 	return sql.NullInt64{Int64: *value, Valid: true}
 }
 func intValue(value int64) sql.NullInt64 { return sql.NullInt64{Int64: value, Valid: true} }
+
+type ingestPayload struct {
+	Version    int    `json:"version"`
+	UploadID   string `json:"uploadId"`
+	Generation int64  `json:"generation"`
+}
+
+func decodeIngestJob(current dbgen.Job) (ingestPayload, error) {
+	var payload ingestPayload
+	decoder := json.NewDecoder(strings.NewReader(current.PayloadJson))
+	decoder.DisallowUnknownFields()
+	if current.Type != domain.JobIngest || decoder.Decode(&payload) != nil || !json.Valid([]byte(current.PayloadJson)) || payload.Version != 1 || domain.ValidateUUID(payload.UploadID) != nil || payload.Generation < 1 || current.SubjectID != payload.UploadID || current.DedupeKey != "ingest/"+payload.UploadID {
+		return payload, ErrConflict
+	}
+	return payload, nil
+}
 func leasedUpload(ctx context.Context, q *dbgen.Queries, job dbgen.Job, now time.Time) (dbgen.UploadSession, error) {
 	current, err := q.GetLeasedJob(ctx, dbgen.GetLeasedJobParams{ID: job.ID, Generation: job.LeaseGeneration, Now: sql.NullString{String: store.Timestamp(now), Valid: true}})
 	if errors.Is(err, sql.ErrNoRows) {
@@ -36,15 +52,9 @@ func leasedUpload(ctx context.Context, q *dbgen.Queries, job dbgen.Job, now time
 	if err != nil {
 		return dbgen.UploadSession{}, err
 	}
-	var payload struct {
-		Version    int    `json:"version"`
-		UploadID   string `json:"uploadId"`
-		Generation int64  `json:"generation"`
-	}
-	decoder := json.NewDecoder(strings.NewReader(current.PayloadJson))
-	decoder.DisallowUnknownFields()
-	if current.Type != domain.JobIngest || decoder.Decode(&payload) != nil || !json.Valid([]byte(current.PayloadJson)) || payload.Version != 1 || domain.ValidateUUID(payload.UploadID) != nil || payload.Generation < 1 || current.SubjectID != payload.UploadID || current.DedupeKey != "ingest/"+payload.UploadID {
-		return dbgen.UploadSession{}, ErrConflict
+	payload, err := decodeIngestJob(current)
+	if err != nil {
+		return dbgen.UploadSession{}, err
 	}
 	session, err := q.GetUploadSession(ctx, payload.UploadID)
 	if err != nil {

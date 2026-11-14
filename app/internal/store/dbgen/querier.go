@@ -18,6 +18,7 @@ type Querier interface {
 	BumpItemVersion(ctx context.Context, id int64) (int64, error)
 	BumpUploadVersion(ctx context.Context, id string) error
 	ClaimJob(ctx context.Context, arg ClaimJobParams) (Job, error)
+	ClaimJobKinds(ctx context.Context, arg ClaimJobKindsParams) (Job, error)
 	ClearCollectionItems(ctx context.Context, collectionID sql.NullInt64) error
 	ClearCollectionUploads(ctx context.Context, collectionID sql.NullInt64) error
 	ClearItemTags(ctx context.Context, itemID int64) error
@@ -60,6 +61,7 @@ type Querier interface {
 	GetItem(ctx context.Context, id int64) (Item, error)
 	GetItemPoster(ctx context.Context, itemID sql.NullInt64) (string, error)
 	GetItemTags(ctx context.Context, itemID int64) ([]Tag, error)
+	GetJob(ctx context.Context, id string) (Job, error)
 	GetLeasedJob(ctx context.Context, arg GetLeasedJobParams) (Job, error)
 	GetLibraryMeta(ctx context.Context) (LibraryMetum, error)
 	GetNavigationContext(ctx context.Context, id string) (NavigationContext, error)
@@ -89,12 +91,15 @@ type Querier interface {
 	PruneNavigationContexts(ctx context.Context, expiresAt string) (int64, error)
 	PruneOperations(ctx context.Context, expiresAt string) (int64, error)
 	QueueVerifiedUpload(ctx context.Context, arg QueueVerifiedUploadParams) error
+	ReleaseLeasedJob(ctx context.Context, arg ReleaseLeasedJobParams) (int64, error)
 	RenameCollection(ctx context.Context, arg RenameCollectionParams) (Collection, error)
 	RenameTag(ctx context.Context, arg RenameTagParams) (Tag, error)
 	ReopenUploadAdmission(ctx context.Context, id string) error
 	ResetUploadPartConfirmation(ctx context.Context, arg ResetUploadPartConfirmationParams) error
+	RetryIngestionJob(ctx context.Context, arg RetryIngestionJobParams) (int64, error)
 	SetFavorite(ctx context.Context, arg SetFavoriteParams) (int64, error)
 	SetItemCollection(ctx context.Context, arg SetItemCollectionParams) (int64, error)
+	SetUploadWorkerState(ctx context.Context, arg SetUploadWorkerStateParams) (int64, error)
 	UpdateSavedSearch(ctx context.Context, arg UpdateSavedSearchParams) (SavedSearch, error)
 }
 

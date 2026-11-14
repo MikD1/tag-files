@@ -35,6 +35,48 @@ func (s *Store) ClaimJob(ctx context.Context, now time.Time, lease time.Duration
 	return job, err
 }
 
+func (s *Store) ClaimJobKinds(ctx context.Context, kinds []domain.JobKind, now time.Time, lease time.Duration) (job dbgen.Job, err error) {
+	started := time.Now()
+	if lease <= 0 || len(kinds) == 0 {
+		return job, fmt.Errorf("positive lease and job kinds required")
+	}
+	var args dbgen.ClaimJobKindsParams
+	for _, kind := range kinds {
+		switch kind {
+		case domain.JobIngest:
+			args.Ingest = 1
+		case domain.JobPoster:
+			args.Poster = 1
+		case domain.JobCleanup:
+			args.Cleanup = 1
+		case domain.JobDelete:
+			args.Deletion = 1
+		default:
+			return job, fmt.Errorf("unknown job kind")
+		}
+	}
+	err = s.Write(ctx, func(tx *sql.Tx) error {
+		current := now.Add(time.Since(started))
+		args.Now = Timestamp(current)
+		args.LeaseUntil = nullableTimestamp(current.Add(lease))
+		var err error
+		job, err = dbgen.New(tx).ClaimJobKinds(ctx, args)
+		return err
+	})
+	return job, err
+}
+
+// ReleaseJob is used only after the current local execution has stopped. The
+// unfinished attempt does not consume an automatic retry; generation still rises.
+func (s *Store) ReleaseJob(ctx context.Context, id string, generation int64, now time.Time) error {
+	started := time.Now()
+	return s.Write(ctx, func(tx *sql.Tx) error {
+		current := now.Add(time.Since(started))
+		n, err := dbgen.New(tx).ReleaseLeasedJob(ctx, dbgen.ReleaseLeasedJobParams{ID: id, Generation: generation, Now: nullableTimestamp(current), NextAttemptAt: Timestamp(current)})
+		return affectedLease(n, err)
+	})
+}
+
 func affectedLease(n int64, err error) error {
 	if err != nil {
 		return err

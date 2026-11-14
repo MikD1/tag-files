@@ -9,7 +9,7 @@ cleanup() {
   if [[ -n "$media_container" ]]; then docker rm -f -- "$media_container" >/dev/null 2>&1 || true; fi
 }
 trap cleanup EXIT
-for media_test in media-test process-test; do
+for media_test in media-test process-test scratch-test; do
   media_container="tag-files-media-check-$(cat /proc/sys/kernel/random/uuid)"
   docker run --rm --name "$media_container" --network none --read-only \
     --tmpfs /scratch:rw,nosuid,nodev,noexec,size=268435456,uid=10001,gid=10001 \

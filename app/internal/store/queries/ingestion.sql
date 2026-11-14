@@ -56,3 +56,12 @@ UPDATE upload_sessions SET completion_manifest=?,version=version+1 WHERE id=?;
 
 -- name: QueueVerifiedUpload :exec
 UPDATE upload_sessions SET source_sha256=?,state='queued',version=version+1,error_code=NULL WHERE id=?;
+
+-- name: SetUploadWorkerState :execrows
+UPDATE upload_sessions SET state=?,error_code=?,version=version+1
+WHERE id=? AND generation=?;
+
+-- name: RetryIngestionJob :execrows
+UPDATE jobs SET state='queued',attempt=0,lease_until=NULL,lease_generation=lease_generation+1,
+ next_attempt_at=?,error_code=NULL,progress_json=NULL
+WHERE id=? AND state='failed' AND lease_generation=?;

@@ -38,9 +38,12 @@ No release, migration of real data, or production-readiness claim has been made.
   video preparation pass actual fixtures on host and the pinned runtime image.
   The photo corpus now also covers all eight JPEG EXIF transforms, animated
   PNG/GIF, single/tiled HEIC/AVIF and primary group rotation/mirroring.
-  This file processor is not yet the durable worker or complete media matrix.
-- Next: broaden the camera/codec/orientation matrix, then worker/scratch lifecycle,
-  poster execution, media HTTP streaming and application runtime wiring.
+  A serial durable runner now joins verified source streaming, isolated scratch,
+  conversion, candidate publication and independent ready cleanup; session/job
+  failure, manual retry, heartbeat and graceful interruption are implemented.
+  Startup job/scratch recovery and the complete media matrix remain open.
+- Next: startup recovery/pairing and full disk admission, poster execution,
+  media HTTP streaming and application runtime wiring.
   No executable application/SPA image exists yet.
 
 ## Decisions
@@ -477,6 +480,67 @@ hashes passed verification. No runnable rewritten server/SPA image exists yet.
 Worker/scratch recovery and disk admission, poster/media/deletion runtime,
 persistent startup pairing, wider aspect/VFR/color/>4K/browser checks, UI,
 offline migration/restore and final release integration remain open.
+
+### Serial worker, scratch and actual ingestion execution
+
+The new runner claims only registered job kinds and runs one handler at a time,
+with durable lease heartbeat and fenced completion/failure. Real SQLite tests
+prove the lease remains live while execution exceeds its initial duration,
+duplicate Run/RunOne admission is refused, unregistered posters remain queued,
+and shutdown waits for a cancelled producer before releasing the job. Interrupted
+execution does not consume a retry and increments the generation permanently.
+
+Session and ingestion-job error/retry state now change atomically. An injected
+session update failure rolls back both; cancelled jobs cannot resurrect an upload.
+Manual retry preserves immutable input/MPU facts and resets attempts while fencing
+the old generation, even under clock rollback. A reproduced future-payload retry
+bug was fixed: unsupported job payloads remain unchanged. Initial execution may
+have three automatic retries at 5/30/120 s; the fourth failure stays visible. This
+is the recorded interpretation of the three-delay/three-attempt ambiguity.
+Independent cleanup repeats with a 120 s cap rather than abandoning uncertain work.
+
+Scratch uses job/generation/attempt UUID paths and a held OS ownership lock.
+Admission reserves source plus the entire configured output maximum, accounts
+for existing caches/live files/unwritten reservations and uses real Linux
+available bytes/inodes plus a physical free-space reserve. Tests prove stale
+attempt writes/cleanup cannot affect a newer output, retained caches are counted,
+symlinks/path traversal are refused, and live ownership is not released early.
+No age-based scratch deletion was added.
+
+The pipeline streams incoming through the owned read manager with a 32 KiB copy
+buffer, verifies exact length/full SHA256, syncs/closes the cache, probes/converts
+outside SQL, and uses the existing immutable candidate/verified/ready transaction.
+S3 input survives until ready and independent cleanup. Native controlled-peer
+tests cover a real PNG, corrupted source hash before any candidate/PUT, capacity
+refusal before source GET, cancellation of a blocked body and quota exhaustion
+during a read. The capacity monitor cancels and joins known reads/processes before
+removing only its private attempt; unrelated retained caches remain intact.
+
+The actual owned arm64 storage image plus real SDK/SQLite/FFmpeg passes
+`TestIngestionWorkerOwnedImageProcessesPhotoAndRetainsFailedInput` under race:
+MPU/complete -> serial worker -> ready PNG/full stored hash, independent source
+cleanup, invalid-media error without automatic retry, retained failed source/full
+hash, and ready/failed state after library reopen. The final scenario passed in
+21.80s (package22.820s). It uses only disposable containers/volumes; no user data.
+
+Fresh scripts/check, expanded scripts/check-media host native/race and
+scripts/check-media-image passed. The latter now runs a scratch test binary too;
+final arm64 media-check image is
+`sha256:c37c598262fc5352a80e319ac1201e731cee351f906697a4dfae6ca455ea46f9`.
+Container tests run nonroot, read-only root/no external network/bounded tmpfs;
+the CGO SQLite worker is tested on the host and with actual S3, not inside this
+disposable test image. No fixture containers remain. A repeated parallel run caught a test-only stale
+free-space assumption: cleanup can increase free bytes between statfs samples.
+A controlled 16 MiB cleanup reproduced that change; the corrected reserve test
+uses an impossible int64 capacity requirement and the final full checks pass.
+The ownership lock also refuses symlinks before opening/creating a target.
+
+This is not finished recovery or HTTP507: startup must reset dead-process jobs
+independently of wall-clock rollback, prove producer quiescence before reclaiming
+old scratch, and validate persistent library/storage pairing before admission.
+Full metadata/storage/scratch upload budgets and HTTP mapping, poster/deletion/
+media routes, the wider media matrix, UI, external tools and release integration
+remain open. No runnable rewritten server/SPA or full rewrite acceptance claim.
 
 ## Independent review
 

@@ -50,6 +50,57 @@ func (q *Queries) ClaimJob(ctx context.Context, arg ClaimJobParams) (Job, error)
 	return i, err
 }
 
+const claimJobKinds = `-- name: ClaimJobKinds :one
+UPDATE jobs SET state='running',attempt=attempt+1,lease_generation=lease_generation+1,
+ lease_until=?1,error_code=NULL
+WHERE id=(SELECT available.id FROM jobs AS available WHERE
+ ((available.type='ingest' AND CAST(?2 AS INTEGER)=1) OR
+  (available.type='poster' AND CAST(?3 AS INTEGER)=1) OR
+  (available.type='cleanup' AND CAST(?4 AS INTEGER)=1) OR
+  (available.type='delete' AND CAST(?5 AS INTEGER)=1)) AND
+ ((available.state IN ('queued','retry_wait') AND available.next_attempt_at<=?6) OR
+  (available.state='running' AND available.lease_until<=?6))
+ ORDER BY available.created_at,available.id LIMIT 1)
+RETURNING id, type, subject_id, dedupe_key, payload_json, state, attempt, next_attempt_at, lease_until, lease_generation, progress_json, error_code, created_at
+`
+
+type ClaimJobKindsParams struct {
+	LeaseUntil sql.NullString
+	Ingest     int64
+	Poster     int64
+	Cleanup    int64
+	Deletion   int64
+	Now        string
+}
+
+func (q *Queries) ClaimJobKinds(ctx context.Context, arg ClaimJobKindsParams) (Job, error) {
+	row := q.db.QueryRowContext(ctx, claimJobKinds,
+		arg.LeaseUntil,
+		arg.Ingest,
+		arg.Poster,
+		arg.Cleanup,
+		arg.Deletion,
+		arg.Now,
+	)
+	var i Job
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.SubjectID,
+		&i.DedupeKey,
+		&i.PayloadJson,
+		&i.State,
+		&i.Attempt,
+		&i.NextAttemptAt,
+		&i.LeaseUntil,
+		&i.LeaseGeneration,
+		&i.ProgressJson,
+		&i.ErrorCode,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createJob = `-- name: CreateJob :one
 INSERT INTO jobs(id,type,subject_id,dedupe_key,payload_json,next_attempt_at,created_at)
 VALUES(?,?,?,?,?,?,?) RETURNING id, type, subject_id, dedupe_key, payload_json, state, attempt, next_attempt_at, lease_until, lease_generation, progress_json, error_code, created_at
@@ -142,6 +193,31 @@ func (q *Queries) FailLeasedJob(ctx context.Context, arg FailLeasedJobParams) (i
 	return result.RowsAffected()
 }
 
+const getJob = `-- name: GetJob :one
+SELECT id, type, subject_id, dedupe_key, payload_json, state, attempt, next_attempt_at, lease_until, lease_generation, progress_json, error_code, created_at FROM jobs WHERE id=?
+`
+
+func (q *Queries) GetJob(ctx context.Context, id string) (Job, error) {
+	row := q.db.QueryRowContext(ctx, getJob, id)
+	var i Job
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.SubjectID,
+		&i.DedupeKey,
+		&i.PayloadJson,
+		&i.State,
+		&i.Attempt,
+		&i.NextAttemptAt,
+		&i.LeaseUntil,
+		&i.LeaseGeneration,
+		&i.ProgressJson,
+		&i.ErrorCode,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getLeasedJob = `-- name: GetLeasedJob :one
 SELECT id, type, subject_id, dedupe_key, payload_json, state, attempt, next_attempt_at, lease_until, lease_generation, progress_json, error_code, created_at FROM jobs WHERE id=?1 AND lease_generation=?2 AND state='running'
   AND lease_until>?3
@@ -189,6 +265,32 @@ type HeartbeatJobParams struct {
 func (q *Queries) HeartbeatJob(ctx context.Context, arg HeartbeatJobParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, heartbeatJob,
 		arg.Until,
+		arg.ID,
+		arg.Generation,
+		arg.Now,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const releaseLeasedJob = `-- name: ReleaseLeasedJob :execrows
+UPDATE jobs SET state='queued',attempt=max(0,attempt-1),lease_until=NULL,
+ lease_generation=lease_generation+1,next_attempt_at=?1,error_code=NULL
+WHERE id=?2 AND lease_generation=?3 AND state='running' AND lease_until>?4
+`
+
+type ReleaseLeasedJobParams struct {
+	NextAttemptAt string
+	ID            string
+	Generation    int64
+	Now           sql.NullString
+}
+
+func (q *Queries) ReleaseLeasedJob(ctx context.Context, arg ReleaseLeasedJobParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, releaseLeasedJob,
+		arg.NextAttemptAt,
 		arg.ID,
 		arg.Generation,
 		arg.Now,

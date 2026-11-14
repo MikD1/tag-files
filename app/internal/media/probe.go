@@ -40,6 +40,9 @@ func DefaultConfig() Config {
 
 type Processor struct{ config Config }
 
+// OutputLimit is the inclusive byte bound the worker reserves before I/O.
+func (p *Processor) OutputLimit() int64 { return p.config.MaxOutputBytes }
+
 func New(config Config) (*Processor, error) {
 	if config.Threads < 1 || config.Threads > 16 || config.MaxPixels < 1 || config.MaxPixels > 256000000 || config.MaxOutputBytes < 1 || config.MaxOutputBytes > domain.MaxSafeInteger || config.ProbeTimeout <= 0 || config.ConvertTimeout <= 0 {
 		return nil, domain.Invalid("media", "Invalid bounded media profile")

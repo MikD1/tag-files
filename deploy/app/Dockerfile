@@ -9,7 +9,8 @@ COPY app/go.mod app/go.sum ./
 RUN go mod download
 COPY app/ ./
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go test -c -o /out/media-test ./internal/media \
-    && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go test -c -o /out/process-test ./internal/process
+    && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go test -c -o /out/process-test ./internal/process \
+    && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go test -c -o /out/scratch-test ./internal/scratch
 
 FROM ubuntu:26.04@sha256:065aa8626841f16057b78b027b464cd59c4fac36c204c72dcbf48d66f5fa8a96 AS media-runtime
 RUN apt-get update \
@@ -23,5 +24,5 @@ WORKDIR /data
 USER 10001:10001
 
 FROM media-runtime AS media-check
-COPY --from=media-tests /out/media-test /out/process-test /usr/local/bin/
+COPY --from=media-tests /out/media-test /out/process-test /out/scratch-test /usr/local/bin/
 CMD ["/usr/local/bin/media-test", "-test.v", "-test.timeout=2m"]

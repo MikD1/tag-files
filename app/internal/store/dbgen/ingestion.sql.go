@@ -8,6 +8,8 @@ package dbgen
 import (
 	"context"
 	"database/sql"
+
+	"github.com/mikd1/tag-files/app/internal/domain"
 )
 
 const attachUploadMultipart = `-- name: AttachUploadMultipart :execrows
@@ -375,4 +377,49 @@ type ResetUploadPartConfirmationParams struct {
 func (q *Queries) ResetUploadPartConfirmation(ctx context.Context, arg ResetUploadPartConfirmationParams) error {
 	_, err := q.db.ExecContext(ctx, resetUploadPartConfirmation, arg.SessionID, arg.PartNumber)
 	return err
+}
+
+const retryIngestionJob = `-- name: RetryIngestionJob :execrows
+UPDATE jobs SET state='queued',attempt=0,lease_until=NULL,lease_generation=lease_generation+1,
+ next_attempt_at=?,error_code=NULL,progress_json=NULL
+WHERE id=? AND state='failed' AND lease_generation=?
+`
+
+type RetryIngestionJobParams struct {
+	NextAttemptAt   string
+	ID              string
+	LeaseGeneration int64
+}
+
+func (q *Queries) RetryIngestionJob(ctx context.Context, arg RetryIngestionJobParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, retryIngestionJob, arg.NextAttemptAt, arg.ID, arg.LeaseGeneration)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setUploadWorkerState = `-- name: SetUploadWorkerState :execrows
+UPDATE upload_sessions SET state=?,error_code=?,version=version+1
+WHERE id=? AND generation=?
+`
+
+type SetUploadWorkerStateParams struct {
+	State      domain.SessionState
+	ErrorCode  sql.NullString
+	ID         string
+	Generation int64
+}
+
+func (q *Queries) SetUploadWorkerState(ctx context.Context, arg SetUploadWorkerStateParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setUploadWorkerState,
+		arg.State,
+		arg.ErrorCode,
+		arg.ID,
+		arg.Generation,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

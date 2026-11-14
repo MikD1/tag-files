@@ -9,4 +9,4 @@ if [[ "$ffmpeg_version" != "ffmpeg version 8.0.1-"* ]]; then
   exit 1
 fi
 cd "$project_root/app"
-TAG_FILES_MEDIA_INTEGRATION=1 go test -race ./internal/media ./internal/process -count=1 -v -timeout=3m
+TAG_FILES_MEDIA_INTEGRATION=1 go test -race ./internal/media ./internal/process ./internal/scratch ./internal/ingestion ./internal/worker -count=1 -v -timeout=3m
