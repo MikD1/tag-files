@@ -87,8 +87,8 @@ func ValidatePublicAccessBlock(data []byte) error {
 	return nil
 }
 
-func accessDocument(ctx context.Context, client *http.Client, credentials aws.Credentials, query string) (int, []byte, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "http://127.0.0.1:8333/tag-files?"+query, nil)
+func accessDocument(ctx context.Context, client *http.Client, credentials aws.Credentials, endpoint, query string) (int, []byte, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint+"/tag-files?"+query, nil)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -110,8 +110,8 @@ func accessDocument(ctx context.Context, client *http.Client, credentials aws.Cr
 	return res.StatusCode, data, nil
 }
 
-func checkBucketAccess(ctx context.Context, client *http.Client, credentials aws.Credentials) error {
-	status, data, err := accessDocument(ctx, client, credentials, "publicAccessBlock")
+func checkBucketAccess(ctx context.Context, client *http.Client, credentials aws.Credentials, endpoint string) error {
+	status, data, err := accessDocument(ctx, client, credentials, endpoint, "publicAccessBlock")
 	if err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func checkBucketAccess(ctx context.Context, client *http.Client, credentials aws
 	if err := ValidatePublicAccessBlock(data); err != nil {
 		return err
 	}
-	status, data, err = accessDocument(ctx, client, credentials, "policy")
+	status, data, err = accessDocument(ctx, client, credentials, endpoint, "policy")
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func checkBucketAccess(ctx context.Context, client *http.Client, credentials aws
 	if err := decodeXML(data, &missing); err != nil || missing.Code != "NoSuchBucketPolicy" {
 		return fmt.Errorf("cannot establish absence of a bucket policy")
 	}
-	status, data, err = accessDocument(ctx, client, credentials, "lifecycle")
+	status, data, err = accessDocument(ctx, client, credentials, endpoint, "lifecycle")
 	if err != nil {
 		return err
 	}
@@ -157,7 +157,7 @@ func checkBucketAccess(ctx context.Context, client *http.Client, credentials aws
 	} else {
 		return fmt.Errorf("cannot verify bucket lifecycle rules (HTTP %d)", status)
 	}
-	status, data, err = accessDocument(ctx, client, credentials, "acl")
+	status, data, err = accessDocument(ctx, client, credentials, endpoint, "acl")
 	if err != nil {
 		return err
 	}

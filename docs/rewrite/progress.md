@@ -17,12 +17,13 @@ No release, migration of real data, or production-readiness claim has been made.
   strict JSON adapters for catalog/organization, durable operation results
   and navigation contexts. Upload/media/system handlers and the full API-only
   acceptance matrix remain open alongside Tasks 4–9.
-- Task 4 started: a direct S3 adapter has passed real pinned SeaweedFS/SDK
-  conformance, including restart and lost responses. A separate read-only storage
-  preflight binary has passed real-container positive/negative tests. Production
-  private storage bootstrap/readiness wiring and all durable ingestion remain open.
-- Next: owned storage bootstrap (fsync before bucket creation), private image/
-  readiness wiring, then durable ingestion. No executable/SPA image exists yet.
+- Task 4 started: the S3 adapter and read-only checker pass real pinned
+  SeaweedFS/SDK conformance. The owned storage image now has resumable bootstrap,
+  fsync before bucket creation and a network gate after the complete preflight.
+  Its arm64 runtime tests pass; an amd64 image is built but not executed here.
+  Durable ingestion and application/Compose admission wiring remain open.
+- Next: durable ingestion sessions, immutable bindings, completion/publication
+  and cleanup. No executable application/SPA image exists yet.
 
 ## Decisions
 
@@ -127,8 +128,41 @@ ACL allows anonymous GET with the block off, then returns 403 with the block on.
 Unit regressions cover readonly identity permissions, unknown identity-policy
 fields, owner-only ACL/single XML document, FIFO rejection and the io.Copy fast path
 which could otherwise bypass a bounded writer. Fixture resources were removed.
-The fixture still creates its bucket before applying fsync; production bootstrap
-ordering, actual upload admission and the release storage image remain open.
+The older wire fixture still creates its bucket before applying fsync. The
+production bootstrap has separate actual-image evidence below.
+
+Owned storage bootstrap: `scripts/check-storage-image` passed (138.213s) on
+linux/arm64 against the exact built image, with host tests under the race detector.
+The image pins Go 1.27.4 and SeaweedFS 4.53 indexes, runs a root supervisor and
+unprivileged backend, and locks the entire /data volume until backend reaping.
+Durable initializing/ready metadata, secure separate identities and config hashes
+survive both SIGKILL and SIGTERM during initialization. Unit regressions cover
+second ownership, unknown/unowned state, config-write interruption, changed
+credentials, tampering, external lock symlinks, publication after Close and
+nonblocking/bounded secret files. Unknown storage and credential mismatch are
+also refused by the actual image without rewriting their source bytes/state.
+
+The supervisor initially disables S3, persists and reads back global fsync,
+stops/reopens the backend, then provisions the private bucket/public-access block.
+All backend ports bind loopback; only after the full live profile passes does a
+bounded streaming gateway open network port 8333. A failing real regression
+proved the earlier startup window exposed S3 before bucket-access validation.
+The fixed image refuses both unsafe fsync and disabled public-access-block
+settings without exposing S3. It does not silently heal existing unsafe settings.
+The gate preserves SigV4 Host, raw bytes, Range 206/416 and conditional 304.
+Tests verify full object hashes, retained confirmed MPU parts after SIGKILL and
+ordered completion/full hash through the gateway. Anonymous object access and
+creation of another bucket by the scoped app identity are refused.
+
+First physical object allocation/PUT took about 10.7s in this fixture; image tests
+allow 60s for S3 calls. This is recorded startup/allocation latency, not an upload
+throughput or bounded-RSS result. Both `scripts/check` and `scripts/check-storage`
+passed again after the gateway change (40.413s objectstore/23.893s storageprofile).
+All disposable fixture containers/volumes were removed. The amd64 image also
+cross-built successfully and its extracted supervisor is a static x86-64 ELF.
+This Docker host advertises arm64 only; amd64 execution and physical Mac/VM
+power-loss evidence remain open. Root Compose and app admission still need the
+new storage image; the legacy installation is deliberately still present.
 
 ## Independent review
 
@@ -172,8 +206,9 @@ S3 metadata checks require public-access block, private ACL/no policy; strict
 owned action configuration requires write/cleanup permissions. Additional
 inspection covered FIFO blocking, per-object public ACLs and S3 lifecycle rules.
 The reviewer did not re-review the fixes; focused and full checks are evidence.
-Live-process configuration provenance, bootstrap/image/mounts and gating uploads
-remain deferred to deployment wiring; physical flush is not proved here.
+The later owned-image tests establish bootstrap/configuration provenance and the
+network startup gate. Final Compose mounts and application admission remain open;
+physical flush is not proved here.
 
 Deferred review gates map to the still-open tasks: remaining upload/system/media
 handlers and API parity, real S3/media/poster publication, browser view lifecycle,

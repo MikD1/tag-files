@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+project_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+storage_test_image="tag-files-storage:local-check"
+docker build --progress=plain -f "$project_root/deploy/storage/Dockerfile" -t "$storage_test_image" "$project_root"
+storage_test_ref=$(docker image inspect --format '{{.Id}}' "$storage_test_image")
+cd "$project_root/app"
+TAG_FILES_STORAGE_IMAGE="$storage_test_ref" go test -race ./internal/storageimage -count=1 -v -timeout=8m

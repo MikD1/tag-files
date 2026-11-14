@@ -18,7 +18,18 @@ import (
 
 const MaxConfigBytes = 1024 * 1024
 
-type Options struct{ DataDir, FilerConfig, S3Config string }
+type Options struct {
+	DataDir, FilerConfig, S3Config string
+	// Only the supervisor probes the backend before opening the S3 gateway.
+	s3Endpoint string
+}
+
+func (o Options) endpoint() string {
+	if o.s3Endpoint != "" {
+		return o.s3Endpoint
+	}
+	return "http://127.0.0.1:8333"
+}
 
 func readConfig(path string) ([]byte, error) {
 	// O_NONBLOCK prevents even opening a misconfigured FIFO from hanging the
@@ -121,7 +132,7 @@ func Check(ctx context.Context, options Options) error {
 	}
 	client := &http.Client{Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	for _, signed := range []bool{false, true} {
-		req, err := http.NewRequestWithContext(ctx, "HEAD", "http://127.0.0.1:8333/tag-files", nil)
+		req, err := http.NewRequestWithContext(ctx, "HEAD", options.endpoint()+"/tag-files", nil)
 		if err != nil {
 			return err
 		}
@@ -143,5 +154,5 @@ func Check(ctx context.Context, options Options) error {
 			return fmt.Errorf("private S3 probe returned HTTP %d (signed=%t)", res.StatusCode, signed)
 		}
 	}
-	return checkBucketAccess(ctx, client, credentials)
+	return checkBucketAccess(ctx, client, credentials, options.endpoint())
 }

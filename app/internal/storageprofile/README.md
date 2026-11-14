@@ -28,8 +28,12 @@ pinned real container, including restart and negative configurations. The
 integration fixture is disposable. It deliberately edits its own test rules and
 files to prove refusal; the checker itself has no write path.
 
-The production storage image/bootstrap, readiness orchestration and application
-upload admission still need wiring. The fixture currently provisions its bucket
-before applying global fsync; production initialization must persist and verify
-the rule before creating that bucket or accepting uploads. These checks do not
-prove physical power-loss durability or the final cold backup/restore contract.
+The owned production image and resumable bootstrap live in
+[`deploy/storage`](../../../deploy/storage/README.md). Its supervisor keeps S3
+disabled until persisted fsync has been checked, then provisions the private
+bucket and publishes a durable ready marker. `scripts/check-storage-image`
+exercises that actual built image independently of the older wire fixture.
+Application upload admission and root Compose wiring remain open. The older
+fixture provisions its bucket before fsync and is only wire/checker evidence.
+These checks do not prove physical power-loss durability or the final cold
+backup/restore contract.

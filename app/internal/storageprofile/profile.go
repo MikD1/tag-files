@@ -13,6 +13,19 @@ import (
 
 const Backend = "[leveldb2]\nenabled = true\ndir = \"/data/filerldb2\"\n"
 
+type identityCredential struct {
+	AccessKey string `json:"accessKey"`
+	SecretKey string `json:"secretKey"`
+}
+type identity struct {
+	Name        string               `json:"name"`
+	Credentials []identityCredential `json:"credentials"`
+	Actions     []string             `json:"actions"`
+}
+type identityConfig struct {
+	Identities []identity `json:"identities"`
+}
+
 func ValidateBackend(data []byte) error {
 	// This is an owned, pinned file, not a general TOML configuration surface.
 	if strings.TrimSpace(string(data)) != strings.TrimSpace(Backend) {
@@ -65,16 +78,7 @@ func ValidateRules(data []byte) error {
 }
 
 func PrivateCredentials(data []byte) (aws.Credentials, error) {
-	var config struct {
-		Identities []struct {
-			Name        string `json:"name"`
-			Credentials []struct {
-				AccessKey string `json:"accessKey"`
-				SecretKey string `json:"secretKey"`
-			} `json:"credentials"`
-			Actions []string `json:"actions"`
-		} `json:"identities"`
-	}
+	var config identityConfig
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	if !json.Valid(data) {
