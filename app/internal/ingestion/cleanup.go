@@ -187,6 +187,9 @@ func (c *Coordinator) ProcessCleanup(ctx context.Context, job dbgen.Job, now tim
 	if err != nil {
 		return missing(err)
 	}
+	if receipt.Reason == "duplicate_mpu" {
+		return c.processExtraMultipart(ctx, job, receipt, now.Add(time.Since(started)))
+	}
 	plan, err := decodeCancellation(receipt)
 	if err != nil {
 		return err

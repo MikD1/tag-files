@@ -3,7 +3,7 @@
 Scope remains the full rewrite in [the implementation plan](../superpowers/plans/2026-11-14-production-rewrite.md).
 No release, migration of real data, or production-readiness claim has been made.
 
-## Current state (2026-11-14)
+## Current state (2026-11-15)
 
 - Baseline inspected: clean main at `bc7d62d`; existing app is C#/Angular.
 - Requirements inspected: F/D contracts, product specification, target schema,
@@ -27,10 +27,12 @@ No release, migration of real data, or production-readiness claim has been made.
   reconciles acknowledgements, drains before freezing a completion manifest and
   queues fully verified incoming bytes. Cancel removes visible work atomically
   with independent cleanup; claimed cleanup jobs reconcile owned MPU/incoming/
-  candidates without retiring uncertain writers at the same epoch. Candidate
-  publication and application/Compose admission wiring remain open.
-- Next: recovery of uncertain writes for still-active sessions, duplicate
-  owned MPU reconciliation and fenced candidate publication.
+  candidates without retiring uncertain writers at the same epoch. Active-session
+  recovery now reconciles prior Create/part/Complete intents and durably cleans
+  duplicate owned MPUs. Candidate publication and application/Compose admission
+  wiring remain open.
+- Next: fenced candidate publication and atomic ready/source-cleanup/poster work,
+  then media processing and HTTP/job-runner wiring.
   No executable application/SPA image exists yet.
 
 ## Decisions
@@ -296,6 +298,40 @@ restart plus exact result reconciliation. All fixture containers/volumes are gon
 This does not yet include active media-process cancellation, scratch cleanup,
 ready publication races, startup persistent pairing, active-session uncertain
 recovery, duplicate MPU adoption, the job runner or HTTP/API wiring.
+
+Active-session recovery now inventories exact owned keys, preserves an attached
+MPU, and validates each old Create/part/Complete against durable identity and
+byte bindings before retirement after a storage epoch barrier. A previously
+empty unknown Create may then initiate one fresh MPU; a matching incoming file
+requires the frozen manifest/full GET/hash before queuing. If Complete had not
+created the object, only identical persisted selectors may be sent again. A
+changed ETag/hash, unbound part, incompatible payload or future generation blocks
+that work. Same-epoch unknown writers remain durable while the method can return
+the current usable pending/queued result alongside `ErrUnsettled`.
+
+For several exact-key MPUs without a prior binding, the coordinator chooses the
+lexically first opaque ID and atomically stores independent extra-MPU receipts
+and jobs. An attached MPU always wins, regardless of listing order. Repeated
+inventory deduplicates receipts; an injected second receipt failure rolls back
+the entire selection. Claimed extra cleanup checks the stable binding, aborts
+only the recorded loser and verifies its absence; it never deletes incoming or
+aborts the selected/foreign MPU. It can outlive removal of the session.
+
+Three regressions were reproduced and fixed: epoch change bypassing a known
+request still finishing its metadata acknowledgement; a frozen session with an
+old part intent stopping at HEAD404 before the first Complete; and adoption/
+cleanup scheduling before rejecting an unsupported intent version. Recovery now
+waits and reloads known work, accepts only the original frozen selectors when
+no incoming object exists, and decodes all paged source intents before inventory.
+Fresh `scripts/check` passes including generation/vet/ordinary/race tests.
+Both real owned-image ingestion scenarios pass under race for the final code
+(64.907s total; 32.08s active recovery and 31.80s cancellation). After SIGKILL,
+native active recovery retires old Create/part intents, retains the chosen MPU,
+records and aborts an extra owned MPU while preserving a foreign neighbour, then
+continues lost-Complete/full-hash queuing and SQLite reopen. Fixture resources
+are removed; the production storage image code itself did not change.
+Publication, active media processes/scratch, persistent startup pairing,
+job-runner/HTTP integration and the remaining rewrite tasks are still open.
 
 ## Independent review
 

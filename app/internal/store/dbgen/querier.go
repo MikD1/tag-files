@@ -45,6 +45,7 @@ type Querier interface {
 	DeleteUploadSession(ctx context.Context, id string) error
 	FailLeasedJob(ctx context.Context, arg FailLeasedJobParams) (int64, error)
 	FindCancellationReceipt(ctx context.Context, uploadID sql.NullString) (CleanupReceipt, error)
+	FindDuplicateMultipartReceipt(ctx context.Context, arg FindDuplicateMultipartReceiptParams) (CleanupReceipt, error)
 	FindReadyItemByUpload(ctx context.Context, uploadID sql.NullString) (Item, error)
 	FreezeUploadManifest(ctx context.Context, arg FreezeUploadManifestParams) error
 	GetCleanupAsset(ctx context.Context, id string) (Asset, error)

@@ -51,6 +51,13 @@ func (p *cleanupPeer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		_ = xml.NewEncoder(w).Encode(result)
+	case r.Method == "GET" && r.URL.Query().Has("uploadId"):
+		if p.mpus[r.URL.Query().Get("uploadId")] != key {
+			w.WriteHeader(404)
+			_, _ = w.Write([]byte(`<Error><Code>NoSuchUpload</Code></Error>`))
+		} else {
+			_, _ = w.Write([]byte(`<ListPartsResult><IsTruncated>false</IsTruncated></ListPartsResult>`))
+		}
 	case r.Method == "DELETE" && r.URL.Query().Has("uploadId"):
 		if p.mpus[r.URL.Query().Get("uploadId")] == key {
 			delete(p.mpus, r.URL.Query().Get("uploadId"))

@@ -150,6 +150,15 @@ func TestIngestionOwnedImageLostCreateAndPartResponsesRecoverImmutableBindings(t
 	if err != nil || len(listed) != 1 || listed[0].UploadID != resumed.MultipartUploadID.String {
 		t.Fatalf("native retry created orphan MPU: %+v %v", listed, err)
 	}
+	extra, err := f.client().CreateMultipart(ctx, session.IncomingKey, "application/octet-stream", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreignKey := session.IncomingKey + "-neighbour"
+	foreign, err := f.client().CreateMultipart(ctx, foreignKey, "application/octet-stream", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	oldEpoch, err := client.StorageEpoch(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -163,9 +172,29 @@ func TestIngestionOwnedImageLostCreateAndPartResponsesRecoverImmutableBindings(t
 	if err != nil || newEpoch == oldEpoch {
 		t.Fatalf("native restart did not establish a new storage lifetime: %q %v", newEpoch, err)
 	}
-	outcome, err = coordinator.Refresh(ctx, session.ID)
+	outcome, err = coordinator.RecoverSession(ctx, session.ID)
 	if err != nil || len(outcome.Session.Parts) != 2 || outcome.Session.MultipartUploadID.String != resumed.MultipartUploadID.String || outcome.Session.Parts[0].SHA256 != sum {
 		t.Fatalf("native restart lost the immutable receiving state: %+v %v", outcome, err)
+	}
+	intents, err = manager.List(ctx, "", 100)
+	if err != nil || len(intents) != 0 {
+		t.Fatalf("active-session barrier did not reconcile old writes: %+v %v", intents, err)
+	}
+	cleanup, err := db.ClaimJob(ctx, time.Now(), time.Minute)
+	if err != nil || cleanup.Type != domain.JobCleanup {
+		t.Fatalf("extra native MPU has no durable cleanup: %+v %v", cleanup, err)
+	}
+	if err := coordinator.ProcessCleanup(ctx, cleanup, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	listed, err = client.ListMultipart(ctx, session.IncomingKey)
+	if err != nil || len(listed) != 2 {
+		t.Fatalf("native extra cleanup removed selected/foreign MPU: %+v %v", listed, err)
+	}
+	for _, mpu := range listed {
+		if mpu.UploadID == extra || (mpu.Key == session.IncomingKey && mpu.UploadID != resumed.MultipartUploadID.String) || (mpu.Key == foreignKey && mpu.UploadID != foreign) {
+			t.Fatalf("wrong native MPU survived cleanup: %+v", listed)
+		}
 	}
 	if _, err := coordinator.Complete(ctx, session.ID); err == nil {
 		t.Fatal("injected lost native Complete response reported success")
@@ -201,7 +230,7 @@ func TestIngestionOwnedImageLostCreateAndPartResponsesRecoverImmutableBindings(t
 		t.Fatalf("reopened Complete repeated work: %+v %v", outcome, err)
 	}
 	intents, err = manager.List(ctx, "", 100)
-	if err != nil || len(intents) < 3 {
+	if err != nil || len(intents) != 1 || intents[0].Operation != objectio.CompleteMPU {
 		t.Fatalf("reopen lost independent uncertainty: %+v %v", intents, err)
 	}
 }

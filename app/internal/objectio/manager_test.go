@@ -346,3 +346,54 @@ func TestInvalidIntentRollsBackItsDomainPreparationBeforeForwarding(t *testing.T
 		t.Fatal("domain preparation committed without a valid write intent")
 	}
 }
+
+func TestEpochRecoveryWaitsForKnownWriteThroughMetadataBeforeReconciliation(t *testing.T) {
+	db, session := setup(t)
+	entered, release := make(chan struct{}), make(chan struct{})
+	var epoch atomic.Value
+	epoch.Store(epochOne)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Tag-Files-Storage-Epoch", epoch.Load().(string))
+		if r.Method == "HEAD" {
+			return
+		}
+		close(entered)
+		<-release
+		_, _ = w.Write([]byte(`<InitiateMultipartUploadResult><UploadId>known-result</UploadId></InitiateMultipartUploadResult>`))
+	}))
+	defer server.Close()
+	manager, err := objectio.New(db, client(t, server.URL), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := manager.CreateMultipart(ctx, prepare(session), func(id string) error {
+			return db.Write(ctx, func(tx *sql.Tx) error { return ingestion.AttachMultipart(ctx, tx, session.ID, 1, id) })
+		})
+		done <- err
+	}()
+	<-entered
+	intents, err := manager.List(ctx, "", 100)
+	if err != nil || len(intents) != 1 {
+		t.Fatal("missing live intent")
+	}
+	epoch.Store(epochTwo)
+	recoveryCtx, cancel := context.WithTimeout(ctx, 30*time.Millisecond)
+	called := false
+	err = manager.ReconcileAfterRestart(recoveryCtx, intents[0], func(objectio.ReconciliationClient, objectio.Intent) error { called = true; return nil })
+	cancel()
+	close(release)
+	if writeErr := <-done; writeErr != nil {
+		t.Fatal(writeErr)
+	}
+	if !errors.Is(err, context.DeadlineExceeded) || called {
+		t.Fatalf("epoch change bypassed known writer drain: %v callback=%v", err, called)
+	}
+	if err := manager.ReconcileAfterRestart(ctx, intents[0], func(objectio.ReconciliationClient, objectio.Intent) error {
+		t.Error("already settled live work reconciled again")
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

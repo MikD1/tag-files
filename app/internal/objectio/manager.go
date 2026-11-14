@@ -205,6 +205,19 @@ func (m *Manager) ReconcileAfterRestart(ctx context.Context, previous Intent, re
 	if domain.ValidateUUID(previous.ID) != nil {
 		return domain.Invalid("id", "Invalid write intent identity")
 	}
+	// The backend may restart while this process still has a known request
+	// or metadata acknowledgement in progress. Its final result wins over
+	// recovery; reload the journal only after that live owner has finished.
+	m.mu.Lock()
+	live, known := m.live[strings.ToLower(previous.ID)]
+	m.mu.Unlock()
+	if known {
+		select {
+		case <-live.done:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 	row, err := dbgen.New(m.db.Reader()).GetObjectWriteIntent(ctx, strings.ToLower(previous.ID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil

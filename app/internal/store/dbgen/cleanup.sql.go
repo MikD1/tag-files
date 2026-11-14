@@ -132,6 +132,34 @@ func (q *Queries) FindCancellationReceipt(ctx context.Context, uploadID sql.Null
 	return i, err
 }
 
+const findDuplicateMultipartReceipt = `-- name: FindDuplicateMultipartReceipt :one
+SELECT id, reason, upload_id, item_id, payload_version, payload_json, generation, state, created_at_utc FROM cleanup_receipts WHERE reason='duplicate_mpu' AND upload_id=?1
+ AND json_extract(payload_json,'$.extraMultipartId')=?2
+ORDER BY created_at_utc,id LIMIT 1
+`
+
+type FindDuplicateMultipartReceiptParams struct {
+	UploadID    sql.NullString
+	MultipartID string
+}
+
+func (q *Queries) FindDuplicateMultipartReceipt(ctx context.Context, arg FindDuplicateMultipartReceiptParams) (CleanupReceipt, error) {
+	row := q.db.QueryRowContext(ctx, findDuplicateMultipartReceipt, arg.UploadID, arg.MultipartID)
+	var i CleanupReceipt
+	err := row.Scan(
+		&i.ID,
+		&i.Reason,
+		&i.UploadID,
+		&i.ItemID,
+		&i.PayloadVersion,
+		&i.PayloadJson,
+		&i.Generation,
+		&i.State,
+		&i.CreatedAtUtc,
+	)
+	return i, err
+}
+
 const getCleanupAsset = `-- name: GetCleanupAsset :one
 SELECT id, item_id, upload_id, job_id, lease_generation, role, bucket, object_key, size_bytes, sha256, content_type, width, height, rotation, provenance, profile_version, state FROM assets WHERE id=?
 `

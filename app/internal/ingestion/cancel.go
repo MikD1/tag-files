@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/mikd1/tag-files/app/internal/domain"
-	"github.com/mikd1/tag-files/app/internal/store"
 	"github.com/mikd1/tag-files/app/internal/store/dbgen"
 )
 
@@ -94,20 +93,7 @@ func Cancel(ctx context.Context, tx *sql.Tx, id string, now time.Time) (Cancella
 	if err != nil {
 		return Cancellation{}, err
 	}
-	receiptID := domain.NewUUID()
-	timestamp := store.Timestamp(now)
-	_, err = q.CreateCleanupReceipt(ctx, dbgen.CreateCleanupReceiptParams{ID: receiptID, Reason: "cancel", UploadID: sql.NullString{String: id, Valid: true}, PayloadJson: string(payload), Generation: session.Generation, CreatedAtUtc: timestamp})
-	if err != nil {
-		return Cancellation{}, err
-	}
-	jobPayload, err := json.Marshal(struct {
-		Version   int    `json:"version"`
-		ReceiptID string `json:"receiptId"`
-	}{Version: 1, ReceiptID: receiptID})
-	if err != nil {
-		return Cancellation{}, err
-	}
-	job, err := q.CreateJob(ctx, dbgen.CreateJobParams{ID: domain.NewUUID(), Type: domain.JobCleanup, SubjectID: receiptID, DedupeKey: "cleanup/" + receiptID, PayloadJson: string(jobPayload), NextAttemptAt: timestamp, CreatedAt: timestamp})
+	receiptID, jobID, err := enqueueCleanup(ctx, q, "cancel", id, session.Generation, string(payload), now)
 	if err != nil {
 		return Cancellation{}, err
 	}
@@ -117,5 +103,5 @@ func Cancel(ctx context.Context, tx *sql.Tx, id string, now time.Time) (Cancella
 	if err := q.DeleteUploadSession(ctx, id); err != nil {
 		return Cancellation{}, err
 	}
-	return Cancellation{State: "cancelled", JobID: job.ID, ReceiptID: receiptID}, nil
+	return Cancellation{State: "cancelled", JobID: jobID, ReceiptID: receiptID}, nil
 }

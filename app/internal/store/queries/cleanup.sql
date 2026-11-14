@@ -34,3 +34,8 @@ DELETE FROM cleanup_receipts WHERE id=?;
 
 -- name: DeleteCancelledAsset :exec
 DELETE FROM assets WHERE id=? AND upload_id=? AND item_id IS NULL AND state<>'published';
+
+-- name: FindDuplicateMultipartReceipt :one
+SELECT * FROM cleanup_receipts WHERE reason='duplicate_mpu' AND upload_id=sqlc.arg(upload_id)
+ AND json_extract(payload_json,'$.extraMultipartId')=sqlc.arg(multipart_id)
+ORDER BY created_at_utc,id LIMIT 1;

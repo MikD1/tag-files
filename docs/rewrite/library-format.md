@@ -83,6 +83,15 @@ and independent uncertain intents settle by the required epoch/reconciliation
 proof. A failed cleanup leaves retryable working records without visible upload
 history. Unknown payload versions remain preserved and block that work.
 
+Extra owned MPUs use reason `duplicate_mpu`, payload version 1 and
+`{"version":1,"libraryId":"UUID","uploadId":"UUID","key":"owned incoming key","keptMultipartId":"selected opaque ID","extraMultipartId":"different opaque ID"}`.
+Selecting an MPU and recording every observed extra is one transaction. Once
+attached, the selected ID never changes. The cleanup job has the same generic
+receipt payload/dedupe key as cancellation work; it aborts only the recorded
+extra ID and never deletes the incoming object. Repeated inventory reuses the
+receipt for that upload/extra ID. These records are working cleanup, removed
+with their job after verified absence, and may outlive the visible session.
+
 The complete S3 keys, raw JSON payload schemas and external manifest contracts
 will be documented with their implementing stages; this file does not claim
 that storage, ingestion, migration, restore or UI gates have passed.

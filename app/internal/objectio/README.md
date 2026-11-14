@@ -33,6 +33,9 @@ retire them. After a different epoch, the manager reloads authoritative work and
 calls domain-owned reconciliation before deletion. Unknown payload versions are
 preserved without invoking cleanup. Read/reconciliation interfaces expose no data
 write or epoch-rebinding method; new writes require another journalled operation.
+If a known request is still running in this process, epoch recovery first waits
+through its metadata acknowledgement and reloads the authoritative journal row;
+it does not race that owner or reconcile work it has already settled.
 The runtime must verify persistent library/storage pairing and the single owned
 volume topology before relying on a boot epoch as proof of quiescence.
 
@@ -45,5 +48,7 @@ before preparation and checks its size/identity against the intent before S3.
 Tests use real SQLite and SDK requests against a controlled HTTP peer to exercise
 ordering, failure boundaries and verification. Native ingestion tests also use the
 actual owned image for lost responses, storage SIGKILL/restart, verified queuing
-and independent cancellation cleanup. Media publication/process/scratch work,
-active-session recovery, runtime startup pairing and API wiring remain open.
+and independent cancellation cleanup. Active-session recovery also validates old
+requests against their immutable MPU/part/frozen manifest and records extra owned
+MPUs for separate cleanup. Media publication/process/scratch work, runtime startup
+pairing and API wiring remain open.

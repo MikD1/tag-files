@@ -3,7 +3,6 @@ package ingestion
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -56,32 +55,12 @@ func (c *Coordinator) EnsureMultipart(ctx context.Context, id string) (Session, 
 	if session.State != domain.SessionCreating {
 		return session, nil
 	}
-	var existing []objectstore.Multipart
-	err = c.io.Read(ctx, func(reader objectio.Reader) error {
-		var err error
-		existing, err = reader.ListMultipart(ctx, session.IncomingKey)
-		return err
-	})
+	session, err = c.inventoryMultipart(ctx, session)
 	if err != nil {
 		return Session{}, err
 	}
-	var owned []objectstore.Multipart
-	for _, mpu := range existing {
-		if mpu.Key == session.IncomingKey {
-			owned = append(owned, mpu)
-		}
-	}
-	if len(owned) > 1 {
-		// Preserve every owned identity for cleanup reconciliation; never silently
-		// choose a different MPU and orphan the others.
-		return Session{}, fmt.Errorf("%w: multiple owned multipart identities require reconciliation", ErrConflict)
-	}
-	if len(owned) == 1 {
-		err = c.db.Write(ctx, func(tx *sql.Tx) error { return AttachMultipart(ctx, tx, id, session.Generation, owned[0].UploadID) })
-		if err != nil {
-			return Session{}, err
-		}
-		return c.session(ctx, id)
+	if session.MultipartUploadID.Valid {
+		return session, nil
 	}
 	_, err = c.io.CreateMultipart(ctx, func(tx *sql.Tx) (objectio.Request, error) {
 		q := dbgen.New(tx)
@@ -199,7 +178,16 @@ func (c *Coordinator) Refresh(ctx context.Context, id string) (Outcome, error) {
 	if err != nil {
 		return Outcome{}, err
 	}
-	err = c.db.Write(ctx, func(tx *sql.Tx) error {
+	err = c.reconcileListedParts(ctx, session, parts)
+	if err != nil {
+		return Outcome{}, err
+	}
+	return Lookup(ctx, c.db.Reader(), id)
+}
+
+func (c *Coordinator) reconcileListedParts(ctx context.Context, session Session, parts []objectstore.Part) error {
+	id := session.ID
+	return c.db.Write(ctx, func(tx *sql.Tx) error {
 		q := dbgen.New(tx)
 		current, err := readSession(ctx, q, id)
 		if err != nil {
@@ -240,10 +228,6 @@ func (c *Coordinator) Refresh(ctx context.Context, id string) (Outcome, error) {
 		}
 		return nil
 	})
-	if err != nil {
-		return Outcome{}, err
-	}
-	return Lookup(ctx, c.db.Reader(), id)
 }
 
 func canReconcileParts(session dbgen.UploadSession) bool {
