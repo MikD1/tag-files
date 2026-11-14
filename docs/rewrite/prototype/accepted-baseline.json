@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "id": "tag-files-ui-v1",
+  "prototypeRevision": "v27",
+  "status": "accepted",
+  "acceptedOn": "2026-11-14",
+  "decision": "D-16",
+  "artifact": {
+    "path": "index.html",
+    "bytes": 1165757,
+    "sha256": "b0d2f5ea4a7a9bd3a06ddeb0968dd749b3655663dcc0ca2e2819525c6dcb50ea"
+  },
+  "sources": [
+    {
+      "path": "index.template.html",
+      "sha256": "946430fe3b34921512aacf7220b261b1a570b04a7a5e3fb8994d80dc0772ecd1"
+    },
+    {
+      "path": "styles.css",
+      "sha256": "c2135a303c7b69095ae3d2cdec2e1a2a97208b429bfd688f95a95d1de4848f67"
+    },
+    {
+      "path": "fixtures.js",
+      "sha256": "edc820570cf2fb9c9e64fb50e554cab693fef53faba8f75b35d8dcdedf68ee18"
+    },
+    {
+      "path": "app.js",
+      "sha256": "a9d387c77bbcf4b172fa5d56683690d40830d47fe5b0c5a74c99d1bc7772d203"
+    },
+    {
+      "path": "build.mjs",
+      "sha256": "77d175e41ba3a43f5b884222b7d1c7cd7f0737d6cdb3a47f7ba6c2f01bd9ba3b"
+    }
+  ],
+  "specifications": [
+    "../02-product-specification.md",
+    "../05-ux-ui-audit.md",
+    "../06-product-questions.md",
+    "../07-delivery-and-acceptance.md"
+  ],
+  "verificationReport": "qa/results.json",
+  "targetScope": [
+    "English interface and minimal media presentation",
+    "Visible layout, default appearance, controls, navigation and implemented interaction flows",
+    "Searchable multi-tag editor and one nullable collection",
+    "Pending/error upload queue with immediate removal on success or cancellation"
+  ],
+  "demoOnly": [
+    "Synthetic media, entity counts and stock assets",
+    "LocalStorage as the storage backend, mock upload/save delays and generated progress; required visible persistence and reload behavior remain part of the target",
+    "Deterministic random seed and permissive demonstration query parser; production search follows the written specification",
+    "Debug/reset hooks, Add demo batch and forced-error injection",
+    "Hash-route encoding and internal DOM/test identifiers; URL context, deep links and Back/reload behavior remain required",
+    "Fixture collection covers, tag ordering/grouping and four-card related samples; production uses the documented data and pagination contracts"
+  ],
+  "preservedProductionScope": "All F-01 through F-38 capabilities remain required under the explicit product decisions, including operations absent from this mockup. Runtime, reliability and migration requirements are defined by the written specifications."
+}

@@ -1,0 +1,520 @@
+{
+  "target": "file:///home/mik.guest/projects/tag-files/docs/rewrite/prototype/index.html",
+  "startedAt": "2026-11-13T22:16:01.683Z",
+  "browser": "158.0.8127.18",
+  "fixture": "426 synthetic records; public stock photographs and silent H.264 test clip",
+  "artifact": {
+    "bytes": 1165757,
+    "sha256": "b0d2f5ea4a7a9bd3a06ddeb0968dd749b3655663dcc0ca2e2819525c6dcb50ea"
+  },
+  "selection": {
+    "mode": "all",
+    "requestedCases": []
+  },
+  "viewports": [
+    1440,
+    1024,
+    640
+  ],
+  "externalRequests": [],
+  "pageErrors": [],
+  "tests": [
+    {
+      "number": 1,
+      "name": "Library total, bounded page and local loaded photographs",
+      "status": "PASS",
+      "durationMs": 5456,
+      "evidence": {
+        "total": 426,
+        "rendered": 24,
+        "embeddedMediaBytes": 790120,
+        "layout": {
+          "common32pxSearchControls": true,
+          "outsideViewControls": true,
+          "matchingCountBelowContent": true
+        },
+        "sidebar": {
+          "defaultOpen": true,
+          "manual72pxRail": true,
+          "allFiveTabsClickableAndFocusable": true,
+          "keyboardToggle": true,
+          "pinnedUploads": true,
+          "draftAndSelectionPreserved": true,
+          "preferenceSurvivesReloadAndRoutes": true
+        }
+      }
+    },
+    {
+      "number": 2,
+      "name": "Pagination exposes results after 300 and returns to page one",
+      "status": "PASS",
+      "durationMs": 219,
+      "evidence": {
+        "lastPage": 18,
+        "lastId": 426
+      }
+    },
+    {
+      "number": 3,
+      "name": "Exact tag AND/NOT search returns the correct subset and accepts Unicode input",
+      "status": "PASS",
+      "durationMs": 186,
+      "evidence": {
+        "query": "mountains && !city",
+        "matching": 151,
+        "unrestrictedUnicodeInput": "Пример"
+      }
+    },
+    {
+      "number": 4,
+      "name": "Invalid query preserves results; empty result and clear are distinct",
+      "status": "PASS",
+      "durationMs": 530,
+      "evidence": {
+        "invalidPreservesPrevious": true,
+        "empty": 0,
+        "cleared": 426
+      }
+    },
+    {
+      "number": 5,
+      "name": "Seven sort-menu choices work; list/grid, density and random order survive reload",
+      "status": "PASS",
+      "durationMs": 1814,
+      "evidence": {
+        "sortChoices": [
+          "uploadedDesc",
+          "uploadedAsc",
+          "durationDesc",
+          "durationAsc",
+          "viewsDesc",
+          "viewsAsc",
+          "random"
+        ],
+        "selectedSortExposed": true,
+        "randomOrderStableAfterReload": true,
+        "thumbnailLevels": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "plusEnlargesMinusReduces": true,
+        "disabledBoundsClamp": true,
+        "interiorFocusPreserved": true,
+        "sizingControlsGridOnly": true,
+        "viewAfterReload": "list",
+        "densityAfterReload": 6,
+        "switchedBack": "grid"
+      }
+    },
+    {
+      "number": 6,
+      "name": "Full viewer returns to query, page and scroll; reload preserves origin",
+      "status": "PASS",
+      "durationMs": 535,
+      "evidence": {
+        "restoredScroll": 148,
+        "query": "mountains && !city",
+        "page": 2,
+        "originSurvivesReload": true
+      }
+    },
+    {
+      "number": 7,
+      "name": "Grid/list do not count views; one viewer counts once after three seconds across edits",
+      "status": "PASS",
+      "durationMs": 14689,
+      "evidence": {
+        "gridDelta": 0,
+        "listDelta": 0,
+        "beforeThreeSecondsDelta": 0,
+        "canonicalViewerDelta": 1,
+        "favoriteAndEditorRerenderDelta": 0,
+        "favoriteButtonStyleStableAcrossStates": true,
+        "favoriteStarChangesAndRestores": true,
+        "favoriteComparedWithIdenticalHoverAndFocus": true
+      }
+    },
+    {
+      "number": 8,
+      "name": "Collapsed image tools support keyboard, real transforms, Escape and outside closing",
+      "status": "PASS",
+      "durationMs": 4814,
+      "evidence": {
+        "zoomRatio": 1.25,
+        "rotation": 90,
+        "reset": true,
+        "defaultLayout": {
+          "mediaWidth": 1192,
+          "availableWidth": 1192,
+          "secondaryAndActionsBelowMedia": true,
+          "visiblePermanentControls": 6,
+          "toolsCollapsedByDefault": true,
+          "centeredNavigation": true,
+          "backEditFavoriteTogether": true,
+          "tagsBelowNavigation": true,
+          "collectionHeadingBeforeSameTags": true,
+          "duplicateCollectionUnderTags": false
+        },
+        "toolsFit": {
+          "panelFits": true,
+          "panelBelowMedia": true
+        },
+        "keyboardOpenAndTab": true,
+        "transformPreservesOpenAndFocus": true,
+        "escapeReturnsFocus": true,
+        "outsideClosesWithoutFocusSteal": true
+      }
+    },
+    {
+      "number": 9,
+      "name": "Editor is a separate draft and Cancel preserves tags/collection",
+      "status": "PASS",
+      "durationMs": 5296,
+      "evidence": {
+        "changedDraftOnly": true,
+        "cancelPreservesMetadata": true,
+        "focusRestored": true,
+        "scaleTags": 30,
+        "scaleCollections": 350,
+        "existingOnlyKeyboardAndIme": true,
+        "scrollableSuggestions": true,
+        "inputDomPreserved": true,
+        "fixedEditorHeaderFooterGeometry": true,
+        "fixedPopupsFitAndAlign": true,
+        "singleCollectionFieldReplacesAndRestoresLabel": true,
+        "escapeClosesPopupBeforeDialog": true
+      }
+    },
+    {
+      "number": 10,
+      "name": "Failed atomic save preserves data/draft; retry commits tags and collection together",
+      "status": "PASS",
+      "durationMs": 3043,
+      "evidence": {
+        "failedSaveChangedData": false,
+        "draftRetained": true,
+        "atomicRetryPersisted": true,
+        "neighborsAfterRemovingQueryTag": [
+          1,
+          8
+        ],
+        "updatedQueryTotal": 150
+      }
+    },
+    {
+      "number": 11,
+      "name": "Keyboard stays in inputs/editor and navigates images only outside controls",
+      "status": "PASS",
+      "durationMs": 415,
+      "evidence": {
+        "inputAndEditorPreservedRoute": true,
+        "bodyArrowNavigation": [
+          1,
+          2,
+          1
+        ]
+      }
+    },
+    {
+      "number": 12,
+      "name": "Four independent type-toggle combinations preserve context; real video controls work",
+      "status": "PASS",
+      "durationMs": 1659,
+      "evidence": {
+        "typeCombinations": [
+          {
+            "image": false,
+            "video": false,
+            "kind": "",
+            "total": 426
+          },
+          {
+            "image": true,
+            "video": false,
+            "kind": "image",
+            "total": 355
+          },
+          {
+            "image": true,
+            "video": true,
+            "kind": "",
+            "total": 426
+          },
+          {
+            "image": false,
+            "video": true,
+            "kind": "video",
+            "total": 71
+          }
+        ],
+        "urlReloadViewerAndFavoritesPreserved": true,
+        "videoPermanentControls": 5,
+        "actualPlayback": true,
+        "dimensions": "640×360",
+        "durationSeconds": 2.966667,
+        "seekClamped": true,
+        "audioTrack": false
+      }
+    },
+    {
+      "number": 13,
+      "name": "Pending uploads finish outside the queue; errors persist until retry and success leaves no history",
+      "status": "PASS",
+      "durationMs": 30958,
+      "evidence": {
+        "initial": [
+          "processing",
+          "uploading",
+          "failed"
+        ],
+        "publishedOutsideQueue": 2,
+        "retriedSameJobOnce": true,
+        "successfulJobsRemovedFromStateDomAndStorage": true,
+        "sevenDayDateJumpKeptError": true,
+        "totalAfter": 429,
+        "persistedMediaWithoutHistory": true
+      }
+    },
+    {
+      "number": 14,
+      "name": "File picker rejects text and focused upload controls keep final results fresh",
+      "status": "PASS",
+      "durationMs": 25040,
+      "evidence": {
+        "accepted": 2,
+        "rejected": 1,
+        "publishedIncludingSeed": 4,
+        "totalAfter": 430,
+        "successfulRowsRemovedWhileFocused": true,
+        "logicalFocusFallback": true,
+        "canceledErrorAndActivePersistentlyRemoved": true,
+        "canceledJobDidNotPublishAfterTicks": true
+      }
+    },
+    {
+      "number": 15,
+      "name": "Desktop and narrow widths keep essentials usable without document overflow",
+      "status": "PASS",
+      "durationMs": 1813,
+      "evidence": {
+        "widths": [
+          1440,
+          1024,
+          640
+        ],
+        "routes": [
+          "library",
+          "viewer",
+          "editor",
+          "uploads"
+        ],
+        "horizontalOverflow": false,
+        "editorPopupsFitAfterResizeAndScroll": true,
+        "shortEditorViewport": "640×700",
+        "distantArrowOptionScrollsOnlyList": true,
+        "contentFirstLayouts": [
+          {
+            "width": 1440,
+            "mediaWidth": 1192,
+            "availableWidth": 1192,
+            "secondaryAndActionsBelowMedia": true,
+            "visiblePermanentControls": 6,
+            "toolsCollapsedByDefault": true,
+            "centeredNavigation": true,
+            "backEditFavoriteTogether": true,
+            "tagsBelowNavigation": true,
+            "collectionHeadingBeforeSameTags": true,
+            "duplicateCollectionUnderTags": false,
+            "panelFits": true,
+            "panelBelowMedia": true
+          },
+          {
+            "width": 1024,
+            "mediaWidth": 776,
+            "availableWidth": 776,
+            "secondaryAndActionsBelowMedia": true,
+            "visiblePermanentControls": 6,
+            "toolsCollapsedByDefault": true,
+            "centeredNavigation": true,
+            "backEditFavoriteTogether": true,
+            "tagsBelowNavigation": true,
+            "collectionHeadingBeforeSameTags": true,
+            "duplicateCollectionUnderTags": false,
+            "panelFits": true,
+            "panelBelowMedia": true
+          },
+          {
+            "width": 640,
+            "mediaWidth": 392,
+            "availableWidth": 392,
+            "secondaryAndActionsBelowMedia": true,
+            "visiblePermanentControls": 6,
+            "toolsCollapsedByDefault": true,
+            "centeredNavigation": true,
+            "backEditFavoriteTogether": true,
+            "tagsBelowNavigation": true,
+            "collectionHeadingBeforeSameTags": true,
+            "duplicateCollectionUnderTags": false,
+            "panelFits": true,
+            "panelBelowMedia": true
+          }
+        ]
+      }
+    },
+    {
+      "number": 16,
+      "name": "Built-in UI and fixtures are English; the prototype works offline without errors",
+      "status": "PASS",
+      "durationMs": 3506,
+      "evidence": {
+        "englishCopySurfaces": [
+          "gallery",
+          "sort menu",
+          "list",
+          "viewer",
+          "image tools",
+          "editor",
+          "uploads",
+          "tags",
+          "collections",
+          "categories"
+        ],
+        "fixtureCopyEnglish": true,
+        "appAndTemplateStringsEnglish": true,
+        "supportLayouts": {
+          "nativeTables": true,
+          "exactTagUsageCounts": true,
+          "compactSquareCollections": true,
+          "entityTotalsBelowContent": true,
+          "openAndRailWidths": [
+            1440,
+            1024,
+            640
+          ],
+          "linksPreserveExistingScopes": true
+        },
+        "collectionSearch": {
+          "scale": 350,
+          "caseInsensitiveMiddleSubstring": true,
+          "literalQuery": true,
+          "clearAndNoMatch": true,
+          "inputDomAndFocusPreserved": true,
+          "filteredCoverScope": true,
+          "backAndReloadRestoreQuery": true
+        },
+        "categoriesApplyExistingSavedQuery": true,
+        "videoCategoryApplied": true,
+        "legacySavedSearchesAlias": true,
+        "unicodeInputCasesPassedInThisRun": [
+          3,
+          11,
+          14
+        ],
+        "offline": true,
+        "externalRequests": 0,
+        "pageErrors": 0
+      }
+    },
+    {
+      "number": 17,
+      "name": "One content-first viewer serves grid/list/related links without file metadata or preview mode",
+      "status": "PASS",
+      "durationMs": 18542,
+      "evidence": {
+        "checkedSurfaces": [
+          "gallery",
+          "viewer",
+          "editor",
+          "list"
+        ],
+        "namesAndTechnicalMetadata": 0,
+        "allAssignedTagsVisible": true,
+        "viewerTagNavigation": true,
+        "thumbnailTooltip": {
+          "sixTagsPlainText": true,
+          "hoverAndFocus": true,
+          "noReflow": true,
+          "pointerOverTooltipPersists": true,
+          "escapeSuppressesReopen": true,
+          "longTagNarrowEdgeFits": true,
+          "noTagsNoTooltip": true,
+          "relatedParity": true
+        },
+        "canonicalEntrypoints": [
+          {
+            "source": "grid",
+            "id": 1
+          },
+          {
+            "source": "list",
+            "id": 1
+          },
+          {
+            "source": "related",
+            "id": 25
+          }
+        ],
+        "previewViewingMode": false,
+        "contentFirstLayout": {
+          "mediaWidth": 1192,
+          "availableWidth": 1192,
+          "secondaryAndActionsBelowMedia": true,
+          "visiblePermanentControls": 6,
+          "toolsCollapsedByDefault": true,
+          "centeredNavigation": true,
+          "backEditFavoriteTogether": true,
+          "tagsBelowNavigation": true,
+          "collectionHeadingBeforeSameTags": true,
+          "duplicateCollectionUnderTags": false
+        },
+        "collectionHeading": {
+          "name": "Norway",
+          "visibleWithoutScrollDesktop": true,
+          "linksToCollection": 1,
+          "precedesExactSameTags": true,
+          "allLinkRemoved": true,
+          "singleItemMembershipVisible": true,
+          "unassignedGroupAbsent": true
+        },
+        "sameTagsHeading": {
+          "query": "travel && mountains",
+          "actualMatching": 151,
+          "previewCards": 4,
+          "includesSelfSupersetsAndOtherCollections": true,
+          "resetsLibraryRestrictions": true,
+          "previewRetainsExactSet": true
+        }
+      }
+    }
+  ],
+  "screenshots": [
+    "library.png",
+    "sidebar-open.png",
+    "sidebar-closed.png",
+    "favorite.png",
+    "viewer.png",
+    "viewer-tools.png",
+    "viewer-page.png",
+    "editor-collection.png",
+    "editor.png",
+    "editor-search.png",
+    "uploads.png",
+    "uploads-empty.png",
+    "tags.png",
+    "collections.png",
+    "categories.png",
+    "collections-search.png",
+    "hover.png",
+    "list.png",
+    "list-hover.png"
+  ],
+  "finishedAt": "2026-11-13T22:18:00.310Z",
+  "passed": 17,
+  "failed": 0,
+  "status": "PASS"
+}

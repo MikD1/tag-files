@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Tag Files interactive UX prototype with synthetic media: library, viewer, tags, and uploads.">
+  <title>Tag Files — interactive prototype</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%239bd5bd'/%3E%3Cpath d='M10 12h20v5h-7v13h-6V17h-7z' fill='%23171c1a'/%3E%3C/svg%3E">
+  <style>/* INLINE_STYLES */</style>
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to content</a>
+  <button id="sidebar-toggle" class="button ghost icon-button sidebar-toggle" type="button" data-action="toggle-sidebar" data-testid="sidebar-toggle" aria-controls="sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+  <div class="app-shell">
+    <aside id="sidebar" class="sidebar" aria-label="Main navigation"></aside>
+    <main id="workspace" class="workspace" tabindex="-1"></main>
+  </div>
+  <div id="overlay-root"></div>
+  <div id="toast-root" role="status" aria-live="polite" aria-atomic="true"></div>
+  <noscript>Enable JavaScript to use this interactive prototype. Demo data only.</noscript>
+  <script>/* INLINE_FIXTURES */</script>
+  <script>/* INLINE_APP */</script>
+</body>
+</html>
