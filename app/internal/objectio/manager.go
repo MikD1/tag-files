@@ -141,6 +141,7 @@ func (m *Manager) delete(ctx context.Context, id, owner, epoch string) error {
 }
 
 // Drain waits for known live calls through their metadata acknowledgement.
+// An all-operation drain also waits for streaming read callbacks.
 // The caller must first fence new admission in SQL. Uncertain persisted writes
 // are not settled by drain, a timeout, an expired lease or an empty listing.
 func (m *Manager) Drain(ctx context.Context, key string, operation Operation) error {
@@ -151,7 +152,7 @@ func (m *Manager) Drain(ctx context.Context, key string, operation Operation) er
 		m.mu.Lock()
 		var waiting []chan struct{}
 		for _, write := range m.live {
-			if write.key == key && (operation == "" || write.operation == operation) {
+			if (write.key == key && (operation == "" || write.operation == operation)) || (write.key == "" && operation == "") {
 				waiting = append(waiting, write.done)
 			}
 		}
@@ -230,4 +231,26 @@ func (m *Manager) ReconcileAfterRestart(ctx context.Context, previous Intent, re
 		return err
 	}
 	return m.delete(ctx, intent.ID, intent.OwnerID, intent.StorageEpoch)
+}
+
+// ListKey pages only the work relevant to one owned resource. An incompatible
+// payload is retained and blocks reconciliation of that resource, rather than
+// being silently skipped or discarded.
+func (m *Manager) ListKey(ctx context.Context, key, after string, limit int) ([]Intent, error) {
+	if !keyValid(key) || (after != "" && domain.ValidateUUID(after) != nil) || limit < 1 || limit > 1000 {
+		return nil, domain.Invalid("cursor", "Invalid bounded write-intent page")
+	}
+	rows, err := dbgen.New(m.db.Reader()).ListObjectWritesForKey(ctx, dbgen.ListObjectWritesForKeyParams{ObjectKey: key, AfterID: strings.ToLower(after), LimitCount: int64(limit)})
+	if err != nil {
+		return nil, err
+	}
+	result := make([]Intent, 0, len(rows))
+	for _, row := range rows {
+		intent, err := decode(row)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, intent)
+	}
+	return result, nil
 }

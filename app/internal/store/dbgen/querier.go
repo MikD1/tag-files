@@ -22,8 +22,11 @@ type Querier interface {
 	ClearItemTags(ctx context.Context, itemID int64) error
 	CloseUploadAdmission(ctx context.Context, id string) error
 	ConfirmUploadPart(ctx context.Context, arg ConfirmUploadPartParams) error
+	CountJobIdentity(ctx context.Context, id string) (int64, error)
 	CountUploadCompleteIntents(ctx context.Context, targetID string) (int64, error)
 	CountUploadCreateIntents(ctx context.Context, targetID string) (int64, error)
+	CountWritesForKey(ctx context.Context, objectKey string) (int64, error)
+	CreateCleanupReceipt(ctx context.Context, arg CreateCleanupReceiptParams) (CleanupReceipt, error)
 	CreateCollection(ctx context.Context, name string) (Collection, error)
 	CreateJob(ctx context.Context, arg CreateJobParams) (Job, error)
 	CreateNavigationContext(ctx context.Context, arg CreateNavigationContextParams) error
@@ -32,13 +35,21 @@ type Querier interface {
 	CreateSavedSearch(ctx context.Context, arg CreateSavedSearchParams) (SavedSearch, error)
 	CreateTag(ctx context.Context, name string) (Tag, error)
 	CreateUploadSession(ctx context.Context, arg CreateUploadSessionParams) (UploadSession, error)
+	DeleteCancelledAsset(ctx context.Context, arg DeleteCancelledAssetParams) error
+	DeleteCleanupReceipt(ctx context.Context, id string) error
 	DeleteCollection(ctx context.Context, arg DeleteCollectionParams) (int64, error)
 	DeleteLeasedJob(ctx context.Context, arg DeleteLeasedJobParams) (int64, error)
 	DeleteSavedSearch(ctx context.Context, arg DeleteSavedSearchParams) (int64, error)
 	DeleteSettledObjectWrite(ctx context.Context, arg DeleteSettledObjectWriteParams) (int64, error)
+	DeleteUploadIngestJobs(ctx context.Context, subjectID string) error
+	DeleteUploadSession(ctx context.Context, id string) error
 	FailLeasedJob(ctx context.Context, arg FailLeasedJobParams) (int64, error)
+	FindCancellationReceipt(ctx context.Context, uploadID sql.NullString) (CleanupReceipt, error)
 	FindReadyItemByUpload(ctx context.Context, uploadID sql.NullString) (Item, error)
 	FreezeUploadManifest(ctx context.Context, arg FreezeUploadManifestParams) error
+	GetCleanupAsset(ctx context.Context, id string) (Asset, error)
+	GetCleanupJob(ctx context.Context, dedupeKey string) (Job, error)
+	GetCleanupReceipt(ctx context.Context, id string) (CleanupReceipt, error)
 	GetCollection(ctx context.Context, id int64) (Collection, error)
 	GetCollectionSummary(ctx context.Context, id int64) (GetCollectionSummaryRow, error)
 	GetIngestionJob(ctx context.Context, dedupeKey string) (Job, error)
@@ -61,8 +72,10 @@ type Querier interface {
 	ListCollections(ctx context.Context) ([]ListCollectionsRow, error)
 	ListLiveItemIDs(ctx context.Context, jsonEach interface{}) ([]int64, error)
 	ListObjectWriteIntents(ctx context.Context, arg ListObjectWriteIntentsParams) ([]ObjectWriteIntent, error)
+	ListObjectWritesForKey(ctx context.Context, arg ListObjectWritesForKeyParams) ([]ObjectWriteIntent, error)
 	ListSavedSearches(ctx context.Context) ([]SavedSearch, error)
 	ListTags(ctx context.Context) ([]Tag, error)
+	ListUnpublishedUploadAssets(ctx context.Context, uploadID sql.NullString) ([]Asset, error)
 	ListUploadParts(ctx context.Context, sessionID string) ([]UploadPart, error)
 	ListUploadSessions(ctx context.Context) ([]UploadSession, error)
 	MarkObjectWriteUncertain(ctx context.Context, arg MarkObjectWriteUncertainParams) (int64, error)

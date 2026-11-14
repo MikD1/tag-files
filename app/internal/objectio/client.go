@@ -30,6 +30,16 @@ type ReconciliationClient interface {
 }
 
 func (m *Manager) Read(ctx context.Context, read func(Reader) error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// A read callback may stream a verification body. Keep it visible until
+	// that body is consumed/closed, so cleanup's all-operation drain waits.
+	// This interface can read several keys, so it uses a conservative global
+	// registration; ordinary part-only drains do not wait for unrelated reads.
+	id := domain.NewUUID()
+	m.add(id, Request{})
+	defer m.finish(id)
 	epoch, err := m.base.StorageEpoch(ctx)
 	if err != nil {
 		return err
@@ -83,4 +93,23 @@ func (m *Manager) UploadPart(ctx context.Context, prepare func(*sql.Tx) (Request
 	return run(ctx, m, expecting(UploadPart, prepare), func(bound *objectstore.Client, r Request) (objectstore.Part, error) {
 		return bound.UploadPart(ctx, r.Key, r.Arguments.MultipartID, r.Arguments.PartNumber, r.Arguments.Size, r.Arguments.SHA256, body)
 	}, commit)
+}
+
+// RemoveOwned performs idempotent deletion/reconciliation of resources whose
+// permanent domain fence the caller has already checked. The independent
+// cleanup receipt owns ambiguous removal results; this cannot write new data.
+func (m *Manager) RemoveOwned(ctx context.Context, remove func(ReconciliationClient) error) error {
+	if err := m.acquire(ctx); err != nil {
+		return err
+	}
+	defer func() { <-m.slots }()
+	epoch, err := m.base.StorageEpoch(ctx)
+	if err != nil {
+		return err
+	}
+	bound, err := m.base.AtEpoch(epoch)
+	if err != nil {
+		return err
+	}
+	return remove(bound)
 }

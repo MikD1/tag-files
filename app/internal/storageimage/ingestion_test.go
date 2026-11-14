@@ -205,3 +205,157 @@ func TestIngestionOwnedImageLostCreateAndPartResponsesRecoverImmutableBindings(t
 		t.Fatalf("reopen lost independent uncertainty: %+v %v", intents, err)
 	}
 }
+
+func TestIngestionOwnedImageCancelKeepsUnknownCompleteUntilRestartReconciliation(t *testing.T) {
+	f := create(t)
+	testutil.Docker(t, "", "start", f.name)
+	f.ready()
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	directory := t.TempDir()
+	db, err := store.Open(ctx, directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { db.Close() }()
+	var batch ingestion.Batch
+	if err := db.Write(ctx, func(tx *sql.Tx) error {
+		var err error
+		batch, err = ingestion.Create(ctx, tx, []ingestion.File{{ClientFileID: domain.NewUUID(), Filename: "cancel.bin", Size: 7}}, nil, ingestion.DefaultLimits(), time.Now())
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	session := batch.Sessions[0]
+	endpoint, _ := url.Parse(f.endpoint())
+	var target atomic.Pointer[url.URL]
+	target.Store(endpoint)
+	proxy := httputil.NewSingleHostReverseProxy(endpoint)
+	proxy.Director = func(r *http.Request) { httputil.NewSingleHostReverseProxy(target.Load()).Director(r) }
+	accepted, release := make(chan struct{}), make(chan struct{})
+	proxy.ModifyResponse = func(res *http.Response) error {
+		if res.Request.Method == "POST" && res.Request.URL.Query().Has("uploadId") && res.StatusCode == 200 {
+			_, _ = io.Copy(io.Discard, res.Body)
+			res.Body.Close()
+			close(accepted)
+			<-release
+			return errors.New("injected lost Complete response after durable storage success")
+		}
+		return nil
+	}
+	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, _ error) { w.WriteHeader(502) }
+	peer := httptest.NewServer(proxy)
+	defer peer.Close()
+	client, err := objectstore.New(objectstore.Config{Endpoint: peer.URL, Region: "us-east-1", Bucket: "tag-files", AccessKey: f.access, SecretKey: f.secret, HTTPClient: &http.Client{Timeout: 60 * time.Second}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err := objectio.New(db, client, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	coordinator, err := ingestion.NewCoordinator(db, manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := coordinator.EnsureMultipart(ctx, session.ID); err != nil {
+		t.Fatal(err)
+	}
+	data := []byte("correct")
+	sum := sha256.Sum256(data)
+	if _, err := coordinator.UploadPart(ctx, session.ID, 1, ingestion.PartBinding{Number: 1, Size: 7, SHA256: base64.StdEncoding.EncodeToString(sum[:])}, bytes.NewBuffer(data)); err != nil {
+		t.Fatal(err)
+	}
+	completed := make(chan error, 1)
+	go func() { _, err := coordinator.Complete(ctx, session.ID); completed <- err }()
+	select {
+	case <-accepted:
+	case <-ctx.Done():
+		t.Fatal("native Complete did not reach accepted response")
+	}
+	var cancellation ingestion.Cancellation
+	if err := db.Write(ctx, func(tx *sql.Tx) error {
+		var err error
+		cancellation, err = ingestion.Cancel(ctx, tx, session.ID, time.Now())
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if cancellation.State != "cancelled" || cancellation.ReceiptID == "" || cancellation.JobID == "" {
+		t.Fatalf("native cancellation: %+v", cancellation)
+	}
+	job, err := db.ClaimJob(ctx, time.Now(), 2*time.Minute)
+	if err != nil || job.ID != cancellation.JobID {
+		t.Fatalf("claim native cleanup: %+v %v", job, err)
+	}
+	drainCtx, stopDrain := context.WithTimeout(ctx, 50*time.Millisecond)
+	err = coordinator.ProcessCleanup(drainCtx, job, time.Now())
+	stopDrain()
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("cleanup did not wait for known native writer: %v", err)
+	}
+	if _, err := f.client().Head(ctx, session.IncomingKey); err != nil {
+		t.Fatal("cleanup removed source before known writer drained", err)
+	}
+	close(release)
+	if err := <-completed; err == nil {
+		t.Fatal("lost Complete reported success after cancel")
+	}
+	if _, err := ingestion.Lookup(ctx, db.Reader(), session.ID); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatal("late Complete recreated visible upload", err)
+	}
+	if err := coordinator.ProcessCleanup(ctx, job, time.Now()); !errors.Is(err, objectio.ErrUnsettled) {
+		t.Fatalf("unknown same-epoch writer was discarded: %v", err)
+	}
+	if _, err := f.client().Head(ctx, session.IncomingKey); err == nil {
+		t.Fatal("independent cleanup did not remove incoming")
+	}
+	var pending int
+	if err := db.Reader().QueryRow("SELECT COUNT(*) FROM cleanup_receipts WHERE id=?", cancellation.ReceiptID).Scan(&pending); err != nil || pending != 1 {
+		t.Fatal("same-epoch cleanup receipt disappeared")
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err = store.Open(ctx, directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err = objectio.New(db, client, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	coordinator, err = ingestion.NewCoordinator(db, manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := coordinator.ProcessCleanup(ctx, job, time.Now()); !errors.Is(err, objectio.ErrUnsettled) {
+		t.Fatalf("DB reopen/empty source substituted for settlement: %v", err)
+	}
+	oldEpoch, err := client.StorageEpoch(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.Docker(t, "", "kill", "--signal", "KILL", f.name)
+	testutil.Docker(t, "", "start", f.name)
+	f.ready()
+	endpoint, _ = url.Parse(f.endpoint())
+	target.Store(endpoint)
+	epoch, err := client.StorageEpoch(ctx)
+	if err != nil || epoch == oldEpoch {
+		t.Fatal("native restart barrier unavailable", err)
+	}
+	if err := coordinator.ProcessCleanup(ctx, job, time.Now()); err != nil {
+		t.Fatalf("native barrier/owned result reconciliation: %v", err)
+	}
+	for _, table := range []string{"upload_sessions", "upload_parts", "jobs", "cleanup_receipts", "object_write_intents"} {
+		var count int
+		if err := db.Reader().QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != 0 {
+			t.Fatalf("native cleanup retained %s=%d: %v", table, count, err)
+		}
+	}
+	mpus, err := f.client().ListMultipart(ctx, session.IncomingKey)
+	if err != nil || len(mpus) != 0 {
+		t.Fatalf("native MPU survived settled cleanup: %+v %v", mpus, err)
+	}
+}

@@ -147,6 +147,53 @@ func (q *Queries) ListObjectWriteIntents(ctx context.Context, arg ListObjectWrit
 	return items, nil
 }
 
+const listObjectWritesForKey = `-- name: ListObjectWritesForKey :many
+SELECT id, owner_id, target_kind, target_id, generation, operation, object_key, storage_epoch, payload_version, payload_json, state, created_at_utc FROM object_write_intents WHERE object_key=?1 AND id>?2
+ORDER BY id LIMIT ?3
+`
+
+type ListObjectWritesForKeyParams struct {
+	ObjectKey  string
+	AfterID    string
+	LimitCount int64
+}
+
+func (q *Queries) ListObjectWritesForKey(ctx context.Context, arg ListObjectWritesForKeyParams) ([]ObjectWriteIntent, error) {
+	rows, err := q.db.QueryContext(ctx, listObjectWritesForKey, arg.ObjectKey, arg.AfterID, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ObjectWriteIntent{}
+	for rows.Next() {
+		var i ObjectWriteIntent
+		if err := rows.Scan(
+			&i.ID,
+			&i.OwnerID,
+			&i.TargetKind,
+			&i.TargetID,
+			&i.Generation,
+			&i.Operation,
+			&i.ObjectKey,
+			&i.StorageEpoch,
+			&i.PayloadVersion,
+			&i.PayloadJson,
+			&i.State,
+			&i.CreatedAtUtc,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markObjectWriteUncertain = `-- name: MarkObjectWriteUncertain :execrows
 UPDATE object_write_intents SET state='uncertain'
 WHERE id=? AND owner_id=? AND state='inflight'

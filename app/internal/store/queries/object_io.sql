@@ -16,3 +16,7 @@ WHERE id=? AND owner_id=? AND state='inflight';
 
 -- name: DeleteSettledObjectWrite :execrows
 DELETE FROM object_write_intents WHERE id=? AND owner_id=? AND storage_epoch=?;
+
+-- name: ListObjectWritesForKey :many
+SELECT * FROM object_write_intents WHERE object_key=sqlc.arg(object_key) AND id>sqlc.arg(after_id)
+ORDER BY id LIMIT sqlc.arg(limit_count);

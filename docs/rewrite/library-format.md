@@ -71,6 +71,18 @@ queued/processing/failed or ready outcome; cancelled/missing sessions are not
 recreated. Lost write replies retain independent intents even when a separate
 full-read reconciliation permits the queued transition.
 
+Cancellation uses `cleanup_receipts.reason='cancel'`, payload version 1 and
+`{"version":1,"libraryId":"UUID","uploadId":"UUID","incomingKey":"owned source key","multipartId":"optional opaque S3 ID","candidates":[{"assetId":"UUID","key":"owned candidate key"}]}`.
+The receipt generation identifies the removed session generation. Its job has
+dedupe key `cleanup/<receipt UUID>` and payload
+`{"version":1,"receiptId":"UUID"}`. Creating both records, deleting the session/
+parts and removing ingest jobs is atomic. Absence of that session/job permanently
+fences publication, including after lease clocks change. Cleanup only retires the
+receipt/candidate metadata/job after known calls drain, owned resources are absent
+and independent uncertain intents settle by the required epoch/reconciliation
+proof. A failed cleanup leaves retryable working records without visible upload
+history. Unknown payload versions remain preserved and block that work.
+
 The complete S3 keys, raw JSON payload schemas and external manifest contracts
 will be documented with their implementing stages; this file does not claim
 that storage, ingestion, migration, restore or UI gates have passed.

@@ -25,10 +25,12 @@ No release, migration of real data, or production-readiness claim has been made.
   immutable part bindings. Schema 2 adds independent external-write intents and
   a bounded epoch-bound I/O manager. The coordinator now streams immutable parts,
   reconciles acknowledgements, drains before freezing a completion manifest and
-  queues fully verified incoming bytes. Candidate publication, cancellation,
-  cleanup and application/Compose admission wiring remain open.
-- Next: permanent cancellation/cleanup fences, uncertain-write recovery,
-  duplicate owned MPU reconciliation and fenced candidate publication.
+  queues fully verified incoming bytes. Cancel removes visible work atomically
+  with independent cleanup; claimed cleanup jobs reconcile owned MPU/incoming/
+  candidates without retiring uncertain writers at the same epoch. Candidate
+  publication and application/Compose admission wiring remain open.
+- Next: recovery of uncertain writes for still-active sessions, duplicate
+  owned MPU reconciliation and fenced candidate publication.
   No executable application/SPA image exists yet.
 
 ## Decisions
@@ -261,6 +263,39 @@ coordinator layer, not HTTP/browser or media publication acceptance. Multiple
 owned MPUs currently return a preserved conflict pending cleanup reconciliation;
 uncertain-intent recovery after a barrier, cancel/ready/cleanup, startup pairing,
 and HTTP wiring remain unfinished. No age-based retirement was introduced.
+
+Cancellation/cleanup slice: Cancel is a SQL command that first resolves an
+already-ready item, then atomically snapshots owned incoming/MPU/unpublished
+candidate references into an independent versioned receipt/job and removes
+session/parts/ingest jobs. Repeated cancel returns the same pending cleanup;
+unknown or fully cleaned uploads stay absent. Real SQLite tests prove complete
+rollback if the receipt cannot persist, stable identity after reopen, no visible
+empty batch/history, retained independent write intents and permanent stale
+worker rejection after the ingest job is removed.
+
+Claimed cleanup checks permanent ownership/fences, drains known writes/read
+callbacks, aborts only exact-key owned MPUs, deletes only referenced incoming/
+candidates and verifies absence. Foreign prefix neighbours remain untouched.
+An uncertain writer at the same epoch keeps the receipt/job even after repeated
+empty scans and removal of late objects/MPUs. A new epoch requires another owned
+result reconciliation before intent deletion. The final receipt/asset/job removal
+is one leased transaction; a late SQL failure rolls all metadata back for retry.
+Unknown versions and unowned payloads are preserved. No session age is used.
+
+A failing regression exposed that read-only verification callbacks were absent
+from the drain registry: cleanup could delete their source mid-read. Reads now
+stay registered until their bodies are consumed/closed, and all-operation drain
+waits them; the regression passes. Other tests cover cancel during live Complete,
+late fully verified result rejection and separately repeated cleanup.
+Fresh `scripts/check` passes including generation/vet/tests/race. Both current
+owned-image ingestion scenarios pass under race (66.010s total; 33.21s upload/
+restart/queue and 31.77s cancellation). Native cancellation waits an accepted
+Complete, retains its lost-response intent, removes incoming while keeping the
+receipt, survives SQLite reopen, and retires work only after storage SIGKILL/
+restart plus exact result reconciliation. All fixture containers/volumes are gone.
+This does not yet include active media-process cancellation, scratch cleanup,
+ready publication races, startup persistent pairing, active-session uncertain
+recovery, duplicate MPU adoption, the job runner or HTTP/API wiring.
 
 ## Independent review
 

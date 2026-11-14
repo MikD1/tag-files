@@ -20,6 +20,13 @@ Admission is bounded and returns `ErrBusy` without forwarding when full.
 closed in the domain transaction. It does not settle uncertain writes. Domain
 cleanup must permanently fence the session/job generation, rather than infer
 permission from lease age, a quiet interval or an empty listing.
+`Read` registers its callback through full body consumption/close; an
+all-operation drain conservatively waits all read callbacks because one callback
+may access multiple keys. A part-only drain does not wait unrelated reads.
+`RemoveOwned` exposes only reads and idempotent Abort/Delete after the domain's
+permanent fence check. Its independent cleanup receipt owns ambiguous removal
+results. `ListKey` pages only intents for that exact resource and preserves
+unknown payloads rather than skipping them.
 
 Unknown RPCs remain in the independent versioned journal. The same epoch cannot
 retire them. After a different epoch, the manager reloads authoritative work and
@@ -36,5 +43,7 @@ This identity is not the completed file's SHA-256. The manager copies the manife
 before preparation and checks its size/identity against the intent before S3.
 
 Tests use real SQLite and SDK requests against a controlled HTTP peer to exercise
-ordering, failure boundaries and verification. Native SDK/storage conformance is
-separate; the ingestion coordinator and its full native fault matrix remain open.
+ordering, failure boundaries and verification. Native ingestion tests also use the
+actual owned image for lost responses, storage SIGKILL/restart, verified queuing
+and independent cancellation cleanup. Media publication/process/scratch work,
+active-session recovery, runtime startup pairing and API wiring remain open.
