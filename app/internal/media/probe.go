@@ -25,6 +25,7 @@ var ErrResourceLimit = errors.New("media exceeds configured resource limits")
 
 const inputFormats = "jpeg_pipe,png_pipe,webp_pipe,gif,gif_pipe,apng,bmp_pipe,tiff_pipe,mov,matroska,avi,mpegts"
 const inputCodecs = "mjpeg,png,webp,gif,apng,bmp,tiff,h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1,libdav1d,libaom-av1,aac,aac_latm,mp3,mp3float,opus,vorbis,ac3,eac3,flac,alac,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_f64le"
+const maxMediaStreams = 256
 
 type Config struct {
 	FFmpeg, FFprobe              string
@@ -61,27 +62,33 @@ type Info struct {
 	Width, Height, Rotation                                int64
 	DurationTicks                                          *int64
 	VideoIndex, AudioIndex                                 int
+	grid                                                   *tileGrid
+	bakeOrientation                                        bool
+}
+type probeDisposition struct {
+	Default   int `json:"default"`
+	Attached  int `json:"attached_pic"`
+	Dependent int `json:"dependent"`
 }
 type probeStream struct {
+	ID            string `json:"id"`
 	Index         int    `json:"index"`
 	Codec         string `json:"codec_name"`
 	Type          string `json:"codec_type"`
 	Width, Height int64
-	DurationTS    json.Number `json:"duration_ts"`
-	TimeBase      string      `json:"time_base"`
-	Duration      string      `json:"duration"`
-	SAR           string      `json:"sample_aspect_ratio"`
-	Transfer      string      `json:"color_transfer"`
-	Disposition   struct {
-		Default  int `json:"default"`
-		Attached int `json:"attached_pic"`
-	} `json:"disposition"`
-	SideData []struct {
+	DurationTS    json.Number      `json:"duration_ts"`
+	TimeBase      string           `json:"time_base"`
+	Duration      string           `json:"duration"`
+	SAR           string           `json:"sample_aspect_ratio"`
+	Transfer      string           `json:"color_transfer"`
+	Disposition   probeDisposition `json:"disposition"`
+	SideData      []struct {
 		Rotation json.Number `json:"rotation"`
 	} `json:"side_data_list"`
 }
 type probeDocument struct {
 	Streams []probeStream `json:"streams"`
+	Groups  []probeGroup  `json:"stream_groups"`
 	Format  struct {
 		Name     string            `json:"format_name"`
 		Duration string            `json:"duration"`
@@ -158,7 +165,7 @@ func localFile(path string) (string, error) {
 	return path, nil
 }
 func (p *Processor) inputArgs() []string {
-	return []string{"-max_alloc", "268435456", "-threads", strconv.Itoa(p.config.Threads), "-max_pixels", strconv.FormatInt(p.config.MaxPixels, 10), "-protocol_whitelist", "file", "-format_whitelist", inputFormats, "-codec_whitelist", inputCodecs, "-probesize", "8388608", "-analyzeduration", "5000000", "-max_streams", "16"}
+	return []string{"-max_alloc", "268435456", "-threads", strconv.Itoa(p.config.Threads), "-max_pixels", strconv.FormatInt(p.config.MaxPixels, 10), "-protocol_whitelist", "file", "-format_whitelist", inputFormats, "-codec_whitelist", inputCodecs, "-probesize", "8388608", "-analyzeduration", "5000000", "-max_streams", strconv.Itoa(maxMediaStreams)}
 }
 func (p *Processor) invoke(ctx context.Context, path string, args []string) (process.Result, error) {
 	return process.Run(ctx, process.Command{Path: path, Args: args, Env: []string{"AV_LOG_FORCE_NOCOLOR=1", "LC_ALL=C"}}, process.DefaultLimits())
@@ -171,7 +178,9 @@ func (p *Processor) Probe(ctx context.Context, path string) (Info, error) {
 	ctx, cancel := context.WithTimeout(ctx, p.config.ProbeTimeout)
 	defer cancel()
 	args := append([]string{"-v", "error"}, p.inputArgs()...)
-	args = append(args, "-show_entries", "format=format_name,duration:format_tags=major_brand:stream=index,codec_name,codec_type,width,height,duration_ts,time_base,duration,sample_aspect_ratio,color_transfer:stream_disposition=default,attached_pic:stream_side_data=rotation", "-of", "json", path)
+	// Probing can open one decoder per HEIF tile; avoid a thread pool per tile.
+	args = append(args, "-threads", "1")
+	args = append(args, "-show_entries", "format=format_name,duration:format_tags=major_brand:stream=id,index,codec_name,codec_type,width,height,duration_ts,time_base,duration,sample_aspect_ratio,color_transfer:stream_disposition=default,attached_pic,dependent:stream_side_data=rotation:stream_group=index,id,nb_streams,type:stream_group_components:stream_group_disposition=default,attached_pic:stream_group_stream=index", "-of", "json", path)
 	result, err := p.invoke(ctx, p.config.FFprobe, args)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -181,23 +190,37 @@ func (p *Processor) Probe(ctx context.Context, path string) (Info, error) {
 		if strings.Contains(string(result.Stderr), "Codec") && strings.Contains(string(result.Stderr), "whitelist") {
 			cause = ErrUnsupportedCodec
 		}
-		if result.StdoutTruncated || strings.Contains(string(result.Stderr), "max_pixels") {
+		if result.StdoutTruncated || strings.Contains(string(result.Stderr), "max_pixels") || strings.Contains(string(result.Stderr), "max_streams") {
 			cause = ErrResourceLimit
 		}
 		return Info{}, fmt.Errorf("%w: %s", cause, result.Stderr)
 	}
 	var document probeDocument
-	if json.Unmarshal(result.Stdout, &document) != nil || len(document.Streams) > 16 {
+	if json.Unmarshal(result.Stdout, &document) != nil || len(document.Streams) > maxMediaStreams || len(document.Groups) > maxMediaStreams {
 		return Info{}, ErrInvalidMedia
 	}
 	var video, audio *probeStream
 	for i := range document.Streams {
 		stream := &document.Streams[i]
-		if stream.Type == "video" && stream.Disposition.Attached == 0 && (video == nil || (stream.Disposition.Default != 0 && video.Disposition.Default == 0)) {
+		if stream.Type == "video" && stream.Disposition.Attached == 0 && stream.Disposition.Dependent == 0 && (video == nil || (stream.Disposition.Default != 0 && video.Disposition.Default == 0)) {
 			video = stream
 		}
 		if stream.Type == "audio" && (audio == nil || (stream.Disposition.Default != 0 && audio.Disposition.Default == 0)) {
 			audio = stream
+		}
+	}
+	var group *probeGroup
+	for i := range document.Groups {
+		candidate := &document.Groups[i]
+		if candidate.Type == "Tile Grid" && candidate.Disposition.Attached == 0 && (group == nil || (candidate.Disposition.Default != 0 && group.Disposition.Default == 0)) {
+			group = candidate
+		}
+	}
+	var grid *tileGrid
+	if group != nil && (video == nil || (group.Disposition.Default != 0 && video.Disposition.Default == 0)) {
+		grid, video, err = p.readGrid(document, *group)
+		if err != nil {
+			return Info{}, err
 		}
 	}
 	if video == nil {
@@ -207,7 +230,11 @@ func (p *Processor) Probe(ctx context.Context, path string) (Info, error) {
 		return Info{}, ErrResourceLimit
 	}
 	info := Info{Kind: domain.Video, ContentType: "video/mp4", VideoCodec: video.Codec, Width: video.Width, Height: video.Height, VideoIndex: video.Index, AudioIndex: -1, SampleAspectRatio: video.SAR}
-	imageTypes := map[string]string{"jpeg_pipe": "image/jpeg", "png_pipe": "image/png", "webp_pipe": "image/webp", "gif": "image/gif", "gif_pipe": "image/gif", "apng": "image/apng", "bmp_pipe": "image/bmp", "tiff_pipe": "image/tiff"}
+	if grid != nil {
+		info.grid = grid
+		info.Width, info.Height = grid.Width, grid.Height
+	}
+	imageTypes := map[string]string{"jpeg_pipe": "image/jpeg", "png_pipe": "image/png", "webp_pipe": "image/webp", "gif": "image/gif", "gif_pipe": "image/gif", "apng": "image/png", "bmp_pipe": "image/bmp", "tiff_pipe": "image/tiff"}
 	if mime := imageTypes[document.Format.Name]; mime != "" {
 		info.Kind = domain.Image
 		info.ContentType = mime
@@ -220,6 +247,29 @@ func (p *Processor) Probe(ctx context.Context, path string) (Info, error) {
 		info.Kind = domain.Image
 		info.ContentType = "image/heic"
 	}
+	if grid != nil && info.Kind != domain.Image {
+		return Info{}, ErrUnsupportedMedia
+	}
+	var properties []isoBox
+	if grid != nil || info.ContentType == "image/heic" {
+		id := video.ID
+		if grid != nil {
+			id = group.ID
+		}
+		var auxiliary bool
+		properties, auxiliary, err = heifProperties(path, id)
+		if err != nil {
+			return Info{}, err
+		}
+		if info.ContentType == "image/heic" {
+			if auxiliary || video.Transfer == "smpte2084" || video.Transfer == "arib-std-b67" {
+				return Info{}, ErrUnsupportedCodec
+			}
+			if err := heifConversionProfile(properties); err != nil {
+				return Info{}, err
+			}
+		}
+	}
 	for _, side := range video.SideData {
 		if side.Rotation != "" {
 			angle, err := strconv.ParseInt(string(side.Rotation), 10, 64)
@@ -227,6 +277,12 @@ func (p *Processor) Probe(ctx context.Context, path string) (Info, error) {
 				return Info{}, ErrUnsupportedCodec
 			}
 			info.Rotation = ((angle % 360) + 360) % 360
+		}
+	}
+	if grid != nil {
+		info.grid.Transforms, info.Rotation, err = gridTransforms(properties)
+		if err != nil {
+			return Info{}, err
 		}
 	}
 	if audio != nil {
@@ -246,6 +302,53 @@ func (p *Processor) Probe(ctx context.Context, path string) (Info, error) {
 		}
 		if err != nil {
 			return Info{}, err
+		}
+	}
+	if info.ContentType == "image/jpeg" {
+		return p.jpegOrientation(ctx, path, info)
+	}
+	return info, nil
+}
+
+// JPEG EXIF transforms are frame side data, absent from stream_side_data.
+// A rotation alone cannot represent mirrored orientations; Prepare bakes all
+// non-normal EXIF transforms into pixels, then checks the cleared output.
+func (p *Processor) jpegOrientation(ctx context.Context, path string, info Info) (Info, error) {
+	args := append([]string{"-v", "error"}, p.inputArgs()...)
+	args = append(args, "-read_intervals", "%+#1", "-show_entries", "frame_tags=Orientation:frame_side_data=rotation", "-of", "json", path)
+	result, err := p.invoke(ctx, p.config.FFprobe, args)
+	if err != nil {
+		if ctx.Err() != nil {
+			return Info{}, ctx.Err()
+		}
+		return Info{}, fmt.Errorf("%w: %s", ErrInvalidMedia, result.Stderr)
+	}
+	var document struct {
+		Frames []struct {
+			Tags     map[string]string `json:"tags"`
+			SideData []struct {
+				Rotation json.Number `json:"rotation"`
+			} `json:"side_data_list"`
+		} `json:"frames"`
+	}
+	if json.Unmarshal(result.Stdout, &document) != nil || len(document.Frames) != 1 {
+		return Info{}, ErrInvalidMedia
+	}
+	frame := document.Frames[0]
+	if text := strings.TrimSpace(frame.Tags["Orientation"]); text != "" {
+		orientation, err := strconv.Atoi(text)
+		if err != nil || orientation < 1 || orientation > 8 {
+			return Info{}, ErrUnsupportedCodec
+		}
+		info.bakeOrientation = orientation != 1
+	}
+	for _, side := range frame.SideData {
+		if side.Rotation != "" {
+			angle, err := strconv.ParseInt(string(side.Rotation), 10, 64)
+			if err != nil || angle%90 != 0 {
+				return Info{}, ErrUnsupportedCodec
+			}
+			info.Rotation = ((angle % 360) + 360) % 360
 		}
 	}
 	return info, nil

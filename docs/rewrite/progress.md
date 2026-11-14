@@ -36,6 +36,8 @@ No release, migration of real data, or production-readiness claim has been made.
 - Task 5 started: one bounded Linux process supervisor now runs FFmpeg/ffprobe;
   local scratch probe, full decode, photo passthrough/conversion and H264/AAC
   video preparation pass actual fixtures on host and the pinned runtime image.
+  The photo corpus now also covers all eight JPEG EXIF transforms, animated
+  PNG/GIF, single/tiled HEIC/AVIF and primary group rotation/mirroring.
   This file processor is not yet the durable worker or complete media matrix.
 - Next: broaden the camera/codec/orientation matrix, then worker/scratch lifecycle,
   poster execution, media HTTP streaming and application runtime wiring.
@@ -428,6 +430,53 @@ aspect/VFR, HDR/color and >4K remain explicit gates. Current odd video/HDR profi
 rejection is documented; it is not a completed media compatibility claim.
 Disk reservation/507, durable scratch/process recovery, one job runner, poster,
 media/upload/system HTTP routes, startup pairing and Tasks 6–9 are still open.
+
+### Whole-photo, animation and orientation regression evidence
+
+The generated HEIC corpus reproduced a real loss of pixels: selecting stream 0
+published a 64x64 tile from a 128x96 primary. A 24-tile image also exceeded the
+old 16-stream cap. Probe now selects the primary group, resolves group-relative
+stream indices, validates coded/visible canvas and full nonoverlapping coverage,
+and applies the pixel bound to the whole canvas. Conversion assembles all tiles
+before exact cropping; AVIF preserves original bytes after every selected tile
+decodes. Native tests check all four source colors, not only dimensions. A damaged
+last AVIF tile is rejected even though the first tile and metadata remain usable.
+
+FFprobe 8 does not expose a group's coded transform side data. A bounded local
+ISO metadata reader (4 MiB, 4096 boxes) resolves the selected item's associations,
+including wide IDs and property indices, and preserves transform order. Actual
+grid primary rotation and both mirror axes pass pixel assertions. An initially
+incorrect mirror-axis expectation was corrected from pinned FFmpeg/libheif source
+and an independent libheif decode: imir=0 exchanges top/bottom, imir=1 left/right.
+Synthetic fixtures, generator, provenance and byte hashes are checked in; runtime
+tests embed them. libheif encoders/decoder were installed on the host only for
+fixture generation/cross-checking, with no runtime image dependency or user media.
+
+JPEG EXIF orientation is frame metadata, absent from the original stream probe.
+All eight variants now pass expected displayed dimensions and corner colors;
+normal JPEG remains byte-identical, other orientations normalize to PNG with
+rotation/mirroring baked into pixels. A second regression showed APNG becoming
+one static PNG frame. Animated PNG now retains image/png bytes after full decode,
+and native GIF/APNG fixtures verify animation-preserving identity.
+
+HEIC alpha and HDR fixtures reproduced silent transparency/color loss. Those
+unimplemented conversion profiles now return unsupported_codec with retained
+input and no output; ICC conversion, clean-aperture/scaling and overlapping
+overlays remain unaccepted. This is an explicit current profile, not evidence
+that the broad camera/color matrix or the complete rewrite has been accepted.
+
+Fresh scripts/check (generation, formatting, vet, ordinary/race suites),
+scripts/check-media (host native/race), and scripts/check-media-image all passed.
+The exact new native arm64 media-check image is
+`sha256:2620ba09e88dde497c19bf8da0064971d2d3c469d829a928e027c0714be7b043`;
+both test binaries ran nonroot with read-only root/no external network/bounded
+scratch and their containers were removed. A three-second metadata fuzz run
+completed 54,426 inputs with two workers without a failure. Checked-in corpus
+hashes passed verification. No runnable rewritten server/SPA image exists yet.
+
+Worker/scratch recovery and disk admission, poster/media/deletion runtime,
+persistent startup pairing, wider aspect/VFR/color/>4K/browser checks, UI,
+offline migration/restore and final release integration remain open.
 
 ## Independent review
 

@@ -20,7 +20,17 @@ type Prepared struct {
 
 func (p *Processor) decode(ctx context.Context, path string, info Info) error {
 	args := append([]string{"-hide_banner", "-v", "error", "-nostdin", "-xerror", "-max_error_rate", "0", "-filter_threads", "1", "-filter_complex_threads", "1", "-err_detect", "explode"}, p.inputArgs()...)
-	args = append(args, "-i", path, "-map", "0:"+strconv.Itoa(info.VideoIndex))
+	if info.grid != nil {
+		args = append(args, "-threads", "1")
+	}
+	args = append(args, "-i", path)
+	if info.grid != nil {
+		for _, tile := range info.grid.Tiles {
+			args = append(args, "-map", "0:"+strconv.Itoa(tile.Index))
+		}
+	} else {
+		args = append(args, "-map", "0:"+strconv.Itoa(info.VideoIndex))
+	}
 	if info.Kind == domain.Video && info.AudioIndex >= 0 {
 		args = append(args, "-map", "0:"+strconv.Itoa(info.AudioIndex))
 	}
@@ -63,7 +73,7 @@ func (p *Processor) Prepare(ctx context.Context, input, output string) (prepared
 		}
 	}()
 	mime := info.ContentType
-	passthrough := info.Kind == domain.Image && (mime == "image/jpeg" || mime == "image/png" || mime == "image/webp" || mime == "image/gif" || mime == "image/avif")
+	passthrough := info.Kind == domain.Image && !info.bakeOrientation && (mime == "image/jpeg" || mime == "image/png" || mime == "image/webp" || mime == "image/gif" || mime == "image/avif")
 	if passthrough {
 		if err = p.decode(ctx, input, info); err != nil {
 			return prepared, err
@@ -90,7 +100,16 @@ func (p *Processor) Prepare(ctx context.Context, input, output string) (prepared
 			return prepared, ErrUnsupportedCodec
 		}
 		args := append([]string{"-hide_banner", "-v", "error", "-nostdin", "-y", "-xerror", "-max_error_rate", "0", "-filter_threads", "1", "-filter_complex_threads", "1", "-err_detect", "explode"}, p.inputArgs()...)
-		args = append(args, "-i", input, "-map", "0:"+strconv.Itoa(info.VideoIndex))
+		if info.grid != nil {
+			// Do not create a decoder thread pool for every tile.
+			args = append(args, "-threads", "1")
+		}
+		args = append(args, "-i", input)
+		if info.grid != nil {
+			args = append(args, "-filter_complex", info.grid.filter(), "-map", "[primary]")
+		} else {
+			args = append(args, "-map", "0:"+strconv.Itoa(info.VideoIndex))
+		}
 		if info.Kind == domain.Video {
 			if info.AudioIndex >= 0 {
 				args = append(args, "-map", "0:"+strconv.Itoa(info.AudioIndex))

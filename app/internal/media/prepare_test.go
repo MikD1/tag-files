@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"image/jpeg"
+	"image/png"
 	"os"
 	"path/filepath"
 	"testing"
@@ -164,4 +167,99 @@ func TestNativePhotoAtExactConfiguredOutputLimitRemainsValid(t *testing.T) {
 	if err != nil || prepared.Output.Size != stat.Size() {
 		t.Fatalf("inclusive output bound rejected intact media: %+v %v", prepared, err)
 	}
+}
+
+func TestNativeAnimatedPNGAndGIFPreserveEveryFrame(t *testing.T) {
+	p := nativeProcessor(t)
+	for _, format := range []string{"apng", "gif"} {
+		t.Run(format, func(t *testing.T) {
+			input := filepath.Join(t.TempDir(), "animated."+format)
+			fixtureFFmpeg(t, "-f", "lavfi", "-i", "testsrc=size=32x24:rate=5:duration=0.6", "-f", format, input)
+			output := filepath.Join(t.TempDir(), "primary")
+			prepared, err := p.Prepare(context.Background(), input, output)
+			if err != nil {
+				t.Fatal(err)
+			}
+			before, err := os.ReadFile(input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			after, err := os.ReadFile(output)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(before, after) || prepared.Output.Kind != domain.Image || prepared.Output.Width != 32 || prepared.Output.Height != 24 {
+				t.Fatalf("animated photo was flattened or changed: %+v", prepared.Output)
+			}
+		})
+	}
+}
+
+func TestNativeJPEGExifOrientationAndMirroringKeepDisplayPixels(t *testing.T) {
+	p := nativeProcessor(t)
+	// Corner order is top-left, top-right, bottom-left, bottom-right after
+	// applying the EXIF orientation, derived from the four source quadrants.
+	for _, tc := range []struct {
+		orientation   byte
+		width, height int
+		corners       [4]int
+	}{
+		{1, 128, 96, [4]int{0, 1, 2, 3}}, {2, 128, 96, [4]int{1, 0, 3, 2}},
+		{3, 128, 96, [4]int{3, 2, 1, 0}}, {4, 128, 96, [4]int{2, 3, 0, 1}},
+		{5, 96, 128, [4]int{0, 2, 1, 3}}, {6, 96, 128, [4]int{2, 0, 3, 1}},
+		{7, 96, 128, [4]int{3, 1, 2, 0}}, {8, 96, 128, [4]int{1, 3, 0, 2}},
+	} {
+		t.Run(string(rune('0'+tc.orientation)), func(t *testing.T) {
+			input := jpegExifFixture(t, tc.orientation)
+			output := filepath.Join(t.TempDir(), "primary")
+			prepared, err := p.Prepare(context.Background(), input, output)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if prepared.Output.Width != int64(tc.width) || prepared.Output.Height != int64(tc.height) || prepared.Output.Rotation != 0 {
+				t.Fatalf("wrong displayed photo shape: %+v", prepared.Output)
+			}
+			if tc.orientation == 1 {
+				original, _ := os.ReadFile(input)
+				actual, _ := os.ReadFile(output)
+				if !bytes.Equal(original, actual) {
+					t.Fatal("normal JPEG was needlessly re-encoded")
+				}
+			} else {
+				if prepared.Output.ContentType != "image/png" {
+					t.Fatal("oriented JPEG was not normalized for consistent display/preview")
+				}
+				assertCorners(t, output, tc.width, tc.height, tc.corners)
+			}
+		})
+	}
+}
+
+func jpegExifFixture(t *testing.T, orientation byte) string {
+	t.Helper()
+	source, err := heifFixtures.ReadFile("testdata/quadrants.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := png.Decode(bytes.NewReader(source))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var encoded bytes.Buffer
+	if err := jpeg.Encode(&encoded, img, &jpeg.Options{Quality: 95}); err != nil {
+		t.Fatal(err)
+	}
+	// Minimal little-endian TIFF IFD with one SHORT Orientation entry.
+	exif := []byte{'E', 'x', 'i', 'f', 0, 0, 'I', 'I', 42, 0, 8, 0, 0, 0, 1, 0, 0x12, 1, 3, 0, 1, 0, 0, 0, orientation, 0, 0, 0, 0, 0, 0, 0}
+	var photo bytes.Buffer
+	photo.Write(encoded.Bytes()[:2])
+	photo.Write([]byte{255, 225})
+	binary.Write(&photo, binary.BigEndian, uint16(len(exif)+2))
+	photo.Write(exif)
+	photo.Write(encoded.Bytes()[2:])
+	path := filepath.Join(t.TempDir(), "photo.jpg")
+	if err := os.WriteFile(path, photo.Bytes(), 0600); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
