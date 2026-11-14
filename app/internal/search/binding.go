@@ -220,8 +220,8 @@ func Render(e *Expr, tags []NamedTag) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var render func(*Expr) (string, error)
-	render = func(e *Expr) (string, error) {
+	var render func(*Expr, int) (string, error)
+	render = func(e *Expr, parentPrecedence int) (string, error) {
 		switch e.Op {
 		case All:
 			return "", nil
@@ -254,11 +254,15 @@ func Render(e *Expr, tags []NamedTag) (string, error) {
 			}
 			return text, nil
 		case And, Or:
-			left, err := render(e.Left)
+			precedence := 2
+			if e.Op == Or {
+				precedence = 1
+			}
+			left, err := render(e.Left, precedence)
 			if err != nil {
 				return "", err
 			}
-			right, err := render(e.Right)
+			right, err := render(e.Right, precedence)
 			if err != nil {
 				return "", err
 			}
@@ -266,9 +270,13 @@ func Render(e *Expr, tags []NamedTag) (string, error) {
 			if e.Op == Or {
 				op = " || "
 			}
-			return "(" + left + op + right + ")", nil
+			text := left + op + right
+			if precedence < parentPrecedence {
+				text = "(" + text + ")"
+			}
+			return text, nil
 		}
 		panic("validated operator")
 	}
-	return render(e)
+	return render(e, 0)
 }

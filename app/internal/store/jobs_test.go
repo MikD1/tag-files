@@ -33,14 +33,19 @@ func TestJobReclaimFencesStaleWorkerAndCommitsAtomically(t *testing.T) {
 	if _, err := s.ClaimJob(ctx, now.Add(time.Second), time.Minute); !errors.Is(err, sql.ErrNoRows) {
 		t.Fatalf("double claim: %v", err)
 	}
-	reclaimed, err := s.ClaimJob(ctx, now.Add(time.Minute), time.Minute)
+	firstExpiry, err := time.Parse("2006-01-02T15:04:05.0000000Z", first.LeaseUntil.String)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reclaimAt := firstExpiry.Add(time.Millisecond)
+	reclaimed, err := s.ClaimJob(ctx, reclaimAt, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if reclaimed.Attempt != 2 || reclaimed.LeaseGeneration != 2 {
 		t.Fatalf("reclaim: %+v", reclaimed)
 	}
-	later := now.Add(time.Minute + time.Second)
+	later := reclaimAt.Add(time.Second)
 	if err := s.HeartbeatJob(ctx, first.ID, first.LeaseGeneration, later, time.Minute); !errors.Is(err, ErrLeaseLost) {
 		t.Fatalf("stale heartbeat: %v", err)
 	}
@@ -150,7 +155,7 @@ func TestJobLeaseValidationAndHeartbeat(t *testing.T) {
 	if _, err := s.ClaimJob(ctx, now.Add(61*time.Second), time.Minute); !errors.Is(err, sql.ErrNoRows) {
 		t.Fatalf("heartbeat not durable: %v", err)
 	}
-	if err := s.CommitJob(ctx, job.ID, job.LeaseGeneration, now.Add(90*time.Second), func(*sql.Tx) error { return nil }); !errors.Is(err, ErrLeaseLost) {
+	if err := s.CommitJob(ctx, job.ID, job.LeaseGeneration, now.Add(91*time.Second), func(*sql.Tx) error { return nil }); !errors.Is(err, ErrLeaseLost) {
 		t.Fatalf("expired lease committed: %v", err)
 	}
 }

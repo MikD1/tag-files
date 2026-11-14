@@ -8,6 +8,8 @@ package dbgen
 import (
 	"context"
 	"database/sql"
+
+	"github.com/mikd1/tag-files/app/internal/domain"
 )
 
 const claimJob = `-- name: ClaimJob :one
@@ -55,7 +57,7 @@ VALUES(?,?,?,?,?,?,?) RETURNING id, type, subject_id, dedupe_key, payload_json, 
 
 type CreateJobParams struct {
 	ID            string
-	Type          string
+	Type          domain.JobKind
 	SubjectID     string
 	DedupeKey     string
 	PayloadJson   string
@@ -117,7 +119,7 @@ WHERE id=?4 AND lease_generation=?5 AND state='running' AND lease_until>?6
 `
 
 type FailLeasedJobParams struct {
-	State         string
+	State         domain.JobState
 	NextAttemptAt string
 	ErrorCode     sql.NullString
 	ID            string

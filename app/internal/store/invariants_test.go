@@ -2,6 +2,8 @@ package store
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -50,6 +52,34 @@ func TestInitialInstallRecoversIfInterruptedAfterGooseVersionTable(t *testing.T)
 	var n int
 	if err := s.Reader().QueryRow(`SELECT count(*) FROM library_meta`).Scan(&n); err != nil || n != 1 {
 		t.Fatalf("install not recovered: %d %v", n, err)
+	}
+}
+
+func TestUnknownVersionCannotMasqueradeAsEmptyInstall(t *testing.T) {
+	for _, gooseTable := range []bool{false, true} {
+		t.Run(fmt.Sprint(gooseTable), func(t *testing.T) {
+			dir := t.TempDir()
+			db, err := sql.Open("sqlite3", filepath.Join(dir, "library.sqlite"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(`PRAGMA user_version=999`); err != nil {
+				t.Fatal(err)
+			}
+			if gooseTable {
+				if _, err := db.Exec(`CREATE TABLE goose_db_version(id INTEGER PRIMARY KEY,version_id INTEGER,is_applied INTEGER);INSERT INTO goose_db_version VALUES(1,0,1)`); err != nil {
+					t.Fatal(err)
+				}
+			}
+			db.Close()
+			opened, err := Open(ctx, dir)
+			if opened != nil {
+				opened.Close()
+			}
+			if !errors.Is(err, ErrIncompatibleLibrary) {
+				t.Fatalf("unknown schema initialized: %v", err)
+			}
+		})
 	}
 }
 

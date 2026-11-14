@@ -9,3 +9,14 @@ sql:
         out: internal/store/dbgen
         emit_empty_slices: true
         emit_interface: true
+        overrides:
+          - column: items.state
+            go_type: {import: github.com/mikd1/tag-files/app/internal/domain, type: ItemState}
+          - column: assets.state
+            go_type: {import: github.com/mikd1/tag-files/app/internal/domain, type: AssetState}
+          - column: upload_sessions.state
+            go_type: {import: github.com/mikd1/tag-files/app/internal/domain, type: SessionState}
+          - column: jobs.type
+            go_type: {import: github.com/mikd1/tag-files/app/internal/domain, type: JobKind}
+          - column: jobs.state
+            go_type: {import: github.com/mikd1/tag-files/app/internal/domain, type: JobState}

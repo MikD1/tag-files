@@ -6,6 +6,8 @@ package dbgen
 
 import (
 	"database/sql"
+
+	"github.com/mikd1/tag-files/app/internal/domain"
 )
 
 type Asset struct {
@@ -25,7 +27,7 @@ type Asset struct {
 	Rotation        sql.NullInt64
 	Provenance      string
 	ProfileVersion  sql.NullString
-	State           string
+	State           domain.AssetState
 }
 
 type CleanupReceipt struct {
@@ -58,7 +60,7 @@ type Item struct {
 	LastViewAtUtc  sql.NullString
 	DurationTicks  sql.NullInt64
 	PrimaryAssetID sql.NullString
-	State          string
+	State          domain.ItemState
 	Version        int64
 }
 
@@ -69,11 +71,11 @@ type ItemTag struct {
 
 type Job struct {
 	ID              string
-	Type            string
+	Type            domain.JobKind
 	SubjectID       string
 	DedupeKey       string
 	PayloadJson     string
-	State           string
+	State           domain.JobState
 	Attempt         int64
 	NextAttemptAt   string
 	LeaseUntil      sql.NullString
@@ -150,7 +152,7 @@ type UploadSession struct {
 	CompletionManifest sql.NullString
 	SourceSha256       sql.NullString
 	CollectionID       sql.NullInt64
-	State              string
+	State              domain.SessionState
 	Generation         int64
 	Version            int64
 	ErrorCode          sql.NullString

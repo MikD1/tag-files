@@ -34,6 +34,8 @@ var (
 var migrationFiles embed.FS
 
 type Store struct {
+	lifecycle sync.RWMutex
+	closed    bool
 	directory string
 	writer    *sql.DB
 	reader    *sql.DB
@@ -142,17 +144,27 @@ func preflight(ctx context.Context, path string) error {
 		return err
 	}
 	defer db.Close()
+	var version, format, schema, history int
+	if err = db.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&version); err != nil {
+		return err
+	}
+	if version < 0 || version > SchemaVersion {
+		return ErrIncompatibleLibrary
+	}
 	var tables int
 	if err = db.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%'`).Scan(&tables); err != nil {
 		return err
 	}
 	if tables == 0 {
-		return nil
+		if version == 0 {
+			return nil
+		}
+		return ErrIncompatibleLibrary
 	}
 	// Goose may have committed its version table before a crash during the
 	// very first migration. Only an otherwise empty version-zero DB is safe
 	// to resume as an install; it contains no user library to reinterpret.
-	if tables == 1 {
+	if tables == 1 && version == 0 {
 		var table string
 		if err = db.QueryRowContext(ctx, `SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%'`).Scan(&table); err != nil {
 			return err
@@ -166,10 +178,6 @@ func preflight(ctx context.Context, path string) error {
 				return nil
 			}
 		}
-	}
-	var version, format, schema, history int
-	if err = db.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&version); err != nil {
-		return err
 	}
 	if version < 1 || version > SchemaVersion {
 		return ErrIncompatibleLibrary
@@ -192,6 +200,11 @@ func (s *Store) Reader() *sql.DB { return s.reader }
 // Write always begins IMMEDIATE on the sole writer connection. The callback
 // must do only SQLite work: network IO and subprocesses belong outside it.
 func (s *Store) Write(ctx context.Context, fn func(*sql.Tx) error) error {
+	s.lifecycle.RLock()
+	defer s.lifecycle.RUnlock()
+	if s.closed {
+		return sql.ErrConnDone
+	}
 	tx, err := s.writer.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -205,6 +218,9 @@ func (s *Store) Write(ctx context.Context, fn func(*sql.Tx) error) error {
 
 func (s *Store) Close() error {
 	s.closeOnce.Do(func() {
+		s.lifecycle.Lock()
+		defer s.lifecycle.Unlock()
+		s.closed = true
 		if s.reader != nil {
 			s.closeErr = errors.Join(s.closeErr, s.reader.Close())
 		}

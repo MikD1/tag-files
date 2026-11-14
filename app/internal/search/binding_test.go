@@ -71,7 +71,7 @@ func TestCreateExpandsMatchingGroupsButRenameDoesNotRebind(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if text != "(x && !x)" {
+	if text != "x && !x" {
 		t.Fatal(text)
 	}
 	if len(e.Right.Term.IDs) != 0 {
@@ -99,6 +99,20 @@ func TestCreateExpandsMatchingGroupsButRenameDoesNotRebind(t *testing.T) {
 	}
 	if ValidationState(expanded) != "valid" {
 		t.Fatal("create did not resolve warning")
+	}
+}
+
+func TestRenderedFlatQueriesRemainWithinParserNestingLimit(t *testing.T) {
+	e, err := Bind(parse(t, strings.Repeat("cat && ", MaxTerms-1)+"cat"), []NamedTag{{1, "cat"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text, err := Render(e, []NamedTag{{1, "dog"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Parse(text); err != nil {
+		t.Fatalf("rendered query is not editable: %v", err)
 	}
 }
 

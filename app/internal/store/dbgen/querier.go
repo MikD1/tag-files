@@ -10,15 +10,42 @@ import (
 )
 
 type Querier interface {
+	AddItemTag(ctx context.Context, arg AddItemTagParams) error
 	AdvanceSearchGeneration(ctx context.Context) error
+	BumpItemVersion(ctx context.Context, id int64) (int64, error)
 	ClaimJob(ctx context.Context, arg ClaimJobParams) (Job, error)
+	ClearCollectionItems(ctx context.Context, collectionID sql.NullInt64) error
+	ClearCollectionUploads(ctx context.Context, collectionID sql.NullInt64) error
+	ClearItemTags(ctx context.Context, itemID int64) error
+	CreateCollection(ctx context.Context, name string) (Collection, error)
 	CreateJob(ctx context.Context, arg CreateJobParams) (Job, error)
+	CreateSavedSearch(ctx context.Context, arg CreateSavedSearchParams) (SavedSearch, error)
+	CreateTag(ctx context.Context, name string) (Tag, error)
+	DeleteCollection(ctx context.Context, arg DeleteCollectionParams) (int64, error)
 	DeleteLeasedJob(ctx context.Context, arg DeleteLeasedJobParams) (int64, error)
+	DeleteSavedSearch(ctx context.Context, arg DeleteSavedSearchParams) (int64, error)
 	FailLeasedJob(ctx context.Context, arg FailLeasedJobParams) (int64, error)
 	FindReadyItemByUpload(ctx context.Context, uploadID sql.NullString) (Item, error)
+	GetCollection(ctx context.Context, id int64) (Collection, error)
+	GetItem(ctx context.Context, id int64) (Item, error)
+	GetItemPoster(ctx context.Context, itemID sql.NullInt64) (string, error)
+	GetItemTags(ctx context.Context, itemID int64) ([]Tag, error)
 	GetLeasedJob(ctx context.Context, arg GetLeasedJobParams) (Job, error)
 	GetLibraryMeta(ctx context.Context) (LibraryMetum, error)
+	GetSavedSearch(ctx context.Context, id int64) (SavedSearch, error)
+	GetTag(ctx context.Context, id int64) (Tag, error)
+	GlobalTagStatistics(ctx context.Context) ([]GlobalTagStatisticsRow, error)
 	HeartbeatJob(ctx context.Context, arg HeartbeatJobParams) (int64, error)
+	IncrementView(ctx context.Context, arg IncrementViewParams) (int64, error)
+	InsertViewEvent(ctx context.Context, arg InsertViewEventParams) (int64, error)
+	ListCollections(ctx context.Context) ([]ListCollectionsRow, error)
+	ListSavedSearches(ctx context.Context) ([]SavedSearch, error)
+	ListTags(ctx context.Context) ([]Tag, error)
+	RenameCollection(ctx context.Context, arg RenameCollectionParams) (Collection, error)
+	RenameTag(ctx context.Context, arg RenameTagParams) (Tag, error)
+	SetFavorite(ctx context.Context, arg SetFavoriteParams) (int64, error)
+	SetItemCollection(ctx context.Context, arg SetItemCollectionParams) (int64, error)
+	UpdateSavedSearch(ctx context.Context, arg UpdateSavedSearchParams) (SavedSearch, error)
 }
 
 var _ Querier = (*Queries)(nil)
