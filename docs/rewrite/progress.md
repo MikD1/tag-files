@@ -23,10 +23,12 @@ No release, migration of real data, or production-readiness claim has been made.
   Its arm64 runtime tests pass; an amd64 image is built but not executed here.
   Durable ingestion metadata now persists whole batches, one MPU identity and
   immutable part bindings. Schema 2 adds independent external-write intents and
-  a bounded epoch-bound I/O manager. Streaming/coordinator/publication and application/
-  Compose admission wiring remain open.
-- Next: streamed part forwarding/reconciliation, drain and frozen completion
-  manifest, verified queued input, candidate publication and cleanup.
+  a bounded epoch-bound I/O manager. The coordinator now streams immutable parts,
+  reconciles acknowledgements, drains before freezing a completion manifest and
+  queues fully verified incoming bytes. Candidate publication, cancellation,
+  cleanup and application/Compose admission wiring remain open.
+- Next: permanent cancellation/cleanup fences, uncertain-write recovery,
+  duplicate owned MPU reconciliation and fenced candidate publication.
   No executable application/SPA image exists yet.
 
 ## Decisions
@@ -227,6 +229,38 @@ checks the versioned manifest identity and copies the caller's mutable slice,
 then requires the adapter's full incoming verification. Controlled-peer tests
 prove these boundaries with real SDK/SQLite, and fresh `scripts/check` passes
 including race checks. Actual native ingestion wiring is still next.
+
+Ingestion coordinator now joins durable sessions with typed I/O dispatch.
+Create inventories only the exact owned incoming key; a lost response adopts
+that MPU without repeating Create or discarding its uncertain intent. Empty
+listings do not settle unknown writers. Concurrent initialization dispatches
+only one Create. Part binding and write intent commit together before the
+nonseekable stream; acknowledgement updates are generation/state fenced, and
+the SQL writer remains free during storage I/O. Refresh reconciles ListParts
+only against prior bindings, rejects unbound/size/checksum mismatches and resets
+missing acknowledgements without changing byte identity.
+
+Complete closes SQL admission before draining known writers through their
+acknowledgement, reconciles parts, and freezes a versioned ordered manifest
+before forwarding. Missing parts reopen admission with bindings intact. Each
+successful response requires HEAD and full GET/part/full-file hashes before the
+atomic source-hash/queued/job transaction. Retry of a frozen manifest verifies
+the same incoming bytes; InvalidPart cannot rebuild it from another listing.
+Tests cover lost replies, corrupt 200 responses, concurrent admission, failed
+job insertion rollback, generation changes and parent removal during full GET.
+Matching read recovery can queue work but retains uncertain writers independently.
+
+Fresh `scripts/check` passes (generation/gofmt/vet/ordinary/race); additional
+concurrent-Create race coverage passes. The actual arm64 production image test
+passes under race detection (32.593s, 31.58s scenario): lost Create and part
+responses, exact MPU adoption, rejected wrong digest/body, ListParts recovery
+without SHA, storage SIGKILL/restart with retained parts and new boot epoch,
+lost Complete response recovered by full source hash, SQLite close/reopen and
+stable queued job identity. Test containers/volumes are removed. This is the
+coordinator layer, not HTTP/browser or media publication acceptance. Multiple
+owned MPUs currently return a preserved conflict pending cleanup reconciliation;
+uncertain-intent recovery after a barrier, cancel/ready/cleanup, startup pairing,
+and HTTP wiring remain unfinished. No age-based retirement was introduced.
 
 ## Independent review
 

@@ -55,6 +55,22 @@ that the old storage lifetime cannot accept another request; a different epoch
 alone does not establish success/failure. Persistent library/storage pairing and
 the owned single-volume topology are prerequisites for that epoch proof.
 
+New incoming keys are `incoming/<library UUID>/<upload UUID>/source`. The
+session's opaque S3 MPU identity is attached once. After closing admission and
+draining known writers, `completion_manifest` stores
+`{"version":1,"parts":[{"partNumber":1,"size":7,"etag":"opaque","sha256":"base64 SHA-256"}]}`.
+Entries are contiguous, ordered and carry each immutable size/digest binding;
+the ETag is a multipart selector. The manifest is never replaced after freezing.
+Its canonical identity SHA in a Complete write intent is distinct from the
+full incoming SHA stored in `source_sha256` after HEAD/full GET verification.
+The same transaction changes the session to queued and inserts the unique
+`ingest/<upload UUID>` job. Its payload is
+`{"version":1,"uploadId":"upload UUID","generation":1}`; that generation must
+still match when a worker publishes. Repeated Complete returns the existing
+queued/processing/failed or ready outcome; cancelled/missing sessions are not
+recreated. Lost write replies retain independent intents even when a separate
+full-read reconciliation permits the queued transition.
+
 The complete S3 keys, raw JSON payload schemas and external manifest contracts
 will be documented with their implementing stages; this file does not claim
 that storage, ingestion, migration, restore or UI gates have passed.

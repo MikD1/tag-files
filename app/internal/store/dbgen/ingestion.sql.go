@@ -51,6 +51,64 @@ func (q *Queries) BindUploadPart(ctx context.Context, arg BindUploadPartParams) 
 	return err
 }
 
+const bumpUploadVersion = `-- name: BumpUploadVersion :exec
+UPDATE upload_sessions SET version=version+1 WHERE id=?
+`
+
+func (q *Queries) BumpUploadVersion(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, bumpUploadVersion, id)
+	return err
+}
+
+const closeUploadAdmission = `-- name: CloseUploadAdmission :exec
+UPDATE upload_sessions SET state='completing',version=version+1
+WHERE id=? AND state='receiving'
+`
+
+func (q *Queries) CloseUploadAdmission(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, closeUploadAdmission, id)
+	return err
+}
+
+const confirmUploadPart = `-- name: ConfirmUploadPart :exec
+UPDATE upload_parts SET etag=?,state='confirmed' WHERE session_id=? AND part_number=?
+`
+
+type ConfirmUploadPartParams struct {
+	Etag       sql.NullString
+	SessionID  string
+	PartNumber int64
+}
+
+func (q *Queries) ConfirmUploadPart(ctx context.Context, arg ConfirmUploadPartParams) error {
+	_, err := q.db.ExecContext(ctx, confirmUploadPart, arg.Etag, arg.SessionID, arg.PartNumber)
+	return err
+}
+
+const countUploadCompleteIntents = `-- name: CountUploadCompleteIntents :one
+SELECT COUNT(*) FROM object_write_intents
+WHERE target_kind='upload' AND target_id=? AND operation='complete_mpu'
+`
+
+func (q *Queries) CountUploadCompleteIntents(ctx context.Context, targetID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUploadCompleteIntents, targetID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countUploadCreateIntents = `-- name: CountUploadCreateIntents :one
+SELECT COUNT(*) FROM object_write_intents
+WHERE target_kind='upload' AND target_id=? AND operation='create_mpu'
+`
+
+func (q *Queries) CountUploadCreateIntents(ctx context.Context, targetID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUploadCreateIntents, targetID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createUploadSession = `-- name: CreateUploadSession :one
 INSERT INTO upload_sessions(id,batch_id,client_file_id,client_filename,fingerprint,
  expected_size,part_size,part_count,incoming_key,collection_id,state,created_at_utc)
@@ -107,6 +165,20 @@ func (q *Queries) CreateUploadSession(ctx context.Context, arg CreateUploadSessi
 		&i.CreatedAtUtc,
 	)
 	return i, err
+}
+
+const freezeUploadManifest = `-- name: FreezeUploadManifest :exec
+UPDATE upload_sessions SET completion_manifest=?,version=version+1 WHERE id=?
+`
+
+type FreezeUploadManifestParams struct {
+	CompletionManifest sql.NullString
+	ID                 string
+}
+
+func (q *Queries) FreezeUploadManifest(ctx context.Context, arg FreezeUploadManifestParams) error {
+	_, err := q.db.ExecContext(ctx, freezeUploadManifest, arg.CompletionManifest, arg.ID)
+	return err
 }
 
 const getIngestionJob = `-- name: GetIngestionJob :one
@@ -265,4 +337,42 @@ func (q *Queries) ListUploadSessions(ctx context.Context) ([]UploadSession, erro
 		return nil, err
 	}
 	return items, nil
+}
+
+const queueVerifiedUpload = `-- name: QueueVerifiedUpload :exec
+UPDATE upload_sessions SET source_sha256=?,state='queued',version=version+1,error_code=NULL WHERE id=?
+`
+
+type QueueVerifiedUploadParams struct {
+	SourceSha256 sql.NullString
+	ID           string
+}
+
+func (q *Queries) QueueVerifiedUpload(ctx context.Context, arg QueueVerifiedUploadParams) error {
+	_, err := q.db.ExecContext(ctx, queueVerifiedUpload, arg.SourceSha256, arg.ID)
+	return err
+}
+
+const reopenUploadAdmission = `-- name: ReopenUploadAdmission :exec
+UPDATE upload_sessions SET state='receiving',version=version+1
+WHERE id=? AND state='completing' AND completion_manifest IS NULL
+`
+
+func (q *Queries) ReopenUploadAdmission(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, reopenUploadAdmission, id)
+	return err
+}
+
+const resetUploadPartConfirmation = `-- name: ResetUploadPartConfirmation :exec
+UPDATE upload_parts SET etag=NULL,state='bound' WHERE session_id=? AND part_number=?
+`
+
+type ResetUploadPartConfirmationParams struct {
+	SessionID  string
+	PartNumber int64
+}
+
+func (q *Queries) ResetUploadPartConfirmation(ctx context.Context, arg ResetUploadPartConfirmationParams) error {
+	_, err := q.db.ExecContext(ctx, resetUploadPartConfirmation, arg.SessionID, arg.PartNumber)
+	return err
 }

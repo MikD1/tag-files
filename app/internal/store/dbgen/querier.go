@@ -15,10 +15,15 @@ type Querier interface {
 	AttachUploadMultipart(ctx context.Context, arg AttachUploadMultipartParams) (int64, error)
 	BindUploadPart(ctx context.Context, arg BindUploadPartParams) error
 	BumpItemVersion(ctx context.Context, id int64) (int64, error)
+	BumpUploadVersion(ctx context.Context, id string) error
 	ClaimJob(ctx context.Context, arg ClaimJobParams) (Job, error)
 	ClearCollectionItems(ctx context.Context, collectionID sql.NullInt64) error
 	ClearCollectionUploads(ctx context.Context, collectionID sql.NullInt64) error
 	ClearItemTags(ctx context.Context, itemID int64) error
+	CloseUploadAdmission(ctx context.Context, id string) error
+	ConfirmUploadPart(ctx context.Context, arg ConfirmUploadPartParams) error
+	CountUploadCompleteIntents(ctx context.Context, targetID string) (int64, error)
+	CountUploadCreateIntents(ctx context.Context, targetID string) (int64, error)
 	CreateCollection(ctx context.Context, name string) (Collection, error)
 	CreateJob(ctx context.Context, arg CreateJobParams) (Job, error)
 	CreateNavigationContext(ctx context.Context, arg CreateNavigationContextParams) error
@@ -33,6 +38,7 @@ type Querier interface {
 	DeleteSettledObjectWrite(ctx context.Context, arg DeleteSettledObjectWriteParams) (int64, error)
 	FailLeasedJob(ctx context.Context, arg FailLeasedJobParams) (int64, error)
 	FindReadyItemByUpload(ctx context.Context, uploadID sql.NullString) (Item, error)
+	FreezeUploadManifest(ctx context.Context, arg FreezeUploadManifestParams) error
 	GetCollection(ctx context.Context, id int64) (Collection, error)
 	GetCollectionSummary(ctx context.Context, id int64) (GetCollectionSummaryRow, error)
 	GetIngestionJob(ctx context.Context, dedupeKey string) (Job, error)
@@ -62,8 +68,11 @@ type Querier interface {
 	MarkObjectWriteUncertain(ctx context.Context, arg MarkObjectWriteUncertainParams) (int64, error)
 	PruneNavigationContexts(ctx context.Context, expiresAt string) (int64, error)
 	PruneOperations(ctx context.Context, expiresAt string) (int64, error)
+	QueueVerifiedUpload(ctx context.Context, arg QueueVerifiedUploadParams) error
 	RenameCollection(ctx context.Context, arg RenameCollectionParams) (Collection, error)
 	RenameTag(ctx context.Context, arg RenameTagParams) (Tag, error)
+	ReopenUploadAdmission(ctx context.Context, id string) error
+	ResetUploadPartConfirmation(ctx context.Context, arg ResetUploadPartConfirmationParams) error
 	SetFavorite(ctx context.Context, arg SetFavoriteParams) (int64, error)
 	SetItemCollection(ctx context.Context, arg SetItemCollectionParams) (int64, error)
 	UpdateSavedSearch(ctx context.Context, arg UpdateSavedSearchParams) (SavedSearch, error)
