@@ -55,9 +55,6 @@ func prepare(session ingestion.Session) func(*sql.Tx) (objectio.Request, error) 
 		return objectio.Request{TargetKind: "upload", TargetID: session.ID, Generation: 1, Operation: objectio.CreateMPU, Key: session.IncomingKey, Arguments: objectio.Arguments{Size: 7, ContentType: "application/octet-stream"}}, nil
 	}
 }
-func work(c *objectstore.Client, r objectio.Request) (string, error) {
-	return c.CreateMultipart(ctx, r.Key, r.Arguments.ContentType, nil)
-}
 func count(t *testing.T, db *store.Store) int {
 	t.Helper()
 	var count int
@@ -106,7 +103,7 @@ func TestIntentCommitsBeforeS3AndDrainsThroughMetadataWithoutHoldingWriter(t *te
 	}
 	done := make(chan error, 1)
 	go func() {
-		_, err := objectio.Run(ctx, m, prepare(session), work, func(id string) error {
+		_, err := m.CreateMultipart(ctx, prepare(session), func(id string) error {
 			return db.Write(ctx, func(tx *sql.Tx) error { return ingestion.AttachMultipart(ctx, tx, session.ID, 1, id) })
 		})
 		done <- err
@@ -124,7 +121,7 @@ func TestIntentCommitsBeforeS3AndDrainsThroughMetadataWithoutHoldingWriter(t *te
 		t.Errorf("known write was not drained: %v", err)
 	}
 	cancel()
-	_, err = objectio.Run(ctx, m, prepare(session), work, func(string) error { return nil })
+	_, err = m.CreateMultipart(ctx, prepare(session), func(string) error { return nil })
 	if !errors.Is(err, objectio.ErrBusy) || count(t, db) != 1 {
 		t.Errorf("capacity admitted an extra request: %v", err)
 	}
@@ -165,7 +162,7 @@ func TestUnknownResultSurvivesParentDeletionAndNeedsEpochBarrierBeforeReconcile(
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = objectio.Run(ctx, m, prepare(session), work, func(string) error { t.Error("unknown result reached metadata"); return nil })
+	_, err = m.CreateMultipart(ctx, prepare(session), func(string) error { t.Error("unknown result reached metadata"); return nil })
 	if err == nil || count(t, db) != 1 {
 		t.Fatal("unknown accepted write was forgotten")
 	}
@@ -177,17 +174,17 @@ func TestUnknownResultSurvivesParentDeletionAndNeedsEpochBarrierBeforeReconcile(
 		t.Fatalf("independent unknown work: %+v %v", records, err)
 	}
 	called := false
-	err = m.ReconcileAfterRestart(ctx, records[0], func(*objectstore.Client, objectio.Intent) error { called = true; return nil })
+	err = m.ReconcileAfterRestart(ctx, records[0], func(objectio.ReconciliationClient, objectio.Intent) error { called = true; return nil })
 	if !errors.Is(err, objectio.ErrUnsettled) || called || count(t, db) != 1 {
 		t.Fatal("same-epoch listing/age substituted for settlement proof")
 	}
 	epoch.Store(epochTwo)
 	reconcileFailure := errors.New("owned result still needs reconciliation")
-	err = m.ReconcileAfterRestart(ctx, records[0], func(*objectstore.Client, objectio.Intent) error { return reconcileFailure })
+	err = m.ReconcileAfterRestart(ctx, records[0], func(objectio.ReconciliationClient, objectio.Intent) error { return reconcileFailure })
 	if !errors.Is(err, reconcileFailure) || count(t, db) != 1 {
 		t.Fatal("epoch change erased unreconciled work")
 	}
-	err = m.ReconcileAfterRestart(ctx, records[0], func(c *objectstore.Client, intent objectio.Intent) error {
+	err = m.ReconcileAfterRestart(ctx, records[0], func(c objectio.ReconciliationClient, intent objectio.Intent) error {
 		if intent.TargetID != session.ID || intent.Key != session.IncomingKey || count(t, db) != 1 {
 			t.Error("lost reconciliation context")
 		}
@@ -212,7 +209,7 @@ func TestMetadataAcknowledgementDoesNotConsumeTheSettlementDeadline(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = objectio.Run(ctx, m, prepare(session), work, func(id string) error {
+	_, err = m.CreateMultipart(ctx, prepare(session), func(id string) error {
 		// A metadata writer can be delayed after the network call has ended.
 		time.Sleep(5100 * time.Millisecond)
 		return db.Write(ctx, func(tx *sql.Tx) error { return ingestion.AttachMultipart(ctx, tx, session.ID, 1, id) })
@@ -241,7 +238,7 @@ VALUES(?,?,'upload',?,1,'create_mpu',?,?,'{"size":7,"contentType":"application/o
 		t.Fatal(err)
 	}
 	called := false
-	err = m.ReconcileAfterRestart(ctx, objectio.Intent{ID: id}, func(*objectstore.Client, objectio.Intent) error { called = true; return nil })
+	err = m.ReconcileAfterRestart(ctx, objectio.Intent{ID: id}, func(objectio.ReconciliationClient, objectio.Intent) error { called = true; return nil })
 	if !errors.Is(err, objectio.ErrUnsettled) || called || count(t, db) != 1 {
 		t.Fatalf("same UUID treated as a storage restart: %v", err)
 	}
@@ -262,7 +259,7 @@ VALUES(?,?,'upload',?,1,'create_mpu',?,?,99,'{"future":"preserve"}','uncertain',
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = m.ReconcileAfterRestart(ctx, objectio.Intent{ID: id}, func(*objectstore.Client, objectio.Intent) error {
+	err = m.ReconcileAfterRestart(ctx, objectio.Intent{ID: id}, func(objectio.ReconciliationClient, objectio.Intent) error {
 		t.Error("unknown payload reached domain cleanup")
 		return nil
 	})
@@ -288,7 +285,7 @@ func TestExplicitEpochRejectionIsSettledWithoutApplyingMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = objectio.Run(ctx, m, prepare(session), work, func(string) error { t.Error("rejected write reached metadata"); return nil })
+	_, err = m.CreateMultipart(ctx, prepare(session), func(string) error { t.Error("rejected write reached metadata"); return nil })
 	var wire *objectstore.Error
 	if !errors.As(err, &wire) || wire.Code != "StorageEpochChanged" || count(t, db) != 0 {
 		t.Fatalf("explicit rejection retained as uncertain work: %v", err)
@@ -311,7 +308,7 @@ func TestKnownSuccessCanSettleAfterCallerCancellation(t *testing.T) {
 	}
 	requestCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	_, err = objectio.Run(requestCtx, m, prepare(session), work, func(id string) error {
+	_, err = m.CreateMultipart(requestCtx, prepare(session), func(id string) error {
 		cancel()
 		return db.Write(requestCtx, func(tx *sql.Tx) error { return ingestion.AttachMultipart(requestCtx, tx, session.ID, 1, id) })
 	})
@@ -333,14 +330,14 @@ func TestInvalidIntentRollsBackItsDomainPreparationBeforeForwarding(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = objectio.Run(ctx, m, func(tx *sql.Tx) (objectio.Request, error) {
+	_, err = m.CreateMultipart(ctx, func(tx *sql.Tx) (objectio.Request, error) {
 		if _, err := tx.Exec("INSERT INTO tags(name) VALUES('must roll back')"); err != nil {
 			return objectio.Request{}, err
 		}
 		r, err := prepare(session)(tx)
 		r.Generation = 0
 		return r, err
-	}, work, func(string) error { t.Error("invalid write applied metadata"); return nil })
+	}, func(string) error { t.Error("invalid write applied metadata"); return nil })
 	var tags int
 	if readErr := db.Reader().QueryRow("SELECT COUNT(*) FROM tags").Scan(&tags); readErr != nil {
 		t.Fatal(readErr)

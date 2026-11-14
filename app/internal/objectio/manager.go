@@ -64,14 +64,14 @@ func (m *Manager) finish(id string) {
 	}
 }
 
-// Run admits one synchronous write plus verification reads. prepare does only
+// run admits one synchronous write plus verification reads. prepare does only
 // domain SQL: it checks ownership/generation and binds bytes in the same commit
 // as the intent. work must use the provided epoch-bound client/request outside
 // SQL. work must propagate the write RPC's error: matching bytes do not prove
 // an earlier accepted writer has stopped. Ambiguous-result recovery is separate
 // and leaves the uncertain intent intact until settlement proof. commit owns
 // the fenced metadata transaction after verified success.
-func Run[T any](ctx context.Context, m *Manager, prepare func(*sql.Tx) (Request, error), work func(*objectstore.Client, Request) (T, error), commit func(T) error) (result T, err error) {
+func run[T any](ctx context.Context, m *Manager, prepare func(*sql.Tx) (Request, error), work func(*objectstore.Client, Request) (T, error), commit func(T) error) (result T, err error) {
 	if err = m.acquire(ctx); err != nil {
 		return result, err
 	}
@@ -196,7 +196,7 @@ func (m *Manager) List(ctx context.Context, after string, limit int) ([]Intent, 
 // An epoch change proves no future acceptance, not the earlier write's outcome.
 // reconcile may read results and abort/delete fenced owned resources; new data
 // writes require their own Run/intents after this callback returns.
-func (m *Manager) ReconcileAfterRestart(ctx context.Context, previous Intent, reconcile func(*objectstore.Client, Intent) error) error {
+func (m *Manager) ReconcileAfterRestart(ctx context.Context, previous Intent, reconcile func(ReconciliationClient, Intent) error) error {
 	if err := m.acquire(ctx); err != nil {
 		return err
 	}

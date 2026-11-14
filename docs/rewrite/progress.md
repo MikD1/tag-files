@@ -217,6 +217,17 @@ not consuming the later settlement deadline. Explicit epoch refusal is not
 archived as uncertain work. This manager is not yet wired to actual ingestion;
 native session/part/complete/candidate/cancel/cleanup scenarios remain open.
 
+Typed I/O dispatch now owns the actual Create/UploadPart/Complete/Put calls.
+Callbacks cannot replace dispatch or rebind the read/reconciliation interface.
+`Put` propagates a lost response without looking at an older matching object;
+that intent stays uncertain. Successful Put requires full GET/hash before its
+metadata callback; corrupt returned bytes never reach it. UploadPart forwards
+the committed tuple/checksum and waits for a verified acknowledgement. Complete
+checks the versioned manifest identity and copies the caller's mutable slice,
+then requires the adapter's full incoming verification. Controlled-peer tests
+prove these boundaries with real SDK/SQLite, and fresh `scripts/check` passes
+including race checks. Actual native ingestion wiring is still next.
+
 ## Independent review
 
 The requesting-code-review skill was used for read-only foundation/organization
