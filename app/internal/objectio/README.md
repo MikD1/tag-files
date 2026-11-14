@@ -50,5 +50,7 @@ ordering, failure boundaries and verification. Native ingestion tests also use t
 actual owned image for lost responses, storage SIGKILL/restart, verified queuing
 and independent cancellation cleanup. Active-session recovery also validates old
 requests against their immutable MPU/part/frozen manifest and records extra owned
-MPUs for separate cleanup. Media publication/process/scratch work, runtime startup
+MPUs for separate cleanup. The primary candidate/ready path also uses typed Put,
+full hash verification and independent intent reconciliation after session removal.
+Actual media probing/conversion, poster/process/scratch work, runtime startup
 pairing and API wiring remain open.

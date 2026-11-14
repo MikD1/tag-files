@@ -28,6 +28,8 @@ type Asset struct {
 	Provenance      string
 	ProfileVersion  sql.NullString
 	State           domain.AssetState
+	MediaKind       sql.NullString
+	DurationTicks   sql.NullInt64
 }
 
 type CleanupReceipt struct {

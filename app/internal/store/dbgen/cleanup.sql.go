@@ -161,7 +161,7 @@ func (q *Queries) FindDuplicateMultipartReceipt(ctx context.Context, arg FindDup
 }
 
 const getCleanupAsset = `-- name: GetCleanupAsset :one
-SELECT id, item_id, upload_id, job_id, lease_generation, role, bucket, object_key, size_bytes, sha256, content_type, width, height, rotation, provenance, profile_version, state FROM assets WHERE id=?
+SELECT id, item_id, upload_id, job_id, lease_generation, role, bucket, object_key, size_bytes, sha256, content_type, width, height, rotation, provenance, profile_version, state, media_kind, duration_ticks FROM assets WHERE id=?
 `
 
 func (q *Queries) GetCleanupAsset(ctx context.Context, id string) (Asset, error) {
@@ -185,6 +185,8 @@ func (q *Queries) GetCleanupAsset(ctx context.Context, id string) (Asset, error)
 		&i.Provenance,
 		&i.ProfileVersion,
 		&i.State,
+		&i.MediaKind,
+		&i.DurationTicks,
 	)
 	return i, err
 }
@@ -236,7 +238,7 @@ func (q *Queries) GetCleanupReceipt(ctx context.Context, id string) (CleanupRece
 }
 
 const listUnpublishedUploadAssets = `-- name: ListUnpublishedUploadAssets :many
-SELECT id, item_id, upload_id, job_id, lease_generation, role, bucket, object_key, size_bytes, sha256, content_type, width, height, rotation, provenance, profile_version, state FROM assets WHERE upload_id=? AND item_id IS NULL ORDER BY id
+SELECT id, item_id, upload_id, job_id, lease_generation, role, bucket, object_key, size_bytes, sha256, content_type, width, height, rotation, provenance, profile_version, state, media_kind, duration_ticks FROM assets WHERE upload_id=? AND item_id IS NULL ORDER BY id
 `
 
 func (q *Queries) ListUnpublishedUploadAssets(ctx context.Context, uploadID sql.NullString) ([]Asset, error) {
@@ -266,6 +268,8 @@ func (q *Queries) ListUnpublishedUploadAssets(ctx context.Context, uploadID sql.
 			&i.Provenance,
 			&i.ProfileVersion,
 			&i.State,
+			&i.MediaKind,
+			&i.DurationTicks,
 		); err != nil {
 			return nil, err
 		}

@@ -2,8 +2,8 @@
 
 This describes the new runtime foundation, not a completed importer or release.
 The authoritative DDL is the numbered history in `app/internal/store/migrations`.
-The external format version remains 1; current SQLite schema version is 2.
-Known schema 1 upgrades atomically without changing the library identity/data.
+The external format version remains 1; current SQLite schema version is 3.
+Known schema 1/2 upgrades atomically without changing the library identity/data.
 
 App data contains `library.sqlite`, its WAL/SHM when present, and `.library.lock`.
 The application holds an OS advisory exclusive lock for its entire lifetime.
@@ -91,6 +91,27 @@ receipt payload/dedupe key as cancellation work; it aborts only the recorded
 extra ID and never deletes the incoming object. Repeated inventory reuses the
 receipt for that upload/extra ID. These records are working cleanup, removed
 with their job after verified absence, and may outlive the visible session.
+
+Schema 3 adds nullable `assets.media_kind` and `assets.duration_ticks` for a
+durable candidate output descriptor; existing asset rows retain NULL values.
+The new primary factory stores Image/Video, exact nullable integer ticks,
+dimensions/rotation/content type and immutable expected size/SHA before PUT.
+Descriptor fields cannot be updated. Every allocation gets a new UUID and key
+`primary/<library UUID>/<asset UUID>/media.<canonical extension>`, bound to the
+ingest job and its lease generation. A different conversion/lease never shares
+that key. Verification and publication recheck current job/session fences.
+
+Ready publication requires a fully verified candidate. One leased transaction
+creates the item/primary link, advances library generation, removes session/parts/
+ingest job, and adds independent source/unused-candidate cleanup plus poster work.
+Cleanup reason `ready` uses the cancellation payload plus `readyItemId` and
+`primaryAssetId`; the published asset is excluded from candidate cleanup. It may
+retire source/unused candidates after the permanent session/job fence and verified
+removal, while preserving a ready primary and its independently uncertain PUT.
+Poster job dedupe is `poster/<primary UUID>/poster-v1`; its payload is
+`{"version":1,"itemId":1,"primaryAssetId":"UUID","profile":"poster-v1"}`.
+Poster failure never recreates an upload. Published-primary write intents can be
+reconciled after session deletion against their immutable asset and full hash.
 
 The complete S3 keys, raw JSON payload schemas and external manifest contracts
 will be documented with their implementing stages; this file does not claim

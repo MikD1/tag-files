@@ -12,6 +12,7 @@ import (
 type Querier interface {
 	AddItemTag(ctx context.Context, arg AddItemTagParams) error
 	AdvanceSearchGeneration(ctx context.Context) error
+	AttachPublishedPrimary(ctx context.Context, arg AttachPublishedPrimaryParams) error
 	AttachUploadMultipart(ctx context.Context, arg AttachUploadMultipartParams) (int64, error)
 	BindUploadPart(ctx context.Context, arg BindUploadPartParams) error
 	BumpItemVersion(ctx context.Context, id int64) (int64, error)
@@ -32,6 +33,8 @@ type Querier interface {
 	CreateNavigationContext(ctx context.Context, arg CreateNavigationContextParams) error
 	CreateObjectWriteIntent(ctx context.Context, arg CreateObjectWriteIntentParams) (ObjectWriteIntent, error)
 	CreateOperation(ctx context.Context, arg CreateOperationParams) error
+	CreatePrimaryCandidate(ctx context.Context, arg CreatePrimaryCandidateParams) (Asset, error)
+	CreatePublishedItem(ctx context.Context, arg CreatePublishedItemParams) (Item, error)
 	CreateSavedSearch(ctx context.Context, arg CreateSavedSearchParams) (SavedSearch, error)
 	CreateTag(ctx context.Context, name string) (Tag, error)
 	CreateUploadSession(ctx context.Context, arg CreateUploadSessionParams) (UploadSession, error)
@@ -79,7 +82,10 @@ type Querier interface {
 	ListUnpublishedUploadAssets(ctx context.Context, uploadID sql.NullString) ([]Asset, error)
 	ListUploadParts(ctx context.Context, sessionID string) ([]UploadPart, error)
 	ListUploadSessions(ctx context.Context) ([]UploadSession, error)
+	MarkItemReady(ctx context.Context, arg MarkItemReadyParams) error
 	MarkObjectWriteUncertain(ctx context.Context, arg MarkObjectWriteUncertainParams) (int64, error)
+	MarkPrimaryVerified(ctx context.Context, id string) error
+	MarkUploadProcessing(ctx context.Context, id string) error
 	PruneNavigationContexts(ctx context.Context, expiresAt string) (int64, error)
 	PruneOperations(ctx context.Context, expiresAt string) (int64, error)
 	QueueVerifiedUpload(ctx context.Context, arg QueueVerifiedUploadParams) error

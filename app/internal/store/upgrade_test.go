@@ -55,10 +55,10 @@ VALUES('11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222
 	if err := s.Reader().QueryRow("SELECT library_id,schema_version FROM library_meta").Scan(&got, &schema); err != nil {
 		t.Fatal(err)
 	}
-	if got != identity || schema != 2 {
+	if got != identity || schema != SchemaVersion {
 		t.Fatalf("upgrade identity/version: %s %d", got, schema)
 	}
-	if err := s.Reader().QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 2 {
+	if err := s.Reader().QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != SchemaVersion {
 		t.Fatalf("PRAGMA version: %d %v", version, err)
 	}
 	if err := s.Reader().QueryRow("SELECT COUNT(*) FROM tags WHERE name='猫'").Scan(&tags); err != nil || tags != 2 {
@@ -137,5 +137,65 @@ VALUES('44444444-4444-4444-8444-444444444444','55555555-5555-4555-8555-555555555
 		return err
 	}); err == nil {
 		t.Fatal("uncertain request was reused as a new attempt")
+	}
+}
+
+func TestSchemaTwoUpgradePreservesOldCandidatesAndFreezesNewOutputDescriptor(t *testing.T) {
+	directory := t.TempDir()
+	legacy, err := sql.Open("sqlite3", dsn(filepath.Join(directory, "library.sqlite"), false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := fstest.MapFS{}
+	for _, name := range []string{"00001_library.sql", "00002_object_write_intents.sql"} {
+		data, err := migrationFiles.ReadFile("migrations/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files[name] = &fstest.MapFile{Data: data}
+	}
+	provider, err := goose.NewProvider(goose.DialectSQLite3, legacy, files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := provider.Up(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := legacy.Exec(`INSERT INTO assets(id,role,bucket,object_key,size_bytes,sha256,content_type,width,height,provenance,state) VALUES('legacy-candidate','primary','tag-files','known-old-key',7,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','image/jpeg',640,480,'upload','candidate')`); err != nil {
+		t.Fatal(err)
+	}
+	legacy.Close()
+	db, err := Open(ctx, directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var kind sql.NullString
+	var ticks sql.NullInt64
+	var key string
+	if err := db.Reader().QueryRow("SELECT object_key,media_kind,duration_ticks FROM assets WHERE id='legacy-candidate'").Scan(&key, &kind, &ticks); err != nil {
+		t.Fatal(err)
+	}
+	if key != "known-old-key" || kind.Valid || ticks.Valid {
+		t.Fatal("upgrade invented old candidate media metadata")
+	}
+	err = db.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`INSERT INTO assets(id,role,bucket,object_key,size_bytes,sha256,content_type,width,height,rotation,provenance,state,media_kind,duration_ticks) VALUES('new-candidate','primary','tag-files','new-key',7,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','video/mp4',1920,1080,0,'upload','candidate','Video',9223372036854775807)`)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, change := range []string{"duration_ticks=1", "media_kind='Image'", "width=1280", "height=720", "rotation=90", "content_type='image/jpeg'"} {
+		err := db.Write(ctx, func(tx *sql.Tx) error {
+			_, err := tx.Exec("UPDATE assets SET " + change + " WHERE id='new-candidate'")
+			return err
+		})
+		if err == nil {
+			t.Fatalf("immutable output descriptor changed: %s", change)
+		}
+	}
+	if err := db.Reader().QueryRow("SELECT duration_ticks FROM assets WHERE id='new-candidate'").Scan(&ticks); err != nil || ticks.Int64 != 9223372036854775807 {
+		t.Fatal("candidate duration lost exact int64 ticks")
 	}
 }

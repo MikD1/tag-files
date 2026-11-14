@@ -38,12 +38,19 @@ func decodeCancellation(receipt dbgen.CleanupReceipt) (cancellationPlan, error) 
 	var plan cancellationPlan
 	decoder := json.NewDecoder(strings.NewReader(receipt.PayloadJson))
 	decoder.DisallowUnknownFields()
-	if receipt.PayloadVersion != 1 || receipt.Reason != "cancel" || !receipt.UploadID.Valid || decoder.Decode(&plan) != nil || !json.Valid([]byte(receipt.PayloadJson)) || plan.Version != 1 || domain.ValidateUUID(plan.LibraryID) != nil || domain.ValidateUUID(plan.UploadID) != nil || plan.UploadID != receipt.UploadID.String || plan.IncomingKey != incomingKey(plan.LibraryID, plan.UploadID) || receipt.Generation < 1 {
+	if receipt.PayloadVersion != 1 || (receipt.Reason != "cancel" && receipt.Reason != "ready") || !receipt.UploadID.Valid || decoder.Decode(&plan) != nil || !json.Valid([]byte(receipt.PayloadJson)) || plan.Version != 1 || domain.ValidateUUID(plan.LibraryID) != nil || domain.ValidateUUID(plan.UploadID) != nil || plan.UploadID != receipt.UploadID.String || plan.IncomingKey != incomingKey(plan.LibraryID, plan.UploadID) || receipt.Generation < 1 {
+		return plan, ErrIncompatibleCleanup
+	}
+	if receipt.Reason == "ready" {
+		if domain.ValidateID(plan.ReadyItemID) != nil || domain.ValidateUUID(plan.PrimaryAssetID) != nil {
+			return plan, ErrIncompatibleCleanup
+		}
+	} else if plan.ReadyItemID != 0 || plan.PrimaryAssetID != "" {
 		return plan, ErrIncompatibleCleanup
 	}
 	seen := map[string]bool{}
 	for _, asset := range plan.Candidates {
-		if domain.ValidateUUID(asset.ID) != nil || seen[asset.ID] || !cleanupKey(asset.Key) || (!strings.HasPrefix(asset.Key, "primary/"+plan.LibraryID+"/"+asset.ID+"/") && !strings.HasPrefix(asset.Key, "previews/"+plan.LibraryID+"/"+asset.ID+"/")) {
+		if domain.ValidateUUID(asset.ID) != nil || asset.ID == plan.PrimaryAssetID || seen[asset.ID] || !cleanupKey(asset.Key) || (!strings.HasPrefix(asset.Key, "primary/"+plan.LibraryID+"/"+asset.ID+"/") && !strings.HasPrefix(asset.Key, "previews/"+plan.LibraryID+"/"+asset.ID+"/")) {
 			return plan, ErrIncompatibleCleanup
 		}
 		seen[asset.ID] = true
@@ -80,11 +87,13 @@ func checkCancellationFence(ctx context.Context, q *dbgen.Queries, receipt dbgen
 		}
 		return ErrConflict
 	}
-	if _, err := q.FindReadyItemByUpload(ctx, receipt.UploadID); !errors.Is(err, sql.ErrNoRows) {
-		if err != nil {
-			return err
+	item, itemErr := q.FindReadyItemByUpload(ctx, receipt.UploadID)
+	if itemErr == nil {
+		if receipt.Reason != "ready" || item.ID != plan.ReadyItemID || item.PrimaryAssetID.String != plan.PrimaryAssetID {
+			return ErrConflict
 		}
-		return ErrConflict
+	} else if !errors.Is(itemErr, sql.ErrNoRows) {
+		return itemErr
 	}
 	if _, err := q.GetIngestionJob(ctx, "ingest/"+plan.UploadID); !errors.Is(err, sql.ErrNoRows) {
 		if err != nil {

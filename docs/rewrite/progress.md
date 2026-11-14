@@ -29,10 +29,12 @@ No release, migration of real data, or production-readiness claim has been made.
   with independent cleanup; claimed cleanup jobs reconcile owned MPU/incoming/
   candidates without retiring uncertain writers at the same epoch. Active-session
   recovery now reconciles prior Create/part/Complete intents and durably cleans
-  duplicate owned MPUs. Candidate publication and application/Compose admission
-  wiring remain open.
-- Next: fenced candidate publication and atomic ready/source-cleanup/poster work,
-  then media processing and HTTP/job-runner wiring.
+  duplicate owned MPUs. Primary candidates now persist immutable descriptors,
+  pass full object verification and publish through a leased ready transaction
+  that removes visible uploads and creates independent cleanup/poster work.
+  Media processing and application/Compose admission wiring remain open.
+- Next: real media probe/conversion, process/scratch lifecycle, poster worker,
+  media HTTP streaming and application/job-runner wiring.
   No executable application/SPA image exists yet.
 
 ## Decisions
@@ -332,6 +334,51 @@ continues lost-Complete/full-hash queuing and SQLite reopen. Fixture resources
 are removed; the production storage image code itself did not change.
 Publication, active media processes/scratch, persistent startup pairing,
 job-runner/HTTP integration and the remaining rewrite tasks are still open.
+
+Primary publication slice: schema 3 atomically upgrades existing schema 1/2
+libraries and adds nullable asset media_kind/duration_ticks. Old candidates keep
+their keys/data and receive no invented descriptor. New output descriptors
+(content type, dimensions, rotation, kind and exact int64 ticks) are immutable
+along with the prior size/hash/key invariants. The factory accepts only validated
+image/video output facts from a future media worker, persists a fresh candidate
+ID/key for every allocation/lease, and checks the current source/job generation.
+These descriptor checks do not replace decoding/probing the media itself.
+
+Primary upload first fully verifies an existing candidate; a mismatching object
+is not overwritten. A new PUT uses the durable expected size/SHA and independent
+intent, then full GET/hash before the fenced verified mark. A lost response may
+recover through a full read without another PUT, while its uncertainty remains.
+Ready publication atomically creates the item/primary link, advances library
+generation, removes the session/parts/ingest job, and creates source/unused-
+candidate cleanup and separate versioned poster work. Uploaded names are not
+retained. Complete and repeat publication resolve the existing ready item.
+
+Fault tests cover failure of cleanup/poster insertion rolling the whole ready
+transaction back, actual concurrent ready/cancel, stale leases despite clock
+rollback, and a delayed old PUT after a newer lease publishes different bytes.
+Old keys cannot replace the new primary; independent ready cleanup removes those
+unused bytes while preserving the published asset. Separate primary-intent
+reconciliation survives session removal and requires a new epoch/full expected
+hash for a published object. Exact maximum int64 video ticks come from the durable
+candidate descriptor, even if the caller later changes its original memory.
+Regressions fixed pending processing outcomes masking a failed ready commit and
+uppercase UUID spellings being validated without using their canonical value.
+The documented default upload concurrency is now two, matching the product spec.
+
+Fresh `scripts/check` passes after these changes (generation/gofmt/vet/ordinary/
+race). A real PNG native scenario passed: lost candidate PUT response, read-only
+recovery, collection-preserving ready, independent incoming cleanup that retains
+primary, pending poster work, storage SIGKILL/restart, primary intent retirement
+after full hash and SQLite reopen/ready replay (32.986s under race). The final
+combined native suite passes all three scenarios under race (96.411s total:
+32.00s active upload recovery, 31.73s cancellation, 31.66s primary/ready/cleanup).
+Fixture containers/volumes are removed. The storage image itself is unchanged.
+The final clock adjustment includes preliminary ready-lookup time in the leased
+transaction deadline. Fresh `scripts/check` passes again, and the affected native
+primary/ready/cleanup/restart case passes again (32.550s under race).
+No real media worker, FFmpeg output validation, generated poster, process/scratch
+cleanup, disk admission, media/system/upload HTTP routes or runnable SPA/app image
+is claimed here; Tasks 5–9 and final startup/pairing gates remain unfinished.
 
 ## Independent review
 

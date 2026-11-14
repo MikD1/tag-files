@@ -25,7 +25,7 @@ type Limits struct {
 }
 
 func DefaultLimits() Limits {
-	return Limits{MaxFileSize: 20 * 1024 * 1024 * 1024, PartSize: 32 * 1024 * 1024, MaxParallelTransfers: 3}
+	return Limits{MaxFileSize: 20 * 1024 * 1024 * 1024, PartSize: 32 * 1024 * 1024, MaxParallelTransfers: 2}
 }
 func (l Limits) validate() error {
 	if l.MaxFileSize < 1 || l.MaxFileSize > domain.MaxSafeInteger || l.PartSize < 5*1024*1024 || l.PartSize > 5*1024*1024*1024 || l.MaxFileSize > l.PartSize*10000 || l.MaxParallelTransfers < 1 || l.MaxParallelTransfers > 32 {

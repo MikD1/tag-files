@@ -8,6 +8,8 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"image"
+	"image/png"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -23,6 +25,7 @@ import (
 	"github.com/mikd1/tag-files/app/internal/objectio"
 	"github.com/mikd1/tag-files/app/internal/objectstore"
 	"github.com/mikd1/tag-files/app/internal/store"
+	"github.com/mikd1/tag-files/app/internal/store/dbgen"
 	"github.com/mikd1/tag-files/app/internal/testutil"
 )
 
@@ -386,5 +389,172 @@ func TestIngestionOwnedImageCancelKeepsUnknownCompleteUntilRestartReconciliation
 	mpus, err := f.client().ListMultipart(ctx, session.IncomingKey)
 	if err != nil || len(mpus) != 0 {
 		t.Fatalf("native MPU survived settled cleanup: %+v %v", mpus, err)
+	}
+}
+
+func TestIngestionOwnedImageVerifiedPrimaryReadyCleanupAndRestart(t *testing.T) {
+	f := create(t)
+	testutil.Docker(t, "", "start", f.name)
+	f.ready()
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	directory := t.TempDir()
+	db, err := store.Open(ctx, directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { db.Close() }()
+	var encoded bytes.Buffer
+	if err := png.Encode(&encoded, image.NewNRGBA(image.Rect(0, 0, 4, 3))); err != nil {
+		t.Fatal(err)
+	}
+	data := encoded.Bytes()
+	sum := sha256.Sum256(data)
+	hash := hex.EncodeToString(sum[:])
+	var batch ingestion.Batch
+	var collectionID int64
+	if err := db.Write(ctx, func(tx *sql.Tx) error {
+		collection, err := dbgen.New(tx).CreateCollection(ctx, "native publish")
+		if err != nil {
+			return err
+		}
+		collectionID = collection.ID
+		batch, err = ingestion.Create(ctx, tx, []ingestion.File{{ClientFileID: domain.NewUUID(), Filename: "input-name.png", Size: int64(len(data))}}, &collectionID, ingestion.DefaultLimits(), time.Now())
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	session := batch.Sessions[0]
+	endpoint, _ := url.Parse(f.endpoint())
+	var target atomic.Pointer[url.URL]
+	target.Store(endpoint)
+	proxy := httputil.NewSingleHostReverseProxy(endpoint)
+	proxy.Director = func(r *http.Request) { httputil.NewSingleHostReverseProxy(target.Load()).Director(r) }
+	var primaryPuts atomic.Int64
+	proxy.ModifyResponse = func(res *http.Response) error {
+		if res.Request.Method == "PUT" && strings.HasPrefix(res.Request.URL.Path, "/tag-files/primary/") {
+			if primaryPuts.Add(1) == 1 && res.StatusCode == 200 {
+				_, _ = io.Copy(io.Discard, res.Body)
+				res.Body.Close()
+				return errors.New("injected lost primary PUT response")
+			}
+		}
+		return nil
+	}
+	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, _ error) { w.WriteHeader(502) }
+	peer := httptest.NewServer(proxy)
+	defer peer.Close()
+	client, err := objectstore.New(objectstore.Config{Endpoint: peer.URL, Region: "us-east-1", Bucket: "tag-files", AccessKey: f.access, SecretKey: f.secret, HTTPClient: &http.Client{Timeout: 60 * time.Second}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err := objectio.New(db, client, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	coordinator, err := ingestion.NewCoordinator(db, manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := coordinator.EnsureMultipart(ctx, session.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := coordinator.UploadPart(ctx, session.ID, 1, ingestion.PartBinding{Number: 1, Size: int64(len(data)), SHA256: base64.StdEncoding.EncodeToString(sum[:])}, bytes.NewBuffer(data)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := coordinator.Complete(ctx, session.ID); err != nil {
+		t.Fatal(err)
+	}
+	job, err := db.ClaimJob(ctx, time.Now(), 2*time.Minute)
+	if err != nil || job.Type != domain.JobIngest {
+		t.Fatalf("claim native ingestion: %+v %v", job, err)
+	}
+	asset, err := coordinator.NewPrimary(ctx, job, ingestion.PrimaryOutput{Kind: domain.Image, ContentType: "image/png", Size: int64(len(data)), SHA256: hash, Width: 4, Height: 3}, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := coordinator.UploadPrimary(ctx, job, asset.ID, bytes.NewBuffer(data), time.Now()); err == nil {
+		t.Fatal("lost native PUT reported success")
+	}
+	verified, err := coordinator.UploadPrimary(ctx, job, asset.ID, nil, time.Now())
+	if err != nil || verified.State != domain.AssetVerified || primaryPuts.Load() != 1 {
+		t.Fatalf("native read recovery rewrote candidate: %+v %v", verified, err)
+	}
+	ready, err := coordinator.PublishPrimary(ctx, job, asset.ID, time.Now())
+	if err != nil || ready.State != "ready" || ready.ItemID < 1 {
+		t.Fatalf("native publication: %+v %v", ready, err)
+	}
+	var gotCollection int64
+	if err := db.Reader().QueryRow("SELECT collection_id FROM items WHERE id=?", ready.ItemID).Scan(&gotCollection); err != nil || gotCollection != collectionID {
+		t.Fatal("ready lost collection snapshot")
+	}
+	var cancellation ingestion.Cancellation
+	if err := db.Write(ctx, func(tx *sql.Tx) error {
+		var err error
+		cancellation, err = ingestion.Cancel(ctx, tx, session.ID, time.Now())
+		return err
+	}); err != nil || cancellation.State != "ready" || cancellation.ItemID != ready.ItemID {
+		t.Fatal("cancel removed native ready result", err)
+	}
+	cleanup, err := db.ClaimJob(ctx, time.Now(), time.Minute)
+	if err != nil || cleanup.Type != domain.JobCleanup {
+		t.Fatalf("native independent cleanup missing: %+v %v", cleanup, err)
+	}
+	if err := coordinator.ProcessCleanup(ctx, cleanup, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	var sourceError *objectstore.Error
+	if _, err := client.Head(ctx, session.IncomingKey); !errors.As(err, &sourceError) || sourceError.Status != 404 {
+		t.Fatalf("ready source was not cleaned: %v", err)
+	}
+	if _, err := client.Verify(ctx, asset.ObjectKey, asset.SizeBytes, asset.Sha256); err != nil {
+		t.Fatal("ready cleanup destroyed primary", err)
+	}
+	for _, table := range []string{"upload_sessions", "upload_parts", "cleanup_receipts"} {
+		var count int
+		if err := db.Reader().QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != 0 {
+			t.Fatalf("ready retained %s: %d %v", table, count, err)
+		}
+	}
+	var posters int
+	if err := db.Reader().QueryRow("SELECT COUNT(*) FROM jobs WHERE type='poster'").Scan(&posters); err != nil || posters != 1 {
+		t.Fatal("ready did not retain independent poster work")
+	}
+	if err := coordinator.ReconcilePrimaryWrites(ctx, asset.ID); !errors.Is(err, objectio.ErrUnsettled) {
+		t.Fatalf("same-epoch primary uncertainty retired: %v", err)
+	}
+	testutil.Docker(t, "", "kill", "--signal", "KILL", f.name)
+	testutil.Docker(t, "", "start", f.name)
+	f.ready()
+	endpoint, _ = url.Parse(f.endpoint())
+	target.Store(endpoint)
+	if err := coordinator.ReconcilePrimaryWrites(ctx, asset.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err = store.Open(ctx, directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err = objectio.New(db, client, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	coordinator, err = ingestion.NewCoordinator(db, manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := coordinator.Complete(ctx, session.ID)
+	if err != nil || outcome.State != "ready" || outcome.ItemID != ready.ItemID {
+		t.Fatalf("native ready identity lost after reopen: %+v %v", outcome, err)
+	}
+	if _, err := client.Verify(ctx, asset.ObjectKey, asset.SizeBytes, asset.Sha256); err != nil {
+		t.Fatal(err)
+	}
+	intents, err := manager.List(ctx, "", 100)
+	if err != nil || len(intents) != 0 {
+		t.Fatalf("native primary journal did not reconcile: %+v %v", intents, err)
 	}
 }

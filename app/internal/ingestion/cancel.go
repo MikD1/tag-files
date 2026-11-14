@@ -22,12 +22,14 @@ type cleanupCandidate struct {
 	Key string `json:"key"`
 }
 type cancellationPlan struct {
-	Version     int                `json:"version"`
-	LibraryID   string             `json:"libraryId"`
-	UploadID    string             `json:"uploadId"`
-	IncomingKey string             `json:"incomingKey"`
-	MultipartID string             `json:"multipartId,omitempty"`
-	Candidates  []cleanupCandidate `json:"candidates"`
+	Version        int                `json:"version"`
+	LibraryID      string             `json:"libraryId"`
+	UploadID       string             `json:"uploadId"`
+	IncomingKey    string             `json:"incomingKey"`
+	MultipartID    string             `json:"multipartId,omitempty"`
+	Candidates     []cleanupCandidate `json:"candidates"`
+	ReadyItemID    int64              `json:"readyItemId,omitempty"`
+	PrimaryAssetID string             `json:"primaryAssetId,omitempty"`
 }
 
 func incomingKey(libraryID, uploadID string) string {
