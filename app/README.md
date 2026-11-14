@@ -24,8 +24,10 @@ in and must be regenerated together through `scripts/generate`.
 
 `scripts/check` verifies generation reproducibility, formatting, vet, ordinary
 and race tests. Integration tests use real temporary SQLite libraries. They do
-not access existing media, MinIO or user databases. Storage/FFmpeg/browser/tool
-and Mac acceptance suites are still to be implemented and run.
+not access existing media, MinIO or user databases. `scripts/check-storage`
+runs the optional isolated Docker S3 conformance suite; see the
+[wire profile](internal/objectstore/README.md). Production storage preflight,
+ingestion, FFmpeg/browser/tool and Mac acceptance gates remain open.
 
 To prepare module/toolchain caches for offline checks, run the above online
 once. Go generators can then run with `GOPROXY=off` using the installed pinned

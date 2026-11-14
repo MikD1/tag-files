@@ -17,8 +17,11 @@ No release, migration of real data, or production-readiness claim has been made.
   strict JSON adapters for catalog/organization, durable operation results
   and navigation contexts. Upload/media/system handlers and the full API-only
   acceptance matrix remain open alongside Tasks 4–9.
-- Next: real pinned SeaweedFS/SDK conformance, private storage bootstrap and
-  preflight, followed by durable ingestion. No executable/SPA image exists yet.
+- Task 4 started: a direct S3 adapter has passed real pinned SeaweedFS/SDK
+  conformance, including restart and lost responses. Production private storage
+  bootstrap/preflight and all durable ingestion remain open.
+- Next: persisted storage profile validation/negative readiness, then durable
+  ingestion. No executable/SPA image exists yet.
 
 ## Decisions
 
@@ -84,6 +87,28 @@ passed for persisted order/origin, deleted-ID skipping, 24-hour expiry, saved AS
 version snapshot, seeded gallery order, explicit order, 20k bound, duplicate and
 unsafe inputs, and a percent-encoded 4096-character Unicode query URL.
 
+Task 4 wire adapter: `scripts/check-storage` passed (39.821s) with race detection
+on Linux arm64, SeaweedFS 4.53 index digest from the ADR, S3 SDK 1.114.10/root
+1.48.0/Smithy 1.28.9. The tests use disposable private named volumes, persisted
+global fsync, temporary loopback test ports and random credentials. They cover
+PUT/HEAD/full GET/hash, user metadata/Unicode keys, wrong object/part SHA256,
+anonymous and wrong-secret refusal, Range 206/416, ETag/date conditions,
+ListV2 pages, deletion replay, storage restart, single/multiple-part Complete,
+InvalidPart refusal, Abort, lost part/Complete responses and full reconciliation.
+Both ListParts and ListMultipart are exercised beyond their first 1000 entries.
+The test containers and volumes were removed; existing libraries were untouched.
+
+Seaweed 4.53 ListParts omits checksums and can return identical retry aliases.
+The adapter retains missing SHA values, collapses only equal returned records
+and refuses conflicting aliases. Complete requires the prior binding digests
+and checks them against every byte from full GET. The profile is documented in
+`app/internal/objectstore/README.md`; an ETag never supplies a content hash.
+Fault tests prove no automatic resend of a consumed nonseekable body and full
+GET/hash after a successful but corrupt Complete response. An isolated transport
+benchmark allocated about 38KB for both 8MiB and 64MiB parts; this is adapter
+allocation evidence, not a measurement of production HTTP RSS/throughput.
+The ordinary full `scripts/check` also passed with the new modules.
+
 ## Independent review
 
 The requesting-code-review skill was used for read-only foundation/organization
@@ -110,6 +135,13 @@ then corrected and verified by the focused tests and full `scripts/check`.
 The reviewer did not re-review the fixes. No outstanding findings from that
 scoped review. Further inspection also fixed the Unicode origin URL bound and
 receipt expiry sampled before waiting for the serialized writer.
+
+The same reviewer performed a separate read-only review of the objectstore
+slice and found no concrete defects. It independently passed the real S3 suite,
+vet/race tests and additional 1001-entry pagination probes. Those pagination
+cases now also have committed integration coverage. This review explicitly
+defers SQLite intents/bindings, draining/fences/cancel/crash recovery, production
+preflight, HTTP memory/admission, ENOSPC, tools and physical durability.
 
 Deferred review gates map to the still-open tasks: remaining upload/system/media
 handlers and API parity, real S3/media/poster publication, browser view lifecycle,
