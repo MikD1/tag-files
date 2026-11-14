@@ -101,6 +101,21 @@ type NavigationContext struct {
 	ExpiresAt      string
 }
 
+type ObjectWriteIntent struct {
+	ID             string
+	OwnerID        string
+	TargetKind     string
+	TargetID       string
+	Generation     int64
+	Operation      string
+	ObjectKey      string
+	StorageEpoch   string
+	PayloadVersion int64
+	PayloadJson    string
+	State          string
+	CreatedAtUtc   string
+}
+
 type OperationResult struct {
 	OperationID string
 	RequestHash string

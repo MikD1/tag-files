@@ -22,7 +22,8 @@ No release, migration of real data, or production-readiness claim has been made.
   fsync before bucket creation and a network gate after the complete preflight.
   Its arm64 runtime tests pass; an amd64 image is built but not executed here.
   Durable ingestion metadata now persists whole batches, one MPU identity and
-  immutable part bindings. Streaming/coordinator/publication and application/
+  immutable part bindings. Schema 2 adds independent external-write intents and
+  a bounded epoch-bound I/O manager. Streaming/coordinator/publication and application/
   Compose admission wiring remain open.
 - Next: streamed part forwarding/reconciliation, drain and frozen completion
   manifest, verified queued input, candidate publication and cleanup.
@@ -192,9 +193,29 @@ client unchanged. Missing/malformed/duplicate response epochs are rejected;
 unit and image regressions caught duplicate headers and proved the single-value
 fix. `scripts/check` and real `scripts/check-storage` passed again (40.201s wire,
 23.944s profile), and both image architectures cross-build; only arm64 executes
-on this host. The durable I/O journal has not yet been implemented: this fence
-must be recorded in each intent before forwarding and used with owned-result
-reconciliation, not as proof that an old write failed or succeeded.
+on this host. The fence must be recorded in each intent before forwarding and used
+with owned-result reconciliation, not as proof that an old write failed or succeeded.
+
+External-write journal foundation: a new atomic Goose schema-1-to-2 migration
+preserves the library UUID, duplicate Unicode tags, IDs, old pending/error sessions
+and full int64 ticks. Independent live/uncertain intent rows survive parent deletion
+and reopen. Owner/target/generation/key/epoch/arguments are immutable; retries create
+new records, terminal history states are refused, and no expiry exists.
+The upgrade exposed a preflight gap: a future version in an earlier Goose row
+could hide behind the latest known row. A failing existing regression was fixed;
+all history entries now participate in read-only compatibility rejection.
+
+`scripts/check` passed after the journal/manager addition: generation, vet,
+ordinary tests and race tests. Controlled HTTP-peer tests use the real SDK and
+SQLite to prove intent visibility before forwarding, a free writer during S3,
+bounded admission and drain through metadata acknowledgement. Unknown responses
+remain independent after session deletion; the same epoch cannot trigger cleanup,
+and a new epoch does not retire work until the domain reconciliation callback
+succeeds. Unknown payload versions remain untouched. Regressions also cover
+UUID case equivalence, caller cancellation and a slow metadata acknowledgement
+not consuming the later settlement deadline. Explicit epoch refusal is not
+archived as uncertain work. This manager is not yet wired to actual ingestion;
+native session/part/complete/candidate/cancel/cleanup scenarios remain open.
 
 ## Independent review
 

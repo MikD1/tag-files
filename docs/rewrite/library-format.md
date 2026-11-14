@@ -1,7 +1,9 @@
 # Implemented library format (version 1)
 
 This describes the new runtime foundation, not a completed importer or release.
-The authoritative DDL is `app/internal/store/migrations/00001_library.sql`.
+The authoritative DDL is the numbered history in `app/internal/store/migrations`.
+The external format version remains 1; current SQLite schema version is 2.
+Known schema 1 upgrades atomically without changing the library identity/data.
 
 App data contains `library.sqlite`, its WAL/SHM when present, and `.library.lock`.
 The application holds an OS advisory exclusive lock for its entire lifetime.
@@ -14,6 +16,8 @@ version must agree. `library_meta.format_version` controls external format
 compatibility; `library_id` is a persistent random UUID. Unknown/future versions
 and legacy EF databases are rejected before migrations or journal-mode writes.
 The initial migration is atomic; an interrupted empty Goose install resumes.
+Unknown version entries anywhere in Goose history are rejected, including an
+older row hidden behind a later known version.
 
 The only application writer has one connection and BEGIN IMMEDIATE. Four
 read-only/query-only connections serve readers. Each physical connection has
@@ -39,6 +43,17 @@ payloads, not cascading session FKs. Successful jobs are removed atomically
 with their result; failed jobs retain their state and are not reclaimed by age.
 Claims increment lease generations, expired workers cannot heartbeat or commit,
 and a failed publication transaction rolls back both metadata and job removal.
+
+Schema 2 adds `object_write_intents`, independent of sessions/assets via opaque
+target IDs rather than cascading FKs. Each live/uncertain write has an immutable
+owner, target/generation, operation, key, expected storage boot epoch and versioned
+operational arguments. The payload holds no file body or filename. A retry creates
+a new intent. Only inflight/uncertain states exist; completed writes are removed,
+and there is no expiry or terminal history. Codecs reject unknown payload versions
+without deleting them. Reconciliation requires owned-result checks after proof
+that the old storage lifetime cannot accept another request; a different epoch
+alone does not establish success/failure. Persistent library/storage pairing and
+the owned single-volume topology are prerequisites for that epoch proof.
 
 The complete S3 keys, raw JSON payload schemas and external manifest contracts
 will be documented with their implementing stages; this file does not claim

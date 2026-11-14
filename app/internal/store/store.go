@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	SchemaVersion     = 1
+	SchemaVersion     = 2
 	FormatVersion     = 1
 	ReaderConnections = 4
 )
@@ -187,6 +187,13 @@ func preflight(ctx context.Context, path string) error {
 	}
 	if err = db.QueryRowContext(ctx, `SELECT version_id FROM goose_db_version WHERE is_applied=1 ORDER BY id DESC LIMIT 1`).Scan(&history); err != nil {
 		return fmt.Errorf("%w: %v", ErrIncompatibleLibrary, err)
+	}
+	var unknownHistory int
+	if err = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM goose_db_version WHERE version_id<0 OR version_id>?`, SchemaVersion).Scan(&unknownHistory); err != nil {
+		return fmt.Errorf("%w: %v", ErrIncompatibleLibrary, err)
+	}
+	if unknownHistory != 0 {
+		return ErrIncompatibleLibrary
 	}
 	if format != FormatVersion || schema != version || history != version {
 		return ErrIncompatibleLibrary
