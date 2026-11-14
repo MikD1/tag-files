@@ -21,9 +21,12 @@ No release, migration of real data, or production-readiness claim has been made.
   SeaweedFS/SDK conformance. The owned storage image now has resumable bootstrap,
   fsync before bucket creation and a network gate after the complete preflight.
   Its arm64 runtime tests pass; an amd64 image is built but not executed here.
-  Durable ingestion and application/Compose admission wiring remain open.
-- Next: durable ingestion sessions, immutable bindings, completion/publication
-  and cleanup. No executable application/SPA image exists yet.
+  Durable ingestion metadata now persists whole batches, one MPU identity and
+  immutable part bindings. Streaming/coordinator/publication and application/
+  Compose admission wiring remain open.
+- Next: streamed part forwarding/reconciliation, drain and frozen completion
+  manifest, verified queued input, candidate publication and cleanup.
+  No executable application/SPA image exists yet.
 
 ## Decisions
 
@@ -163,6 +166,21 @@ cross-built successfully and its extracted supervisor is a static x86-64 ELF.
 This Docker host advertises arm64 only; amd64 execution and physical Mac/VM
 power-loss evidence remain open. Root Compose and app admission still need the
 new storage image; the legacy installation is deliberately still present.
+
+Ingestion metadata foundation: real SQLite tests pass for all-or-nothing batch
+creation, duplicate filenames with distinct canonical UUID identities, collection
+snapshot, exact UTC timestamp and owned filename-independent incoming keys.
+No processing job is created before verified incoming bytes. Invalid later
+input and an injected failure of the second SQLite insert leave no partial batch.
+The MPU identity can be attached/replayed but never replaced. Parts are bound
+before forwarding to exact persisted geometry and canonical base64 SHA-256;
+changed digest/size, wrong generation and premature writes are rejected.
+Reopen preserves these bindings, and concurrent different-digest registrations
+produce exactly one winner. Queue batches are current-session projections:
+old failures remain and empty batches disappear. Filename bounds match OpenAPI
+Unicode characters without normalization. The full `scripts/check` passes with
+this module and generated queries. These are metadata tests; no ingestion S3
+forwarding, drain/Complete, cancellation or publication handler is claimed yet.
 
 ## Independent review
 

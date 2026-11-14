@@ -12,6 +12,8 @@ import (
 type Querier interface {
 	AddItemTag(ctx context.Context, arg AddItemTagParams) error
 	AdvanceSearchGeneration(ctx context.Context) error
+	AttachUploadMultipart(ctx context.Context, arg AttachUploadMultipartParams) (int64, error)
+	BindUploadPart(ctx context.Context, arg BindUploadPartParams) error
 	BumpItemVersion(ctx context.Context, id int64) (int64, error)
 	ClaimJob(ctx context.Context, arg ClaimJobParams) (Job, error)
 	ClearCollectionItems(ctx context.Context, collectionID sql.NullInt64) error
@@ -23,6 +25,7 @@ type Querier interface {
 	CreateOperation(ctx context.Context, arg CreateOperationParams) error
 	CreateSavedSearch(ctx context.Context, arg CreateSavedSearchParams) (SavedSearch, error)
 	CreateTag(ctx context.Context, name string) (Tag, error)
+	CreateUploadSession(ctx context.Context, arg CreateUploadSessionParams) (UploadSession, error)
 	DeleteCollection(ctx context.Context, arg DeleteCollectionParams) (int64, error)
 	DeleteLeasedJob(ctx context.Context, arg DeleteLeasedJobParams) (int64, error)
 	DeleteSavedSearch(ctx context.Context, arg DeleteSavedSearchParams) (int64, error)
@@ -30,6 +33,7 @@ type Querier interface {
 	FindReadyItemByUpload(ctx context.Context, uploadID sql.NullString) (Item, error)
 	GetCollection(ctx context.Context, id int64) (Collection, error)
 	GetCollectionSummary(ctx context.Context, id int64) (GetCollectionSummaryRow, error)
+	GetIngestionJob(ctx context.Context, dedupeKey string) (Job, error)
 	GetItem(ctx context.Context, id int64) (Item, error)
 	GetItemPoster(ctx context.Context, itemID sql.NullInt64) (string, error)
 	GetItemTags(ctx context.Context, itemID int64) ([]Tag, error)
@@ -39,6 +43,8 @@ type Querier interface {
 	GetOperation(ctx context.Context, operationID string) (OperationResult, error)
 	GetSavedSearch(ctx context.Context, id int64) (SavedSearch, error)
 	GetTag(ctx context.Context, id int64) (Tag, error)
+	GetUploadPart(ctx context.Context, arg GetUploadPartParams) (UploadPart, error)
+	GetUploadSession(ctx context.Context, id string) (UploadSession, error)
 	GlobalTagStatistics(ctx context.Context) ([]GlobalTagStatisticsRow, error)
 	HeartbeatJob(ctx context.Context, arg HeartbeatJobParams) (int64, error)
 	IncrementView(ctx context.Context, arg IncrementViewParams) (int64, error)
@@ -47,6 +53,8 @@ type Querier interface {
 	ListLiveItemIDs(ctx context.Context, jsonEach interface{}) ([]int64, error)
 	ListSavedSearches(ctx context.Context) ([]SavedSearch, error)
 	ListTags(ctx context.Context) ([]Tag, error)
+	ListUploadParts(ctx context.Context, sessionID string) ([]UploadPart, error)
+	ListUploadSessions(ctx context.Context) ([]UploadSession, error)
 	PruneNavigationContexts(ctx context.Context, expiresAt string) (int64, error)
 	PruneOperations(ctx context.Context, expiresAt string) (int64, error)
 	RenameCollection(ctx context.Context, arg RenameCollectionParams) (Collection, error)
