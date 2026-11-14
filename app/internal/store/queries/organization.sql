@@ -46,6 +46,14 @@ GROUP BY c.id ORDER BY c.name COLLATE BINARY,c.id;
 -- name: GetCollection :one
 SELECT * FROM collections WHERE id=?;
 
+-- name: GetCollectionSummary :one
+SELECT c.*,(SELECT COUNT(*) FROM items i WHERE i.collection_id=c.id AND i.state='ready') AS item_count,
+ (SELECT a.id FROM items oldest LEFT JOIN assets a ON a.item_id=oldest.id
+    AND a.role='poster' AND a.state IN ('verified','published')
+  WHERE oldest.collection_id=c.id AND oldest.state='ready'
+  ORDER BY oldest.uploaded_at_utc,oldest.id LIMIT 1) AS cover_asset_id
+FROM collections c WHERE c.id=?;
+
 -- name: CreateCollection :one
 INSERT INTO collections(name) VALUES(?) RETURNING *;
 

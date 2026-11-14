@@ -7,8 +7,12 @@ trap 'rm -rf -- "$check_tmp"' EXIT
 # Compare to the working tree so a dirty generated file cannot hide behind a
 # committed baseline. Generators are pinned in their own module.
 cp -R "$project_root/app/internal/store/dbgen" "$check_tmp/dbgen"
+cp "$project_root/app/internal/httpapi/api/api.gen.go" "$check_tmp/api.gen.go"
+cp "$project_root/web/src/api/schema.d.ts" "$check_tmp/schema.d.ts"
 "$project_root/scripts/generate"
 diff -ru "$check_tmp/dbgen" "$project_root/app/internal/store/dbgen"
+diff -u "$check_tmp/api.gen.go" "$project_root/app/internal/httpapi/api/api.gen.go"
+diff -u "$check_tmp/schema.d.ts" "$project_root/web/src/api/schema.d.ts"
 cd "$project_root/app"
 unformatted=$(gofmt -l .)
 if [[ -n "$unformatted" ]]; then

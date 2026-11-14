@@ -133,6 +133,36 @@ func (q *Queries) GetCollection(ctx context.Context, id int64) (Collection, erro
 	return i, err
 }
 
+const getCollectionSummary = `-- name: GetCollectionSummary :one
+SELECT c.id, c.name, c.version,(SELECT COUNT(*) FROM items i WHERE i.collection_id=c.id AND i.state='ready') AS item_count,
+ (SELECT a.id FROM items oldest LEFT JOIN assets a ON a.item_id=oldest.id
+    AND a.role='poster' AND a.state IN ('verified','published')
+  WHERE oldest.collection_id=c.id AND oldest.state='ready'
+  ORDER BY oldest.uploaded_at_utc,oldest.id LIMIT 1) AS cover_asset_id
+FROM collections c WHERE c.id=?
+`
+
+type GetCollectionSummaryRow struct {
+	ID           int64
+	Name         string
+	Version      int64
+	ItemCount    int64
+	CoverAssetID sql.NullString
+}
+
+func (q *Queries) GetCollectionSummary(ctx context.Context, id int64) (GetCollectionSummaryRow, error) {
+	row := q.db.QueryRowContext(ctx, getCollectionSummary, id)
+	var i GetCollectionSummaryRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Version,
+		&i.ItemCount,
+		&i.CoverAssetID,
+	)
+	return i, err
+}
+
 const getSavedSearch = `-- name: GetSavedSearch :one
 SELECT id, name, query_text, legacy_source_text, query_ast_json, parser_version, media_kind, validation_state, version FROM saved_searches WHERE id=?
 `

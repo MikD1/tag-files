@@ -4,15 +4,23 @@ Implementation is in progress. Overall scope/evidence: [rewrite progress](../doc
 The legacy C#/Angular application remains in its original directories until the
 replacement passes full acceptance. This module is not a releasable app yet.
 
-Use Go 1.27.4 with CGO and a C compiler. Runtime dependencies and generators are
-separately pinned in `go.mod` and `../tools/codegen/go.mod`.
+Use Go 1.27.4 with CGO and a C compiler, plus Node 26 and npm. Runtime dependencies
+and generators are separately pinned in `go.mod`, `../tools/codegen/go.mod` and
+`../tools/codegen/package-lock.json`.
 
 From the repository root:
 
 ```sh
+npm ci --prefix tools/codegen
 scripts/generate
 scripts/check
 ```
+
+`api/openapi.yaml` owns the full HTTP contract. Go JSON adapters currently expose
+the catalog, organization, operations and navigation tags; the remaining upload,
+media and system routes are described for subsequent implementation. Binary
+handlers will bypass JSON binding. Generated Go and TypeScript files are checked
+in and must be regenerated together through `scripts/generate`.
 
 `scripts/check` verifies generation reproducibility, formatting, vet, ordinary
 and race tests. Integration tests use real temporary SQLite libraries. They do

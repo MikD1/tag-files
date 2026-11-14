@@ -57,6 +57,13 @@ func Get(ctx context.Context, db *sql.DB, id int64) (Item, error) {
 	return item, tx.Commit()
 }
 
+func GetInTx(ctx context.Context, tx *sql.Tx, id int64) (Item, error) {
+	if err := domain.ValidateID(id); err != nil {
+		return Item{}, err
+	}
+	return get(ctx, dbgen.New(tx), id)
+}
+
 func SetFavorite(ctx context.Context, tx *sql.Tx, id int64, favorite bool) error {
 	if err := domain.ValidateID(id); err != nil {
 		return err

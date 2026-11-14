@@ -155,15 +155,23 @@ func List(ctx context.Context, db *sql.DB, options ListOptions) (Page, error) {
 		return Page{}, err
 	}
 	defer tx.Rollback()
-	filter, args, err := predicate(ctx, dbgen.New(tx), o.Filter)
-	if err != nil {
-		return Page{}, err
-	}
-	page, err := selectPage(ctx, tx, filter, args, o)
+	page, err := ListInTx(ctx, tx, o)
 	if err != nil {
 		return Page{}, err
 	}
 	return page, tx.Commit()
+}
+
+func ListInTx(ctx context.Context, tx *sql.Tx, options ListOptions) (Page, error) {
+	o, err := normalize(options)
+	if err != nil {
+		return Page{}, err
+	}
+	filter, args, err := predicate(ctx, dbgen.New(tx), o.Filter)
+	if err != nil {
+		return Page{}, err
+	}
+	return selectPage(ctx, tx, filter, args, o)
 }
 
 func selectPage(ctx context.Context, tx *sql.Tx, filter string, args []any, o ListOptions) (Page, error) {
@@ -200,27 +208,15 @@ func selectPage(ctx context.Context, tx *sql.Tx, filter string, args []any, o Li
 		return p, err
 	}
 	if o.Sort == Random {
-		type ranked struct {
-			id   int64
-			hash [32]byte
-		}
-		rank := make([]ranked, len(ids))
-		for i, id := range ids {
-			input := make([]byte, len(o.Seed)+8)
-			copy(input, o.Seed)
-			binary.BigEndian.PutUint64(input[len(o.Seed):], uint64(id))
-			rank[i] = ranked{id: id, hash: sha256.Sum256(input)}
-		}
-		sort.Slice(rank, func(i, j int) bool {
-			c := bytes.Compare(rank[i].hash[:], rank[j].hash[:])
-			if c == 0 {
-				return rank[i].id < rank[j].id
+		orderRandom(ids, o.Seed)
+		if offset >= len(ids) {
+			ids = ids[:0]
+		} else {
+			end := offset + o.PageSize
+			if end > len(ids) {
+				end = len(ids)
 			}
-			return c < 0
-		})
-		ids = ids[:0]
-		for i := offset; i < len(rank) && len(ids) < o.PageSize; i++ {
-			ids = append(ids, rank[i].id)
+			ids = ids[offset:end]
 		}
 	}
 	q := dbgen.New(tx)
@@ -232,6 +228,65 @@ func selectPage(ctx context.Context, tx *sql.Tx, filter string, args []any, o Li
 		p.Items = append(p.Items, item)
 	}
 	return p, nil
+}
+
+func orderRandom(ids []int64, seed string) {
+	scores := make(map[int64][32]byte, len(ids))
+	for _, id := range ids {
+		input := make([]byte, len(seed)+8)
+		copy(input, seed)
+		binary.BigEndian.PutUint64(input[len(seed):], uint64(id))
+		scores[id] = sha256.Sum256(input)
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		a, b := scores[ids[i]], scores[ids[j]]
+		c := bytes.Compare(a[:], b[:])
+		if c == 0 {
+			return ids[i] < ids[j]
+		}
+		return c < 0
+	})
+}
+
+// Snapshot uses the caller's transaction so query binding, saved-search version
+// and order can be captured together. It rejects oversized contexts explicitly
+// and never presents a truncated context as the complete search result.
+func Snapshot(ctx context.Context, tx *sql.Tx, options ListOptions, limit int) ([]int64, string, error) {
+	if limit < 1 || limit > 20000 {
+		return nil, "", domain.Invalid("context", "Invalid snapshot limit")
+	}
+	o, err := normalize(options)
+	if err != nil {
+		return nil, "", err
+	}
+	filter, args, err := predicate(ctx, dbgen.New(tx), o.Filter)
+	if err != nil {
+		return nil, "", err
+	}
+	args = append(args, limit+1)
+	rows, err := tx.QueryContext(ctx, `SELECT i.id FROM items i WHERE `+filter+` ORDER BY `+sortSQL[o.Sort]+` LIMIT ?`, args...)
+	if err != nil {
+		return nil, "", err
+	}
+	defer rows.Close()
+	ids := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, "", err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, "", err
+	}
+	if len(ids) > limit {
+		return nil, "", domain.Invalid("context", "Navigation is limited to 20000 items; narrow the search")
+	}
+	if o.Sort == Random {
+		orderRandom(ids, o.Seed)
+	}
+	return ids, o.Seed, nil
 }
 
 func Similar(ctx context.Context, db *sql.DB, id int64, page, pageSize int) (Page, error) {

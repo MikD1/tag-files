@@ -2,12 +2,23 @@
 package domain
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 	"unicode/utf8"
 )
+
+func NewUUID() string {
+	var raw [16]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		panic(err)
+	}
+	raw[6] = (raw[6] & 0x0f) | 0x40
+	raw[8] = (raw[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", raw[:4], raw[4:6], raw[6:8], raw[8:10], raw[10:])
+}
 
 var (
 	ErrNotFound     = errors.New("resource not found")

@@ -13,9 +13,12 @@ No release, migration of real data, or production-readiness claim has been made.
 - Task 1 implemented: durable SQLite foundation and generated job queries.
 - Task 2 implemented at the application/SQL layer: search, organization CRUD,
   catalog retrieval and atomic metadata/favorite/view commands.
-- Next: Task 3, full OpenAPI contract, generated JSON adapters, durable
-  idempotency/results and navigation contexts. HTTP parity is not proved yet.
-  Tasks 3–9, including all storage/media/UI/migration/restore/release work, remain open.
+- Task 3 core implemented: full OpenAPI source, generated Go/TypeScript,
+  strict JSON adapters for catalog/organization, durable operation results
+  and navigation contexts. Upload/media/system handlers and the full API-only
+  acceptance matrix remain open alongside Tasks 4–9.
+- Next: real pinned SeaweedFS/SDK conformance, private storage bootstrap and
+  preflight, followed by durable ingestion. No executable/SPA image exists yet.
 
 ## Decisions
 
@@ -64,6 +67,23 @@ Go toolchain/modules and GOPROXY/GOSUMDB disabled.
 The environment exports GOROOT for Go 1.27.3; an offline run with the downloaded
 1.27.4 binary must unset that inherited GOROOT to avoid mixing toolchains.
 
+Current Task 3 `scripts/check` passed after the HTTP review fixes. HTTP scenarios
+validate actual responses against the generated OpenAPI schema: safe public DTOs,
+ETag/If-Match, nullable PATCH, full metadata and separate bulk APIs, atomic stale
+bulk rollback, saved-search identity through rename, UUID view deduplication,
+explicit favorite sets, pagination, Problem Details and bounded JSON bodies.
+Malformed trailing JSON/text is rejected before any metadata or receipt write.
+The source contract also validates the deferred raw part, media Range/HEAD and
+Complete operation-key boundaries; this is schema evidence, not handler evidence.
+
+Real SQLite operation tests passed for lost-response/reopen replay, concurrent
+same-key execution once, route/body conflicts, retained explicit failures with
+business rollback, unexpected-error full rollback, seven-day expiry (including
+writer wait), and pruning without deleting old failed uploads. Navigation tests
+passed for persisted order/origin, deleted-ID skipping, 24-hour expiry, saved AST
+version snapshot, seeded gallery order, explicit order, 20k bound, duplicate and
+unsafe inputs, and a percent-encoded 4096-character Unicode query URL.
+
 ## Independent review
 
 The requesting-code-review skill was used for read-only foundation/organization
@@ -82,8 +102,17 @@ inside the transaction and again before deletion, and require 16 UUID bytes.
 
 The reviewers did not re-review these fixes; regression tests and the full suite
 are the fix evidence. No outstanding findings from these two scoped reviews.
-Deferred review gates map to the still-open tasks: HTTP/status/ETags/idempotency,
-navigation snapshots, real S3/media/poster publication, browser view lifecycle,
+
+A separate HTTP reviewer found trailing JSON accepted before mutations, missing
+Complete operation-key fields in the full contract, and 422 instead of 400 for
+mixed navigation filter sources. Each was reproduced in a failing regression,
+then corrected and verified by the focused tests and full `scripts/check`.
+The reviewer did not re-review the fixes. No outstanding findings from that
+scoped review. Further inspection also fixed the Unicode origin URL bound and
+receipt expiry sampled before waiting for the serialized writer.
+
+Deferred review gates map to the still-open tasks: remaining upload/system/media
+handlers and API parity, real S3/media/poster publication, browser view lifecycle,
 event retention/performance, external tools/releases, and physical Mac durability.
 Manual arbitrary SQL corruption/repair is outside the application contract.
 

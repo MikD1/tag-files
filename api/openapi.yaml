@@ -1,0 +1,754 @@
+openapi: 3.0.3
+info:
+  title: Tag Files API
+  version: 1.0.0
+  description: Single-origin local media library. Binary endpoints bypass JSON binding.
+paths:
+  /api/v1/items:
+    get:
+      tags: [catalog]
+      operationId: listItems
+      parameters:
+        - {$ref: '#/components/parameters/Query'}
+        - {$ref: '#/components/parameters/Kind'}
+        - {$ref: '#/components/parameters/SavedSearchId'}
+        - {$ref: '#/components/parameters/CollectionId'}
+        - {$ref: '#/components/parameters/Sort'}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PageSize'}
+        - {$ref: '#/components/parameters/Seed'}
+      responses:
+        '200': {description: Complete filtered page, content: {application/json: {schema: {$ref: '#/components/schemas/ItemPage'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/items/{id}:
+    parameters: [{$ref: '#/components/parameters/EntityId'}]
+    get:
+      tags: [catalog]
+      operationId: getItem
+      responses:
+        '200': {description: Item and availability, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/Item'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    patch:
+      tags: [catalog]
+      operationId: patchItem
+      parameters: [{$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/Metadata'}}}}
+      responses:
+        '200': {description: Atomic metadata replacement, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/Item'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    delete:
+      tags: [ingestion]
+      operationId: deleteItem
+      parameters: [{$ref: '#/components/parameters/IfMatch'}]
+      responses:
+        '202': {description: Hidden item with durable cleanup, content: {application/json: {schema: {$ref: '#/components/schemas/JobReceipt'}}}}
+        '204': {description: Item already absent}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/items/bulk-metadata:
+    post:
+      tags: [catalog]
+      operationId: replaceBulkMetadata
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/BulkMetadata'}}}}
+      responses:
+        '200': {$ref: '#/components/responses/BulkCommand'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/items/bulk-tags:
+    post:
+      tags: [catalog]
+      operationId: replaceBulkTags
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/BulkTags'}}}}
+      responses:
+        '200': {$ref: '#/components/responses/BulkCommand'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/items/bulk-collection:
+    post:
+      tags: [catalog]
+      operationId: replaceBulkCollection
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/BulkCollection'}}}}
+      responses:
+        '200': {$ref: '#/components/responses/BulkCommand'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/items/{id}/favorite:
+    parameters: [{$ref: '#/components/parameters/EntityId'}]
+    put:
+      tags: [catalog]
+      operationId: setFavorite
+      requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: false, required: [isFavorite], properties: {isFavorite: {type: boolean}}}}}}
+      responses:
+        '200': {description: Final favorite state, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/Item'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/items/{id}/views:
+    parameters: [{$ref: '#/components/parameters/EntityId'}]
+    post:
+      tags: [catalog]
+      operationId: recordView
+      requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: false, required: [eventId], properties: {eventId: {$ref: '#/components/schemas/UUID'}}}}}}
+      responses:
+        '200': {description: Idempotent three-second viewer event, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/Item'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/items/{id}/similar:
+    get:
+      tags: [catalog]
+      operationId: getSimilar
+      parameters: [{$ref: '#/components/parameters/EntityId'}, {$ref: '#/components/parameters/Page'}, {$ref: '#/components/parameters/PageSize'}]
+      responses:
+        '200': {description: Same nonempty tag-ID set excluding source, content: {application/json: {schema: {$ref: '#/components/schemas/ItemPage'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/tags:
+    get:
+      tags: [organization]
+      operationId: listTags
+      responses:
+        '200': {description: Complete directory, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Tag'}}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      tags: [organization]
+      operationId: createTag
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {$ref: '#/components/requestBodies/Name'}
+      responses:
+        '201': {description: Created tag, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/TagCommand'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/tags/{id}:
+    patch:
+      tags: [organization]
+      operationId: renameTag
+      parameters: [{$ref: '#/components/parameters/EntityId'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Name'}
+      responses:
+        '200': {description: Renamed tag and stable category bindings, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/Tag'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/tag-statistics:
+    get:
+      tags: [organization]
+      operationId: getTagStatistics
+      responses:
+        '200': {description: Global counts grouped by exact name, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/TagStatistic'}}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/saved-searches:
+    get:
+      tags: [organization]
+      operationId: listSavedSearches
+      responses:
+        '200': {description: Complete saved-search directory, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/SavedSearch'}}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      tags: [organization]
+      operationId: createSavedSearch
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/NewSavedSearch'}}}}
+      responses:
+        '201': {description: Created bound query, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/SavedSearchCommand'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/saved-searches/{id}:
+    parameters: [{$ref: '#/components/parameters/EntityId'}]
+    get:
+      tags: [organization]
+      operationId: getSavedSearch
+      responses:
+        '200': {description: Bound query, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/SavedSearch'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    patch:
+      tags: [organization]
+      operationId: patchSavedSearch
+      parameters: [{$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SavedSearchPatch'}}}}
+      responses:
+        '200': {description: Name-only update preserves AST; text update rebinds, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/SavedSearch'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    delete:
+      tags: [organization]
+      operationId: deleteSavedSearch
+      parameters: [{$ref: '#/components/parameters/IfMatch'}]
+      responses:
+        '204': {description: Query removed; items unchanged}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/collections:
+    get:
+      tags: [organization]
+      operationId: listCollections
+      responses:
+        '200': {description: Complete directory with oldest-item covers, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Collection'}}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      tags: [organization]
+      operationId: createCollection
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {$ref: '#/components/requestBodies/Name'}
+      responses:
+        '201': {description: Created collection, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CollectionCommand'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/collections/{id}:
+    parameters: [{$ref: '#/components/parameters/EntityId'}]
+    get:
+      tags: [organization]
+      operationId: getCollection
+      parameters: [{$ref: '#/components/parameters/Page'}, {$ref: '#/components/parameters/PageSize'}]
+      responses:
+        '200': {description: Collection and paginated members, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CollectionDetail'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    patch:
+      tags: [organization]
+      operationId: renameCollection
+      parameters: [{$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Name'}
+      responses:
+        '200': {description: Renamed collection, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/Collection'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    delete:
+      tags: [organization]
+      operationId: deleteCollection
+      parameters: [{$ref: '#/components/parameters/IfMatch'}]
+      responses:
+        '204': {description: Group removed and memberships cleared; media retained}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/navigation-contexts:
+    post:
+      tags: [navigation]
+      operationId: createNavigationContext
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/NewNavigation'}}}}
+      responses:
+        '201': {description: Durable order snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/NavigationCreated'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/navigation-contexts/{id}/neighbors:
+    get:
+      tags: [navigation]
+      operationId: getNeighbors
+      parameters:
+        - {$ref: '#/components/parameters/UUIDPath'}
+        - {name: itemId, in: query, required: true, schema: {$ref: '#/components/schemas/EntityId'}}
+      responses:
+        '200': {description: Live neighbors in the saved order, content: {application/json: {schema: {$ref: '#/components/schemas/Neighbors'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/operations/{id}:
+    get:
+      tags: [operations]
+      operationId: getOperation
+      parameters: [{$ref: '#/components/parameters/UUIDPath'}]
+      responses:
+        '200': {description: Original command outcome; expires after seven days, content: {application/json: {schema: {$ref: '#/components/schemas/Operation'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/upload-sessions:
+    post:
+      tags: [ingestion]
+      operationId: createUploadSessions
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/NewUploads'}}}}
+      responses:
+        '201': {description: Durable sessions, content: {application/json: {schema: {$ref: '#/components/schemas/UploadsCreated'}}}}
+        '202': {description: Durable creation intent awaiting storage reconciliation, content: {application/json: {schema: {$ref: '#/components/schemas/UploadsCreated'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/upload-sessions/{id}:
+    parameters: [{$ref: '#/components/parameters/UUIDPath'}]
+    get:
+      tags: [ingestion]
+      operationId: getUploadSession
+      responses:
+        '200': {description: Pending/error session or ready lookup by items.upload_id, content: {application/json: {schema: {$ref: '#/components/schemas/UploadOutcome'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+    delete:
+      tags: [ingestion]
+      operationId: cancelUpload
+      responses:
+        '200': {description: Ready won the race, content: {application/json: {schema: {$ref: '#/components/schemas/UploadOutcome'}}}}
+        '202': {description: Fenced cancellation with independent cleanup, content: {application/json: {schema: {$ref: '#/components/schemas/JobReceipt'}}}}
+        '204': {description: Already absent}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/upload-sessions/{id}/parts/{number}:
+    put:
+      tags: [binary]
+      operationId: uploadPart
+      description: Nonseekable raw body. Persist immutable size/digest binding before forwarding. Storage must validate SHA256.
+      parameters:
+        - {$ref: '#/components/parameters/UUIDPath'}
+        - {name: number, in: path, required: true, schema: {type: integer, minimum: 1, maximum: 10000}}
+        - {name: X-Upload-Generation, in: header, required: true, schema: {$ref: '#/components/schemas/Version'}}
+        - {name: X-Part-SHA256, in: header, required: true, schema: {type: string, pattern: '^[A-Za-z0-9+/]{43}=$'}}
+        - {name: Content-Length, in: header, required: true, schema: {type: integer, format: int64, minimum: 1, maximum: 5368709120}}
+      requestBody: {required: true, content: {application/octet-stream: {schema: {type: string, format: binary}}}}
+      responses:
+        '200': {description: Storage-confirmed part, content: {application/json: {schema: {$ref: '#/components/schemas/UploadPart'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/upload-sessions/{id}/complete:
+    post:
+      tags: [ingestion]
+      operationId: completeUpload
+      description: Operation-key receipts apply in addition to upload-ID replay. Resolve an already-ready upload through items.upload_id before refusing an expired operation key; ready replay survives session removal and operation-key retention.
+      parameters: [{$ref: '#/components/parameters/UUIDPath'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CompleteUpload'}}}}
+      responses:
+        '200': {description: Already ready; session no longer exists, content: {application/json: {schema: {$ref: '#/components/schemas/UploadOutcome'}}}}
+        '202': {description: Verified incoming queued or completing reconciliation, content: {application/json: {schema: {$ref: '#/components/schemas/UploadOutcome'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/upload-batches:
+    get:
+      tags: [ingestion]
+      operationId: listUploadBatches
+      responses:
+        '200': {description: Pending/error only; no history or expiry, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/UploadBatch'}}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/jobs/{id}/retry:
+    post:
+      tags: [ingestion]
+      operationId: retryJob
+      parameters: [{$ref: '#/components/parameters/UUIDPath'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      responses:
+        '202': {description: Durable retry, content: {application/json: {schema: {$ref: '#/components/schemas/JobReceipt'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/jobs/{id}/cancel:
+    post:
+      tags: [ingestion]
+      operationId: cancelJob
+      parameters: [{$ref: '#/components/parameters/UUIDPath'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+      responses:
+        '202': {description: Fenced cancellation, content: {application/json: {schema: {$ref: '#/components/schemas/JobReceipt'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /media/{assetId}:
+    parameters:
+      - {name: assetId, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}
+      - {name: Range, in: header, schema: {type: string}}
+      - {name: If-None-Match, in: header, schema: {type: string}}
+      - {name: If-Modified-Since, in: header, schema: {type: string}}
+      - {name: If-Range, in: header, schema: {type: string}}
+    get:
+      tags: [binary]
+      operationId: getMedia
+      responses:
+        '200': {description: Streaming media, content: {'*/*': {schema: {type: string, format: binary}}}}
+        '206': {description: Partial content with Content-Range, content: {'*/*': {schema: {type: string, format: binary}}}}
+        '304': {description: Not modified}
+        '416': {description: Unsatisfiable range; Content-Range bytes */size is required}
+        default: {$ref: '#/components/responses/Problem'}
+    head:
+      tags: [binary]
+      operationId: headMedia
+      responses:
+        '200': {description: Content headers without body}
+        '206': {description: Partial content headers without body}
+        '304': {description: Not modified}
+        '416': {description: Unsatisfiable range; Content-Range bytes */size is required}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/system/status:
+    get:
+      tags: [system]
+      operationId: getSystemStatus
+      responses:
+        '200': {description: Current runtime/library state, content: {application/json: {schema: {$ref: '#/components/schemas/SystemStatus'}}}}
+        default: {$ref: '#/components/responses/Problem'}
+  /health/live:
+    get:
+      tags: [system]
+      operationId: liveness
+      responses:
+        '200': {description: Process alive}
+  /health/ready:
+    get:
+      tags: [system]
+      operationId: readiness
+      responses:
+        '200': {description: 'SQLite, storage preflight and recovery ready'}
+        '503': {$ref: '#/components/responses/Problem'}
+components:
+  headers:
+    ETag: {description: Quoted decimal resource version, schema: {type: string}}
+  parameters:
+    EntityId: {name: id, in: path, required: true, schema: {$ref: '#/components/schemas/EntityId'}}
+    UUIDPath: {name: id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {$ref: '#/components/schemas/UUID'}}
+    IfMatch: {name: If-Match, in: header, required: true, schema: {type: string, pattern: '^"[1-9][0-9]*"$'}}
+    Query: {name: q, in: query, schema: {type: string, maxLength: 4096}}
+    Kind: {name: kind, in: query, schema: {$ref: '#/components/schemas/MediaKind'}}
+    SavedSearchId: {name: savedSearchId, in: query, schema: {$ref: '#/components/schemas/EntityId'}}
+    CollectionId: {name: collectionId, in: query, schema: {$ref: '#/components/schemas/EntityId'}}
+    Sort: {name: sort, in: query, schema: {$ref: '#/components/schemas/Sort'}}
+    Page: {name: page, in: query, schema: {type: integer, minimum: 1, maximum: 45035996273704, default: 1}}
+    PageSize: {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 24}}
+    Seed: {name: seed, in: query, schema: {type: string, maxLength: 128}}
+  requestBodies:
+    Name: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/NameInput'}}}}
+  responses:
+    Problem: {description: Problem Details, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    BulkCommand: {description: Atomic replacement result, content: {application/json: {schema: {$ref: '#/components/schemas/BulkCommand'}}}}
+  schemas:
+    EntityId: {type: integer, format: int64, minimum: 1, maximum: 9007199254740991}
+    Version: {type: integer, format: int64, minimum: 1, maximum: 9007199254740991}
+    UUID: {type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'}
+    MediaKind: {type: string, enum: [Unknown, Text, Image, Video, Audio]}
+    Sort: {type: string, enum: [UploadedDesc, UploadedAsc, VideoDurationDesc, VideoDurationAsc, ViewCountDesc, ViewCountAsc, Random]}
+    NameInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 200}
+    Tag:
+      type: object
+      additionalProperties: false
+      required: [id, name, version]
+      properties:
+        id: {$ref: '#/components/schemas/EntityId'}
+        name: {type: string}
+        version: {$ref: '#/components/schemas/Version'}
+    TagStatistic:
+      type: object
+      additionalProperties: false
+      required: [name, usageCount]
+      properties:
+        name: {type: string}
+        usageCount: {type: integer, format: int64, minimum: 0, maximum: 9007199254740991}
+    Item:
+      type: object
+      additionalProperties: false
+      required: [id, mediaKind, description, uploadedAt, tags, collectionId, isFavorite, viewCount, lastViewAt, durationSeconds, processingState, version]
+      properties:
+        id: {$ref: '#/components/schemas/EntityId'}
+        mediaKind: {$ref: '#/components/schemas/MediaKind'}
+        description: {type: string, nullable: true}
+        uploadedAt: {type: string, format: date-time}
+        tags: {type: array, items: {$ref: '#/components/schemas/Tag'}}
+        collectionId: {type: integer, format: int64, minimum: 1, maximum: 9007199254740991, nullable: true}
+        isFavorite: {type: boolean}
+        viewCount: {type: integer, format: int64, minimum: 0, maximum: 9007199254740991}
+        lastViewAt: {type: string, format: date-time, nullable: true}
+        durationSeconds: {type: number, format: double, nullable: true, description: 'Integer ticks divided by 10000000; IEEE-754 rounding only at this public seconds boundary.'}
+        posterUrl: {type: string}
+        contentUrl: {type: string}
+        processingState: {type: string, enum: [ready, missing]}
+        version: {$ref: '#/components/schemas/Version'}
+    ItemPage:
+      type: object
+      additionalProperties: false
+      required: [items, totalItems, page, pageSize, totalPages]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Item'}}
+        totalItems: {type: integer, minimum: 0}
+        page: {type: integer, minimum: 1}
+        pageSize: {type: integer, minimum: 1, maximum: 200}
+        totalPages: {type: integer, minimum: 0}
+        seed: {type: string}
+    Metadata:
+      type: object
+      additionalProperties: false
+      required: [tagIds, collectionId]
+      properties:
+        tagIds: {type: array, uniqueItems: true, items: {$ref: '#/components/schemas/EntityId'}}
+        collectionId: {type: integer, format: int64, minimum: 1, maximum: 9007199254740991, nullable: true}
+    VersionedItem:
+      type: object
+      additionalProperties: false
+      required: [id, version]
+      properties:
+        id: {$ref: '#/components/schemas/EntityId'}
+        version: {$ref: '#/components/schemas/Version'}
+    BulkMetadata:
+      type: object
+      additionalProperties: false
+      required: [items, tagIds, collectionId]
+      properties:
+        items: {type: array, minItems: 1, maxItems: 500, items: {$ref: '#/components/schemas/VersionedItem'}}
+        tagIds: {type: array, uniqueItems: true, items: {$ref: '#/components/schemas/EntityId'}}
+        collectionId: {type: integer, format: int64, minimum: 1, maximum: 9007199254740991, nullable: true}
+    BulkTags:
+      type: object
+      additionalProperties: false
+      required: [itemIds, mode, tagIds]
+      properties:
+        itemIds: {type: array, minItems: 1, maxItems: 500, uniqueItems: true, items: {$ref: '#/components/schemas/EntityId'}}
+        mode: {type: string, enum: [replace]}
+        tagIds: {type: array, uniqueItems: true, items: {$ref: '#/components/schemas/EntityId'}}
+    BulkCollection:
+      type: object
+      additionalProperties: false
+      required: [itemIds]
+      properties:
+        itemIds: {type: array, minItems: 1, maxItems: 500, uniqueItems: true, items: {$ref: '#/components/schemas/EntityId'}}
+        collectionId: {type: integer, format: int64, minimum: 1, maximum: 9007199254740991, nullable: true}
+    Collection:
+      type: object
+      additionalProperties: false
+      required: [id, name, version, itemCount]
+      properties:
+        id: {$ref: '#/components/schemas/EntityId'}
+        name: {type: string}
+        version: {$ref: '#/components/schemas/Version'}
+        itemCount: {type: integer, minimum: 0}
+        coverUrl: {type: string}
+    CollectionDetail:
+      type: object
+      additionalProperties: false
+      required: [collection, members]
+      properties:
+        collection: {$ref: '#/components/schemas/Collection'}
+        members: {$ref: '#/components/schemas/ItemPage'}
+    QueryTerm:
+      type: object
+      additionalProperties: false
+      required: [sourceName]
+      properties:
+        sourceName: {type: string}
+        tagIds: {type: array, items: {$ref: '#/components/schemas/EntityId'}}
+        negated: {type: boolean}
+    QueryAST:
+      type: object
+      additionalProperties: false
+      required: [op]
+      properties:
+        op: {type: string, enum: [all, tag, and, or]}
+        term: {$ref: '#/components/schemas/QueryTerm'}
+        left: {$ref: '#/components/schemas/QueryAST'}
+        right: {$ref: '#/components/schemas/QueryAST'}
+    DisplayTerm:
+      type: object
+      additionalProperties: false
+      required: [currentName]
+      properties:
+        tagId: {$ref: '#/components/schemas/EntityId'}
+        currentName: {type: string}
+        sourceName: {type: string}
+    SavedSearch:
+      type: object
+      additionalProperties: false
+      required: [id, name, queryText, queryAst, displayTerms, parserVersion, validationState, mediaKind, version]
+      properties:
+        id: {$ref: '#/components/schemas/EntityId'}
+        name: {type: string}
+        queryText: {type: string}
+        legacySourceText: {type: string}
+        queryAst: {$ref: '#/components/schemas/QueryAST'}
+        displayTerms: {type: array, items: {$ref: '#/components/schemas/DisplayTerm'}}
+        parserVersion: {type: integer}
+        validationState: {type: string, enum: [valid, unresolved, needs_review]}
+        mediaKind: {type: string, enum: [Unknown, Text, Image, Video, Audio], nullable: true}
+        version: {$ref: '#/components/schemas/Version'}
+    NewSavedSearch:
+      type: object
+      additionalProperties: false
+      required: [name, queryText]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 200}
+        queryText: {type: string, maxLength: 4096}
+        mediaKind: {type: string, enum: [Unknown, Text, Image, Video, Audio], nullable: true}
+    SavedSearchPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: {type: string, minLength: 1, maxLength: 200}
+        queryText: {type: string, maxLength: 4096}
+        mediaKind: {type: string, enum: [Unknown, Text, Image, Video, Audio], nullable: true}
+    TagCommand:
+      type: object
+      additionalProperties: false
+      required: [operationId, resource]
+      properties:
+        operationId: {$ref: '#/components/schemas/UUID'}
+        resource: {$ref: '#/components/schemas/Tag'}
+    CollectionCommand:
+      type: object
+      additionalProperties: false
+      required: [operationId, resource]
+      properties:
+        operationId: {$ref: '#/components/schemas/UUID'}
+        resource: {$ref: '#/components/schemas/Collection'}
+    SavedSearchCommand:
+      type: object
+      additionalProperties: false
+      required: [operationId, resource]
+      properties:
+        operationId: {$ref: '#/components/schemas/UUID'}
+        resource: {$ref: '#/components/schemas/SavedSearch'}
+    BulkCommand:
+      type: object
+      additionalProperties: false
+      required: [operationId, itemIds]
+      properties:
+        operationId: {$ref: '#/components/schemas/UUID'}
+        itemIds: {type: array, items: {$ref: '#/components/schemas/EntityId'}}
+    NewNavigation:
+      type: object
+      additionalProperties: false
+      required: [origin]
+      properties:
+        origin: {type: string, maxLength: 65536, description: Relative app URL with filters/page/scroll context; no external URL. Allows the percent-encoded maximum Unicode query.}
+        q: {type: string, maxLength: 4096}
+        kind: {$ref: '#/components/schemas/MediaKind'}
+        savedSearchId: {$ref: '#/components/schemas/EntityId'}
+        collectionId: {$ref: '#/components/schemas/EntityId'}
+        sort: {$ref: '#/components/schemas/Sort'}
+        seed: {type: string, maxLength: 128}
+        orderedIds: {type: array, maxItems: 20000, uniqueItems: true, items: {$ref: '#/components/schemas/EntityId'}}
+    NavigationCreated:
+      type: object
+      additionalProperties: false
+      required: [operationId, contextId, expiresAt]
+      properties:
+        operationId: {$ref: '#/components/schemas/UUID'}
+        contextId: {$ref: '#/components/schemas/UUID'}
+        expiresAt: {type: string, format: date-time}
+        seed: {type: string}
+    NavigationOrigin:
+      type: object
+      additionalProperties: false
+      required: [route, sort]
+      properties:
+        route: {type: string}
+        q: {type: string}
+        kind: {$ref: '#/components/schemas/MediaKind'}
+        savedSearchId: {$ref: '#/components/schemas/EntityId'}
+        savedSearchVersion: {$ref: '#/components/schemas/Version'}
+        queryAst: {$ref: '#/components/schemas/QueryAST'}
+        collectionId: {$ref: '#/components/schemas/EntityId'}
+        sort: {$ref: '#/components/schemas/Sort'}
+        seed: {type: string}
+    Neighbors:
+      type: object
+      additionalProperties: false
+      required: [expired, origin, total, previousId, nextId, position]
+      properties:
+        expired: {type: boolean}
+        origin: {$ref: '#/components/schemas/NavigationOrigin'}
+        total: {type: integer, minimum: 0}
+        previousId: {type: integer, format: int64, nullable: true}
+        nextId: {type: integer, format: int64, nullable: true}
+        position: {type: integer, minimum: 1, nullable: true}
+    Operation:
+      type: object
+      additionalProperties: false
+      required: [operationId, state, httpStatus, result, createdAt, expiresAt]
+      properties:
+        operationId: {$ref: '#/components/schemas/UUID'}
+        state: {type: string, enum: [pending, completed, failed]}
+        httpStatus: {type: integer, minimum: 200, maximum: 599}
+        result: {type: object, additionalProperties: true, nullable: true}
+        createdAt: {type: string, format: date-time}
+        expiresAt: {type: string, format: date-time}
+    NewUploads:
+      type: object
+      additionalProperties: false
+      required: [files]
+      properties:
+        collectionId: {type: integer, format: int64, minimum: 1, maximum: 9007199254740991, nullable: true}
+        files:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: object
+            additionalProperties: false
+            required: [clientFileId, filename, size]
+            properties:
+              clientFileId: {$ref: '#/components/schemas/UUID'}
+              filename: {type: string, minLength: 1, maxLength: 1024}
+              size: {type: integer, format: int64, minimum: 1, maximum: 9007199254740991, description: 'Limited by the configured maxFileSize returned by the server; default 20 GiB.'}
+              fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+    UploadSession:
+      type: object
+      additionalProperties: false
+      required: [id, batchId, clientFileId, filename, size, partSize, partCount, generation, state, parts]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        batchId: {$ref: '#/components/schemas/UUID'}
+        clientFileId: {$ref: '#/components/schemas/UUID'}
+        filename: {type: string}
+        size: {type: integer, format: int64}
+        partSize: {type: integer, format: int64}
+        partCount: {type: integer}
+        generation: {$ref: '#/components/schemas/Version'}
+        state: {type: string, enum: [creating, receiving, completing, queued, processing, failed]}
+        fingerprint: {type: string}
+        collectionId: {type: integer, format: int64, nullable: true}
+        jobId: {$ref: '#/components/schemas/UUID'}
+        progress: {type: number, minimum: 0, maximum: 1}
+        errorCode: {type: string}
+        parts: {type: array, items: {$ref: '#/components/schemas/UploadPart'}}
+    UploadPart:
+      type: object
+      additionalProperties: false
+      required: [partNumber, size, sha256, state]
+      properties:
+        partNumber: {type: integer, minimum: 1, maximum: 10000}
+        size: {type: integer, format: int64}
+        sha256: {type: string, description: 'Base64 SHA-256, not an ETag.'}
+        etag: {type: string}
+        state: {type: string, enum: [bound, confirmed]}
+    UploadOutcome:
+      type: object
+      additionalProperties: false
+      required: [uploadId, state]
+      properties:
+        operationId: {$ref: '#/components/schemas/UUID', description: Receipt identity for a Complete command; omitted from passive session lookup.}
+        uploadId: {$ref: '#/components/schemas/UUID'}
+        state: {type: string, enum: [pending, failed, ready]}
+        session: {$ref: '#/components/schemas/UploadSession'}
+        itemId: {$ref: '#/components/schemas/EntityId'}
+        jobId: {$ref: '#/components/schemas/UUID'}
+    UploadsCreated:
+      type: object
+      additionalProperties: false
+      required: [operationId, batchId, sessions, maxParallelTransfers, maxFileSize]
+      properties:
+        operationId: {$ref: '#/components/schemas/UUID'}
+        batchId: {$ref: '#/components/schemas/UUID'}
+        sessions: {type: array, items: {$ref: '#/components/schemas/UploadSession'}}
+        maxParallelTransfers: {type: integer, minimum: 1}
+        maxFileSize: {type: integer, format: int64}
+    UploadBatch:
+      type: object
+      additionalProperties: false
+      required: [id, sessions]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        sessions: {type: array, items: {$ref: '#/components/schemas/UploadSession'}}
+    CompleteUpload:
+      type: object
+      additionalProperties: false
+      required: [generation, parts]
+      properties:
+        generation: {$ref: '#/components/schemas/Version'}
+        parts:
+          type: array
+          minItems: 1
+          maxItems: 10000
+          items:
+            type: object
+            additionalProperties: false
+            required: [partNumber, etag]
+            properties:
+              partNumber: {type: integer, minimum: 1, maximum: 10000}
+              etag: {type: string, minLength: 1}
+    JobReceipt:
+      type: object
+      additionalProperties: false
+      required: [jobId]
+      properties:
+        jobId: {$ref: '#/components/schemas/UUID'}
+        operationId: {$ref: '#/components/schemas/UUID'}
+    SystemStatus:
+      type: object
+      additionalProperties: false
+      required: [appVersion, schemaVersion, formatVersion, libraryId, queue, disk]
+      properties:
+        appVersion: {type: string}
+        schemaVersion: {type: integer}
+        formatVersion: {type: integer}
+        libraryId: {$ref: '#/components/schemas/UUID'}
+        queue: {type: object, additionalProperties: {type: integer, minimum: 0}}
+        disk: {type: object, additionalProperties: true, description: Measured capacity or explicit unknown; no inferred S3 free-space value.}
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status, code, traceId]
+      properties:
+        type: {type: string}
+        title: {type: string}
+        status: {type: integer, minimum: 400, maximum: 599}
+        code: {type: string}
+        traceId: {$ref: '#/components/schemas/UUID'}
+        detail: {type: string}
+        fieldErrors: {type: object, additionalProperties: {type: array, items: {type: string}}}
+        position: {type: integer, minimum: 0}
+        dependencies: {type: array, items: {type: string}}
