@@ -44,6 +44,20 @@ Iceberg/Lance endpoints,
 WebDAV, automatic bucket creation, telemetry and the admin UI are disabled.
 Volume capacity uses mini's free-space-based automatic limit.
 
+Successful S3 responses include exactly one `X-Tag-Files-Storage-Epoch` UUID for
+this live backend lifetime. A client may bind requests with
+`X-Tag-Files-Expected-Storage-Epoch`; a different epoch receives S3 XML
+`409 StorageEpochChanged` before forwarding. Ordinary S3 requests remain
+compatible. The runtime SDK discovers this value via signed HeadBucket and
+creates immutable bound clients. Missing, malformed or duplicate epoch headers
+cannot provide recovery proof. The persistent storage UUID is a separate value.
+
+Runtime write intents must save that expected epoch before forwarding. A changed
+epoch then proves the earlier backend cannot accept the old request later; it
+does not establish its earlier result. Owned objects/MPUs still require full
+reconciliation. Age and lease expiry provide no such proof. The durable I/O
+journal and its cleanup/recovery wiring are still the next ingestion work.
+
 Every restart follows the same S3-disabled preflight. Existing unsafe rules,
 public access settings, bucket policies, lifecycle rules, changed secrets or
 incompatible state are refused; startup does not silently repair them. The

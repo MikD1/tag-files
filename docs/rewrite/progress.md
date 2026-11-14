@@ -182,6 +182,20 @@ Unicode characters without normalization. The full `scripts/check` passes with
 this module and generated queries. These are metadata tests; no ingestion S3
 forwarding, drain/Complete, cancellation or publication handler is claimed yet.
 
+Storage lifetime fence: fresh `scripts/check-storage-image` passed (138.771s)
+after adding owned boot-epoch discovery and expected-epoch request fencing.
+The real restart test receives a different boot UUID, rejects the earlier
+epoch with S3 `409 StorageEpochChanged`, proves no MPU was created by that
+request, then continues the retained MPU with the new epoch and full hash.
+Normal S3 clients remain compatible. The SDK's bound client leaves the base
+client unchanged. Missing/malformed/duplicate response epochs are rejected;
+unit and image regressions caught duplicate headers and proved the single-value
+fix. `scripts/check` and real `scripts/check-storage` passed again (40.201s wire,
+23.944s profile), and both image architectures cross-build; only arm64 executes
+on this host. The durable I/O journal has not yet been implemented: this fence
+must be recorded in each intent before forwarding and used with owned-result
+reconciliation, not as proof that an old write failed or succeeded.
+
 ## Independent review
 
 The requesting-code-review skill was used for read-only foundation/organization

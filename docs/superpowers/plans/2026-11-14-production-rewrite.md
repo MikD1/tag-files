@@ -86,6 +86,14 @@ own installation and release publication.
    commit. Retry of ready resolves items.upload_id. Test stale workers and
    ready/cancel races, independent cleanup and absence of history/session TTL.
 
+Implementation refinement for steps 3–4: persist live/uncertain external-write
+intents independently of sessions. The owned storage gateway publishes a random
+boot epoch and rejects a stale expected-epoch header before forwarding. This
+lets recovery prove an old backend can no longer accept an intent's request;
+leases, elapsed age and an empty listing are not settlement evidence. Standard
+S3 requests remain compatible; runtime ingestion binds its writes to the epoch
+recorded in each intent. Test stale writes across a real storage restart.
+
 ## Task 5: Media and recovery
 
 1. Real FFmpeg image/video fixtures test probe allowlist, unsupported input,

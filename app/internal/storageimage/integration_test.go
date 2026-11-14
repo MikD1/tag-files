@@ -158,6 +158,22 @@ func TestProductionStorageImagePrivateDurableRestartAndNegativeFsync(t *testing.
 		t.Fatalf("healthy without durable ready: %+v", first)
 	}
 	c := f.client()
+	probe, err := http.Head(f.endpoint() + "/tag-files")
+	if err != nil {
+		t.Fatal(err)
+	}
+	probe.Body.Close()
+	if values := probe.Header.Values("X-Tag-Files-Storage-Epoch"); len(values) != 1 {
+		t.Fatalf("gateway published ambiguous epochs: %v", values)
+	}
+	epoch, err := c.StorageEpoch(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err = c.AtEpoch(epoch)
+	if err != nil {
+		t.Fatal(err)
+	}
 	data := bytes.Repeat([]byte("production volume\x00"), 65536)
 	sum := sha256.Sum256(data)
 	hash := hex.EncodeToString(sum[:])
@@ -225,10 +241,33 @@ func TestProductionStorageImagePrivateDurableRestartAndNegativeFsync(t *testing.
 	if f.state() != first {
 		t.Fatal("restart changed the owned identity or config")
 	}
-	if _, err := f.client().Verify(context.Background(), "objects/日本語", int64(len(data)), hash); err != nil {
+	base := f.client()
+	newEpoch, err := base.StorageEpoch(context.Background())
+	if err != nil || newEpoch == epoch {
+		t.Fatalf("backend restart kept live epoch: %q %v", newEpoch, err)
+	}
+	stale, err := base.AtEpoch(epoch)
+	if err != nil {
 		t.Fatal(err)
 	}
-	c = f.client()
+	if _, err := stale.CreateMultipart(context.Background(), "stale/forbidden", "application/octet-stream", nil); err == nil {
+		t.Fatal("old storage epoch created a new MPU after restart")
+	} else {
+		var wire *objectstore.Error
+		if !errors.As(err, &wire) || wire.Status != 409 || wire.Code != "StorageEpochChanged" {
+			t.Fatalf("stale epoch result: %v", err)
+		}
+	}
+	if uploads, err := base.ListMultipart(context.Background(), "stale/"); err != nil || len(uploads) != 0 {
+		t.Fatalf("stale request reached the backend: %+v %v", uploads, err)
+	}
+	c, err = base.AtEpoch(newEpoch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Verify(context.Background(), "objects/日本語", int64(len(data)), hash); err != nil {
+		t.Fatal(err)
+	}
 	parts, err := c.ListParts(context.Background(), mpuKey, mpu)
 	if err != nil || len(parts) != 1 || parts[0].Number != 1 || parts[0].Size != int64(len(partData)) || parts[0].ETag != bound.ETag {
 		t.Fatalf("confirmed MPU part lost on image restart: %+v, %v", parts, err)

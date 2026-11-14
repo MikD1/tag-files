@@ -7,6 +7,9 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"time"
+
+	"github.com/mikd1/tag-files/app/internal/domain"
+	"github.com/mikd1/tag-files/app/internal/storageprotocol"
 )
 
 type gateway struct {
@@ -31,14 +34,32 @@ func openGateway() (*gateway, error) {
 	transport.DisableCompression = true
 	transport.MaxIdleConnsPerHost = 32
 	proxy.Transport = transport
+	epoch := domain.NewUUID()
+	proxy.ModifyResponse = func(response *http.Response) error {
+		response.Header.Set(storageprotocol.EpochHeader, epoch)
+		return nil
+	}
 	// The default Director preserves the original Host, which belongs to the
 	// client's SigV4 signature. Bodies are streamed, never buffered or replayed.
 	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, _ error) {
 		http.Error(w, "storage backend unavailable", http.StatusBadGateway)
 	}
-	g := &gateway{server: &http.Server{Handler: proxy, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second}, transport: transport, done: make(chan error, 1)}
+	g := &gateway{server: &http.Server{Handler: epochGate(epoch, proxy), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second}, transport: transport, done: make(chan error, 1)}
 	go func() { g.done <- g.server.Serve(listener) }()
 	return g, nil
+}
+
+func epochGate(epoch string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if expected := r.Header.Get(storageprotocol.ExpectedEpochHeader); expected != "" && expected != epoch {
+			w.Header().Set(storageprotocol.EpochHeader, epoch)
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusConflict)
+			_, _ = w.Write([]byte(`<Error><Code>` + storageprotocol.EpochMismatchCode + `</Code><Message>The storage backend restarted.</Message></Error>`))
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (g *gateway) close() { _ = g.server.Close(); g.transport.CloseIdleConnections() }
