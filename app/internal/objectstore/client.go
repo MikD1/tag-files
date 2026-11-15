@@ -48,6 +48,10 @@ type GetOptions struct {
 	Range, IfMatch, IfNoneMatch        string
 	IfModifiedSince, IfUnmodifiedSince *time.Time
 }
+
+// BoundEpoch reports the immutable request fence on an AtEpoch client.
+func (c *Client) BoundEpoch() string { return c.epoch }
+
 type Download struct {
 	Object
 	Body         io.ReadCloser

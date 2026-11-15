@@ -27,12 +27,18 @@ type Querier interface {
 	ClearItemTags(ctx context.Context, itemID int64) error
 	CloseUploadAdmission(ctx context.Context, id string) error
 	ConfirmUploadPart(ctx context.Context, arg ConfirmUploadPartParams) error
+	CountDeletionAssets(ctx context.Context, receiptID string) (int64, error)
+	CountDeletionDependencies(ctx context.Context, arg CountDeletionDependenciesParams) (int64, error)
+	CountItemAssets(ctx context.Context, itemID sql.NullInt64) (int64, error)
 	CountJobIdentity(ctx context.Context, id string) (int64, error)
+	CountUninventoriedAssets(ctx context.Context, arg CountUninventoriedAssetsParams) (int64, error)
+	CountUnverifiedDeletionEpochs(ctx context.Context, arg CountUnverifiedDeletionEpochsParams) (int64, error)
 	CountUploadCompleteIntents(ctx context.Context, targetID string) (int64, error)
 	CountUploadCreateIntents(ctx context.Context, targetID string) (int64, error)
 	CountWritesForKey(ctx context.Context, objectKey string) (int64, error)
 	CreateCleanupReceipt(ctx context.Context, arg CreateCleanupReceiptParams) (CleanupReceipt, error)
 	CreateCollection(ctx context.Context, name string) (Collection, error)
+	CreateDeletionReceipt(ctx context.Context, arg CreateDeletionReceiptParams) (CleanupReceipt, error)
 	CreateJob(ctx context.Context, arg CreateJobParams) (Job, error)
 	CreateNavigationContext(ctx context.Context, arg CreateNavigationContextParams) error
 	CreateObjectWriteIntent(ctx context.Context, arg CreateObjectWriteIntentParams) (ObjectWriteIntent, error)
@@ -47,16 +53,19 @@ type Querier interface {
 	DeleteCancelledAsset(ctx context.Context, arg DeleteCancelledAssetParams) error
 	DeleteCleanupReceipt(ctx context.Context, id string) error
 	DeleteCollection(ctx context.Context, arg DeleteCollectionParams) (int64, error)
+	DeleteItemPosterJobs(ctx context.Context, subjectID string) error
 	DeleteLeasedJob(ctx context.Context, arg DeleteLeasedJobParams) (int64, error)
 	DeleteOrphanPoster(ctx context.Context, id string) (int64, error)
 	DeleteReceiptJob(ctx context.Context, subjectID string) error
 	DeleteSavedSearch(ctx context.Context, arg DeleteSavedSearchParams) (int64, error)
 	DeleteSettledObjectWrite(ctx context.Context, arg DeleteSettledObjectWriteParams) (int64, error)
+	DeleteTombstonedItem(ctx context.Context, id int64) (int64, error)
 	DeleteUploadIngestJobs(ctx context.Context, subjectID string) error
 	DeleteUploadSession(ctx context.Context, id string) error
 	FailLeasedJob(ctx context.Context, arg FailLeasedJobParams) (int64, error)
 	FindCancellationReceipt(ctx context.Context, uploadID sql.NullString) (CleanupReceipt, error)
 	FindDuplicateMultipartReceipt(ctx context.Context, arg FindDuplicateMultipartReceiptParams) (CleanupReceipt, error)
+	FindItemDeletion(ctx context.Context, itemID sql.NullInt64) (CleanupReceipt, error)
 	FindPosterCandidateReceipt(ctx context.Context, payloadJson string) (CleanupReceipt, error)
 	FindReadyItemByUpload(ctx context.Context, uploadID sql.NullString) (Item, error)
 	FreezeUploadManifest(ctx context.Context, arg FreezeUploadManifestParams) error
@@ -65,6 +74,9 @@ type Querier interface {
 	GetCleanupReceipt(ctx context.Context, id string) (CleanupReceipt, error)
 	GetCollection(ctx context.Context, id int64) (Collection, error)
 	GetCollectionSummary(ctx context.Context, id int64) (GetCollectionSummaryRow, error)
+	GetDeletionAsset(ctx context.Context, arg GetDeletionAssetParams) (DeletionAsset, error)
+	GetDeletionItem(ctx context.Context, id int64) (Item, error)
+	GetDeletionJob(ctx context.Context, dedupeKey string) (Job, error)
 	GetIngestionJob(ctx context.Context, dedupeKey string) (Job, error)
 	GetItem(ctx context.Context, id int64) (Item, error)
 	GetItemPoster(ctx context.Context, itemID sql.NullInt64) (string, error)
@@ -85,6 +97,8 @@ type Querier interface {
 	IncrementView(ctx context.Context, arg IncrementViewParams) (int64, error)
 	InsertViewEvent(ctx context.Context, arg InsertViewEventParams) (int64, error)
 	ListCollections(ctx context.Context) ([]ListCollectionsRow, error)
+	ListDeletionAssets(ctx context.Context, arg ListDeletionAssetsParams) ([]DeletionAsset, error)
+	ListItemPosterJobs(ctx context.Context, subjectID string) ([]Job, error)
 	ListJobsForStartup(ctx context.Context, arg ListJobsForStartupParams) ([]Job, error)
 	ListLiveItemIDs(ctx context.Context, jsonEach interface{}) ([]int64, error)
 	ListObjectWriteIntents(ctx context.Context, arg ListObjectWriteIntentsParams) ([]ObjectWriteIntent, error)
@@ -103,6 +117,7 @@ type Querier interface {
 	PruneNavigationContexts(ctx context.Context, expiresAt string) (int64, error)
 	PruneOperations(ctx context.Context, expiresAt string) (int64, error)
 	QueueVerifiedUpload(ctx context.Context, arg QueueVerifiedUploadParams) error
+	RecordDeletionEpoch(ctx context.Context, arg RecordDeletionEpochParams) (int64, error)
 	ReleaseLeasedJob(ctx context.Context, arg ReleaseLeasedJobParams) (int64, error)
 	RenameCollection(ctx context.Context, arg RenameCollectionParams) (Collection, error)
 	RenameTag(ctx context.Context, arg RenameTagParams) (Tag, error)
@@ -113,6 +128,9 @@ type Querier interface {
 	SetFavorite(ctx context.Context, arg SetFavoriteParams) (int64, error)
 	SetItemCollection(ctx context.Context, arg SetItemCollectionParams) (int64, error)
 	SetUploadWorkerState(ctx context.Context, arg SetUploadWorkerStateParams) (int64, error)
+	SnapshotDeletionAssets(ctx context.Context, arg SnapshotDeletionAssetsParams) error
+	SnapshotDeletionIncoming(ctx context.Context, arg SnapshotDeletionIncomingParams) error
+	TombstoneItem(ctx context.Context, arg TombstoneItemParams) (int64, error)
 	UpdateSavedSearch(ctx context.Context, arg UpdateSavedSearchParams) (SavedSearch, error)
 }
 

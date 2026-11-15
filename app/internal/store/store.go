@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	SchemaVersion     = 4
+	SchemaVersion     = 5
 	FormatVersion     = 1
 	ReaderConnections = 4
 )

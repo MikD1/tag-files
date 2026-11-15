@@ -51,7 +51,9 @@ No release, migration of real data, or production-readiness claim has been made.
   orientation/whole HEIF/alpha handling. Independent durable poster workers now
   stream the ready primary, publish verified candidates and retain orphan/write
   cleanup independently of upload sessions, including legacy items without uploadID.
-- Next: startup wiring and full disk admission, item deletion,
+  Item deletion now has its versioned HTTP command, tombstone, paged resource
+  inventory, independent source/orphan dependencies and post-restart key verification.
+- Next: startup wiring and full disk admission,
   media HTTP streaming and application runtime wiring, then UI/tools/releases.
   No executable application/SPA image exists yet.
 
@@ -746,9 +748,56 @@ media check
 One earlier focused fixture failed because its proxy retained Docker's previous
 ephemeral port after restart; updating the fixture target restored authenticated
 control. The final full suite passes and disposable containers were removed.
-Executable app/startup/background reconciliation, whole-volume admission/507,
-item deletion, media/upload HTTP, wider media/browser acceptance and Tasks 6–9
-remain open. This evidence does not establish a runnable rewritten release.
+The following deletion slice supplies separate evidence. Executable app/startup,
+whole-volume admission/507, media/upload HTTP, wider media/browser acceptance and
+Tasks 6–9 remain open. This evidence does not establish a runnable rewritten release.
+
+## Item deletion verification
+
+Schema 5 adds a normalized, immutable, paged deletion inventory independent of
+live item/asset rows. The versioned DELETE route atomically hides an item, fences
+poster work, snapshots attached primary/poster keys plus the known incoming key,
+and creates a repeatable job/receipt. Legacy Unknown/Text/Audio items retain this
+contract; no UI action, trash or Undo was added. Pending repeats reuse the same
+202/job identity, including after metadata removal; verified repeats return 204.
+
+Deletion waits for independent source/orphan cleanup, preflights all inventory
+and write-journal pages, drains known I/O and reconciles unknown writers only
+after the authenticated same-volume epoch barrier. Incoming handling aborts
+only MPUs for its exact key, then repeats HEAD/Delete. A per-resource checkpoint
+commits before DELETE/Abort; lease/CAS checks prevent stale checkpoint downgrade.
+Metadata can disappear while minimal keys/receipt/job remain until a later
+storage lifetime confirms absence. Reappearing objects are removed again and
+retain a new verification obligation. No working state expires by age.
+
+Fresh `scripts/check`, expanded `scripts/check-media` and
+`scripts/check-media-image` passed. Tests cover version/HTTP replay, atomic SQL
+rollback and poster cancellation, future jobs/codecs, foreign inventory and future
+journal entries beyond the first page, writer independence, lost DELETE replies,
+resurrection, stale epoch CAS, dependent poster cleanup and owned/neighbor MPUs.
+Real schema-4-to-5 upgrade preserves the bound storage pair, library/legacy IDs,
+duplicate Unicode tags and maximum int64 ticks. Startup refuses future deletion
+payloads atomically, then fences/resumes known work while retaining keys.
+
+The first review exposed missing incoming ownership after the earlier ready
+receipt finished. A failing regression drove the explicit incoming inventory,
+NULL unknown source byte facts and exact MPU cleanup; the final checks include
+this correction. Earlier passing checks without it are superseded.
+
+`TAG_FILES_MEDIA_INTEGRATION=1 scripts/check-storage-image` passed in 349.274s
+under race detection against native owned arm64 storage. The real HTTP/worker
+scenario uploads and verifies primary/poster, deletes through the actual route,
+retains the restart obligation, closes/reopens SQLite, kills/restarts storage,
+and confirms primary/poster absence before completing deletion. A stale Complete
+does not recreate the item; unrelated failed input remains fully verified.
+All previous storage/upload/cancel/pairing/poster scenarios also pass.
+
+Final tested images: storage
+`sha256:735f9fbee92ad3462368ec3cec0d6212af3ccff43dff4bd77006c4ecd54ae126`,
+media check
+`sha256:4c93102f9f0805efad59579b877a266be8bfea8f93966acf1fb4e30faf32775d`.
+Disposable containers were removed. These tests prove the named Linux process
+restart scenarios, not whole-VM/Mac power-loss durability or final release readiness.
 
 ## Completion boundary
 

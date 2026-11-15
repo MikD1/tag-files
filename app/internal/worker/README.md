@@ -33,6 +33,13 @@ resource module, including item-owned `poster_candidate` work without uploadID.
 Every poster candidate has its cleanup receipt before PUT; publication removes
 its own receipt while attaching the poster/version in the same SQL transaction.
 
+`Deletion` hides the item and cancels publication through the domain command,
+then processes paged owned primary/poster/incoming resources. It waits for
+independent ready/orphan receipts and uncertain writers, records deletion epochs
+before I/O, and retains minimal key inventory for verification after storage
+restart even when item metadata is gone. Its retries are not exhausted; an
+awaited restart is diagnosed as `deletion_awaiting_storage_restart`.
+
 `scripts/check-media` includes the native media/ingestion/worker host race suite.
 The owned-storage test `TestIngestionWorkerOwnedImageProcessesPhotoAndRetainsFailedInput`
 requires both `TAG_FILES_MEDIA_INTEGRATION=1` and `TAG_FILES_STORAGE_IMAGE` and
@@ -51,6 +58,6 @@ candidate or receipt is retired. Recovery is sealed after success or first claim
 Ready primary/poster work never recreates an upload session.
 
 Scratch has guarded, bounded reclamation after producer quiescence. Whole-volume
-upload admission/HTTP507, item deletion and application startup/HTTP/shutdown
+upload admission/HTTP507 and application startup/HTTP/shutdown
 wiring remain integration gates. Persistent pairing primitives are in `librarybinding`; merely
 opening a store must not be treated as completion of the startup sequence.

@@ -2,8 +2,9 @@
 
 This describes the new runtime foundation, not a completed importer or release.
 The authoritative DDL is the numbered history in `app/internal/store/migrations`.
-The external format version remains 1; current SQLite schema version is 3.
-Known schema 1/2 upgrades atomically without changing the library identity/data.
+The external format version remains 1; current SQLite schema version is 5.
+Known schemas 1–4 upgrade atomically without changing library identity/data or
+an already-bound logical/physical storage pair.
 
 App data contains `library.sqlite`, its WAL/SHM when present, and `.library.lock`.
 The application holds an OS advisory exclusive lock for its entire lifetime.
@@ -18,6 +19,17 @@ and legacy EF databases are rejected before migrations or journal-mode writes.
 The initial migration is atomic; an interrupted empty Goose install resumes.
 Unknown version entries anywhere in Goose history are rejected, including an
 older row hidden behind a later known version.
+
+Schema 5 adds `deletion_assets`, an immutable, paged working snapshot of an item's
+owned primary/poster keys, expected bytes and publication attempts, plus the
+known incoming key/upload identity. Incoming byte facts remain NULL because
+they cannot be inferred from the converted primary. The inventory references
+the independent deletion receipt, not live assets, and survives item metadata
+removal. A per-key absence/delete epoch is recorded before forwarding DELETE.
+Only this checkpoint may change; a compare-and-swap prevents an older request
+from replacing a newer lifetime. Minimal inventory/receipt/job records remain
+until absent keys are rechecked at a later authenticated same-volume epoch,
+then are removed together. They are temporary recovery work, not trash/history.
 
 The only application writer has one connection and BEGIN IMMEDIATE. Four
 read-only/query-only connections serve readers. Each physical connection has

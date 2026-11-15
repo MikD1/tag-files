@@ -6,6 +6,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/mikd1/tag-files/app/internal/deletion"
 	"github.com/mikd1/tag-files/app/internal/domain"
 	"github.com/mikd1/tag-files/app/internal/objectio"
 	"github.com/mikd1/tag-files/app/internal/poster"
@@ -143,6 +144,9 @@ func validateStartupJob(ctx context.Context, q *dbgen.Queries, library dbgen.Lib
 			return err
 		}
 		return checkCancellationFence(ctx, q, receipt, plan)
+	case domain.JobDelete:
+		_, err := deletion.ValidateJob(ctx, q, job)
+		return err
 	case domain.JobPoster:
 		payload, err := poster.DecodeJob(job)
 		if err != nil {

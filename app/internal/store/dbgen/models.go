@@ -50,6 +50,20 @@ type Collection struct {
 	Version int64
 }
 
+type DeletionAsset struct {
+	ReceiptID       string
+	AssetID         string
+	Bucket          string
+	ObjectKey       string
+	Role            string
+	SizeBytes       sql.NullInt64
+	Sha256          sql.NullString
+	ContentType     sql.NullString
+	JobID           sql.NullString
+	LeaseGeneration int64
+	AbsenceEpoch    sql.NullString
+}
+
 type Item struct {
 	ID             int64
 	UploadID       sql.NullString

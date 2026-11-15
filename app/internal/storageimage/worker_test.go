@@ -7,15 +7,21 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"image"
 	"image/png"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/mikd1/tag-files/app/internal/deletion"
 	"github.com/mikd1/tag-files/app/internal/domain"
+	"github.com/mikd1/tag-files/app/internal/httpapi"
+	"github.com/mikd1/tag-files/app/internal/httpapi/api"
 	"github.com/mikd1/tag-files/app/internal/ingestion"
 	"github.com/mikd1/tag-files/app/internal/librarybinding"
 	"github.com/mikd1/tag-files/app/internal/media"
@@ -25,6 +31,7 @@ import (
 	"github.com/mikd1/tag-files/app/internal/scratch"
 	"github.com/mikd1/tag-files/app/internal/storageprotocol"
 	"github.com/mikd1/tag-files/app/internal/store"
+	"github.com/mikd1/tag-files/app/internal/store/dbgen"
 	"github.com/mikd1/tag-files/app/internal/testutil"
 	"github.com/mikd1/tag-files/app/internal/worker"
 )
@@ -134,12 +141,14 @@ func TestIngestionWorkerOwnedImageProcessesPhotoAndRetainsFailedInput(t *testing
 	if _, err := client.Verify(ctx, key, size, hash); err != nil {
 		t.Fatal("ready primary not durable", err)
 	}
+	primaryKey := key
 	if err := db.Reader().QueryRow("SELECT object_key,sha256,size_bytes,width,height FROM assets WHERE item_id=? AND role='poster' AND state='published' AND profile_version='poster-v1'", ready.ItemID).Scan(&key, &hash, &size, &width, &height); err != nil || width != 13 || height != 9 {
 		t.Fatalf("native poster descriptor: %dx%d %v", width, height, err)
 	}
 	if _, err := client.Verify(ctx, key, size, hash); err != nil {
 		t.Fatal("poster not durable", err)
 	}
+	deletedKeys := []string{primaryKey, key}
 	var storageError *objectstore.Error
 	if _, err := client.Head(ctx, batch.Sessions[0].IncomingKey); !errors.As(err, &storageError) || storageError.Status != 404 {
 		t.Fatalf("worker did not clean ready source: %v", err)
@@ -168,5 +177,125 @@ func TestIngestionWorkerOwnedImageProcessesPhotoAndRetainsFailedInput(t *testing
 	}
 	if result, err := ingestion.Lookup(ctx, db.Reader(), batch.Sessions[1].ID); err != nil || result.State != "failed" {
 		t.Fatal("failed input disappeared on reopen", err)
+	}
+	// Delete the ready primary/poster through the actual JSON route, retain
+	// exact keys after metadata removal, then verify them after storage restart.
+	h, err := httpapi.New(db, httpapi.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	item, err := dbgen.New(db.Reader()).GetItem(ctx, ready.ItemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deleteRequest := func(handler http.Handler) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("DELETE", fmt.Sprintf("/api/v1/items/%d", ready.ItemID), nil)
+		req.Header.Set("If-Match", fmt.Sprintf(`"%d"`, item.Version))
+		out := httptest.NewRecorder()
+		handler.ServeHTTP(out, req)
+		return out
+	}
+	out := deleteRequest(h)
+	if out.Code != 202 {
+		t.Fatalf("native DELETE: %d %s", out.Code, out.Body.String())
+	}
+	var receipt api.JobReceipt
+	if err := json.Unmarshal(out.Body.Bytes(), &receipt); err != nil {
+		t.Fatal(err)
+	}
+	manager, err = objectio.New(db, client, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	del, err := deletion.New(db, manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deleteRunner, err := worker.New(db, map[domain.JobKind]worker.Handler{domain.JobDelete: worker.Deletion(del, db)}, worker.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ran, err := deleteRunner.RunOne(ctx); err != nil || !ran {
+		t.Fatalf("native delete worker: %v %v", ran, err)
+	}
+	job, err := dbgen.New(db.Reader()).GetJob(ctx, receipt.JobId.String())
+	if err != nil || job.State != domain.JobRetryWait || job.ErrorCode.String != "deletion_awaiting_storage_restart" {
+		t.Fatalf("restart verification forgotten: %+v %v", job, err)
+	}
+	if _, err := dbgen.New(db.Reader()).GetDeletionItem(ctx, ready.ItemID); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("deleted metadata remains: %v", err)
+	}
+	if repeat := deleteRequest(h); repeat.Code != 202 {
+		t.Fatalf("pending deletion replay: %d %s", repeat.Code, repeat.Body.String())
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	testutil.Docker(t, "", "kill", "--signal", "KILL", f.name)
+	testutil.Docker(t, "", "start", f.name)
+	f.ready()
+	db, err = store.Open(ctx, directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	control, err = storageprotocol.NewClient(f.endpoint(), f.access, f.secret, &http.Client{Timeout: 60 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pair, err = librarybinding.Ensure(ctx, db, control)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ingestion.RecoverInterrupted(ctx, db, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	client, err = objectstore.New(objectstore.Config{Endpoint: f.endpoint(), Region: "us-east-1", Bucket: "tag-files", AccessKey: f.access, SecretKey: f.secret, HTTPClient: &http.Client{Timeout: 60 * time.Second}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err = client.AtLibrary(pair.StorageID, pair.LibraryID, pair.VolumeID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err = objectio.New(db, client, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	del, err = deletion.New(db, manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deleteRunner, err = worker.New(db, map[domain.JobKind]worker.Handler{domain.JobDelete: worker.Deletion(del, db)}, worker.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ran, err := deleteRunner.RunOne(ctx); err != nil || !ran {
+		t.Fatalf("native restart verification: %v %v", ran, err)
+	}
+	if _, err := dbgen.New(db.Reader()).GetJob(ctx, receipt.JobId.String()); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatal("verified deletion remains as job history", err)
+	}
+	h, err = httpapi.New(db, httpapi.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if done := deleteRequest(h); done.Code != 204 {
+		t.Fatalf("verified deletion replay: %d %s", done.Code, done.Body.String())
+	}
+	for _, key := range deletedKeys {
+		var wire *objectstore.Error
+		if _, err := client.Head(ctx, key); !errors.As(err, &wire) || wire.Status != 404 {
+			t.Fatalf("deleted object returned after restart: %s %v", key, err)
+		}
+	}
+	c, err = ingestion.NewCoordinator(db, manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Complete(ctx, batch.Sessions[0].ID); err == nil {
+		t.Fatal("old Complete resurrected deleted item")
+	}
+	if _, err := client.Verify(ctx, batch.Sessions[1].IncomingKey, int64(len(inputs[1])), hex.EncodeToString(sum[:])); err != nil {
+		t.Fatal("unrelated failed source lost during deletion", err)
 	}
 }

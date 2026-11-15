@@ -25,6 +25,9 @@ type Reader interface {
 // fenced owned resources. New data writes always require their own intent.
 type ReconciliationClient interface {
 	Reader
+	// BoundEpoch identifies the immutable authenticated lifetime fencing this
+	// client's requests; it does not discover or rebind another endpoint.
+	BoundEpoch() string
 	Abort(context.Context, string, string) error
 	Delete(context.Context, string) error
 }

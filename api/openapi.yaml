@@ -37,7 +37,7 @@ paths:
         '200': {description: Atomic metadata replacement, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/Item'}}}}
         default: {$ref: '#/components/responses/Problem'}
     delete:
-      tags: [ingestion]
+      tags: [deletion]
       operationId: deleteItem
       parameters: [{$ref: '#/components/parameters/IfMatch'}]
       responses:
