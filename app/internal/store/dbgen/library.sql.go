@@ -19,6 +19,24 @@ func (q *Queries) AdvanceSearchGeneration(ctx context.Context) error {
 	return err
 }
 
+const bindLibraryStorage = `-- name: BindLibraryStorage :execrows
+UPDATE library_meta SET storage_id=?,storage_volume_id=? WHERE singleton=1 AND library_id=? AND storage_id IS NULL
+`
+
+type BindLibraryStorageParams struct {
+	StorageID       sql.NullString
+	StorageVolumeID sql.NullString
+	LibraryID       string
+}
+
+func (q *Queries) BindLibraryStorage(ctx context.Context, arg BindLibraryStorageParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, bindLibraryStorage, arg.StorageID, arg.StorageVolumeID, arg.LibraryID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const findReadyItemByUpload = `-- name: FindReadyItemByUpload :one
 SELECT id, upload_id, description, media_kind, uploaded_at_utc, collection_id, is_favorite, view_count, last_view_at_utc, duration_ticks, primary_asset_id, state, version FROM items WHERE upload_id=? AND state='ready'
 `
@@ -45,7 +63,7 @@ func (q *Queries) FindReadyItemByUpload(ctx context.Context, uploadID sql.NullSt
 }
 
 const getLibraryMeta = `-- name: GetLibraryMeta :one
-SELECT singleton, library_id, schema_version, format_version, search_generation FROM library_meta WHERE singleton=1
+SELECT singleton, library_id, schema_version, format_version, search_generation, storage_id, storage_volume_id FROM library_meta WHERE singleton=1
 `
 
 func (q *Queries) GetLibraryMeta(ctx context.Context) (LibraryMetum, error) {
@@ -57,6 +75,8 @@ func (q *Queries) GetLibraryMeta(ctx context.Context) (LibraryMetum, error) {
 		&i.SchemaVersion,
 		&i.FormatVersion,
 		&i.SearchGeneration,
+		&i.StorageID,
+		&i.StorageVolumeID,
 	)
 	return i, err
 }

@@ -21,6 +21,7 @@ const StateFilename = ".tag-files-storage.json"
 const lockFilename = ".tag-files-storage.lock"
 const stateTempPrefix = ".tag-files-storage-tmp-"
 const StorageEngine = "seaweedfs/4.53/leveldb2"
+const StorageFormatVersion = 2
 
 var (
 	ErrStorageInUse        = errors.New("storage volume is already owned by another process")
@@ -36,6 +37,8 @@ type StorageState struct {
 	Phase               string `json:"phase"`
 	AppCredentialSHA256 string `json:"appCredentialSha256"`
 	ConfigSHA256        string `json:"configSha256"`
+	LibraryID           string `json:"libraryId,omitempty"`
+	VolumeID            string `json:"volumeId,omitempty"`
 }
 
 type Installation struct {
@@ -58,7 +61,7 @@ func validDigest(value string) bool {
 }
 
 func validateState(state StorageState) error {
-	if state.FormatVersion != 1 || state.Engine != StorageEngine || domain.ValidateUUID(state.ID) != nil || (state.Phase != "initializing" && state.Phase != "ready") || !validDigest(state.AppCredentialSHA256) || (state.ConfigSHA256 != "" && !validDigest(state.ConfigSHA256)) || (state.Phase == "ready" && state.ConfigSHA256 == "") {
+	if (state.FormatVersion != 1 && state.FormatVersion != StorageFormatVersion) || (state.FormatVersion == 1 && (state.LibraryID != "" || state.VolumeID != "")) || (state.FormatVersion == StorageFormatVersion && !validDigest(state.VolumeID)) || (state.LibraryID != "" && (domain.ValidateUUID(state.LibraryID) != nil || state.Phase != "ready")) || state.Engine != StorageEngine || domain.ValidateUUID(state.ID) != nil || (state.Phase != "initializing" && state.Phase != "ready") || !validDigest(state.AppCredentialSHA256) || (state.ConfigSHA256 != "" && !validDigest(state.ConfigSHA256)) || (state.Phase == "ready" && state.ConfigSHA256 == "") {
 		return ErrIncompatibleStorage
 	}
 	return nil
@@ -83,7 +86,19 @@ func LoadState(root string) (StorageState, error) {
 	if !json.Valid(data) || decoder.Decode(&state) != nil {
 		return state, ErrIncompatibleStorage
 	}
-	return state, validateState(state)
+	if err := validateState(state); err != nil {
+		return state, err
+	}
+	if state.FormatVersion == StorageFormatVersion {
+		volume, err := VolumeIdentity(root)
+		if err != nil {
+			return state, err
+		}
+		if state.VolumeID != volume {
+			return state, ErrStorageVolumeChanged
+		}
+	}
+	return state, nil
 }
 
 func emptyUnownedRoot(root string) error {
@@ -164,7 +179,11 @@ func Prepare(root string, app aws.Credentials, uid, gid int) (_ *Installation, e
 	}
 	appHash := credentialDigest(app)
 	if fresh {
-		state = StorageState{FormatVersion: 1, Engine: StorageEngine, ID: domain.NewUUID(), Phase: "initializing", AppCredentialSHA256: appHash}
+		volume, err := VolumeIdentity(root)
+		if err != nil {
+			return nil, err
+		}
+		state = StorageState{FormatVersion: StorageFormatVersion, Engine: StorageEngine, ID: domain.NewUUID(), Phase: "initializing", AppCredentialSHA256: appHash, VolumeID: volume}
 		if err := writeState(root, state); err != nil {
 			return nil, err
 		}
@@ -226,6 +245,16 @@ func Prepare(root string, app aws.Credentials, uid, gid int) (_ *Installation, e
 	}
 	if state.ConfigSHA256 == "" {
 		state.ConfigSHA256 = hash
+		if err := writeState(root, state); err != nil {
+			return nil, err
+		}
+	}
+	if state.FormatVersion == 1 {
+		state.FormatVersion = StorageFormatVersion
+		state.VolumeID, err = VolumeIdentity(root)
+		if err != nil {
+			return nil, err
+		}
 		if err := writeState(root, state); err != nil {
 			return nil, err
 		}

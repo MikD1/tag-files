@@ -14,7 +14,9 @@ type Querier interface {
 	AdvanceSearchGeneration(ctx context.Context) error
 	AttachPublishedPrimary(ctx context.Context, arg AttachPublishedPrimaryParams) error
 	AttachUploadMultipart(ctx context.Context, arg AttachUploadMultipartParams) (int64, error)
+	BindLibraryStorage(ctx context.Context, arg BindLibraryStorageParams) (int64, error)
 	BindUploadPart(ctx context.Context, arg BindUploadPartParams) error
+	BoundRetryWait(ctx context.Context, arg BoundRetryWaitParams) (int64, error)
 	BumpItemVersion(ctx context.Context, id int64) (int64, error)
 	BumpUploadVersion(ctx context.Context, id string) error
 	ClaimJob(ctx context.Context, arg ClaimJobParams) (Job, error)
@@ -76,6 +78,7 @@ type Querier interface {
 	IncrementView(ctx context.Context, arg IncrementViewParams) (int64, error)
 	InsertViewEvent(ctx context.Context, arg InsertViewEventParams) (int64, error)
 	ListCollections(ctx context.Context) ([]ListCollectionsRow, error)
+	ListJobsForStartup(ctx context.Context, arg ListJobsForStartupParams) ([]Job, error)
 	ListLiveItemIDs(ctx context.Context, jsonEach interface{}) ([]int64, error)
 	ListObjectWriteIntents(ctx context.Context, arg ListObjectWriteIntentsParams) ([]ObjectWriteIntent, error)
 	ListObjectWritesForKey(ctx context.Context, arg ListObjectWritesForKeyParams) ([]ObjectWriteIntent, error)
@@ -84,6 +87,7 @@ type Querier interface {
 	ListUnpublishedUploadAssets(ctx context.Context, uploadID sql.NullString) ([]Asset, error)
 	ListUploadParts(ctx context.Context, sessionID string) ([]UploadPart, error)
 	ListUploadSessions(ctx context.Context) ([]UploadSession, error)
+	MakeQueuedJobAvailable(ctx context.Context, arg MakeQueuedJobAvailableParams) (int64, error)
 	MarkItemReady(ctx context.Context, arg MarkItemReadyParams) error
 	MarkObjectWriteUncertain(ctx context.Context, arg MarkObjectWriteUncertainParams) (int64, error)
 	MarkPrimaryVerified(ctx context.Context, id string) error
@@ -95,6 +99,7 @@ type Querier interface {
 	RenameCollection(ctx context.Context, arg RenameCollectionParams) (Collection, error)
 	RenameTag(ctx context.Context, arg RenameTagParams) (Tag, error)
 	ReopenUploadAdmission(ctx context.Context, id string) error
+	ResetInterruptedJob(ctx context.Context, arg ResetInterruptedJobParams) (int64, error)
 	ResetUploadPartConfirmation(ctx context.Context, arg ResetUploadPartConfirmationParams) error
 	RetryIngestionJob(ctx context.Context, arg RetryIngestionJobParams) (int64, error)
 	SetFavorite(ctx context.Context, arg SetFavoriteParams) (int64, error)

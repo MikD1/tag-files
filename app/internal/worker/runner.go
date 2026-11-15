@@ -166,12 +166,7 @@ func (r *Runner) once(ctx context.Context) (bool, error) {
 		}
 		var next *time.Time
 		if failure.Temporary && (job.Attempt <= 3 || h.RetryForever) {
-			delays := [3]time.Duration{5 * time.Second, 30 * time.Second, 120 * time.Second}
-			index := job.Attempt - 1
-			if index > 2 {
-				index = 2
-			}
-			at := r.config.Now().Add(delays[index])
+			at := r.config.Now().Add(domain.JobRetryDelay(job.Attempt))
 			next = &at
 		}
 		err = h.Fail(finalize, job, r.config.Now(), failure.Code, next)

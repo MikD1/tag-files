@@ -26,6 +26,7 @@ func (s *Store) ClaimJob(ctx context.Context, now time.Time, lease time.Duration
 	if lease <= 0 {
 		return job, fmt.Errorf("lease must be positive")
 	}
+	s.sealClaims()
 	err = s.Write(ctx, func(tx *sql.Tx) error {
 		current := now.Add(time.Since(started))
 		var e error
@@ -55,6 +56,7 @@ func (s *Store) ClaimJobKinds(ctx context.Context, kinds []domain.JobKind, now t
 			return job, fmt.Errorf("unknown job kind")
 		}
 	}
+	s.sealClaims()
 	err = s.Write(ctx, func(tx *sql.Tx) error {
 		current := now.Add(time.Since(started))
 		args.Now = Timestamp(current)

@@ -42,6 +42,22 @@ WHERE id=sqlc.arg(id) AND lease_generation=sqlc.arg(generation) AND state='runni
 -- name: GetJob :one
 SELECT * FROM jobs WHERE id=?;
 
+-- name: ListJobsForStartup :many
+SELECT * FROM jobs WHERE id>sqlc.arg(after_id) ORDER BY id LIMIT sqlc.arg(limit_count);
+
+-- name: ResetInterruptedJob :execrows
+UPDATE jobs SET state='queued',attempt=max(0,attempt-1),lease_until=NULL,
+ lease_generation=lease_generation+1,next_attempt_at=?,error_code=NULL,progress_json=NULL
+WHERE id=? AND lease_generation=? AND state='running';
+
+-- name: BoundRetryWait :execrows
+UPDATE jobs SET next_attempt_at=sqlc.arg(bound)
+WHERE id=sqlc.arg(id) AND state='retry_wait' AND next_attempt_at>sqlc.arg(bound);
+
+-- name: MakeQueuedJobAvailable :execrows
+UPDATE jobs SET next_attempt_at=sqlc.arg(now)
+WHERE id=sqlc.arg(id) AND state='queued' AND next_attempt_at>sqlc.arg(now);
+
 -- name: DeleteLeasedJob :execrows
 DELETE FROM jobs WHERE id=sqlc.arg(id) AND lease_generation=sqlc.arg(generation) AND state='running' AND lease_until>sqlc.arg(now);
 

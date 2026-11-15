@@ -13,6 +13,7 @@ import (
 	"github.com/mikd1/tag-files/app/internal/domain"
 	"github.com/mikd1/tag-files/app/internal/objectio"
 	"github.com/mikd1/tag-files/app/internal/objectstore"
+	posterspec "github.com/mikd1/tag-files/app/internal/poster"
 	"github.com/mikd1/tag-files/app/internal/store"
 	"github.com/mikd1/tag-files/app/internal/store/dbgen"
 )
@@ -245,12 +246,7 @@ func (c *Coordinator) PublishPrimary(ctx context.Context, job dbgen.Job, assetID
 		if _, _, err := enqueueCleanup(ctx, q, "ready", session.ID, session.Generation, string(payload), now.Add(time.Since(started))); err != nil {
 			return err
 		}
-		poster, err := json.Marshal(struct {
-			Version        int    `json:"version"`
-			ItemID         int64  `json:"itemId"`
-			PrimaryAssetID string `json:"primaryAssetId"`
-			Profile        string `json:"profile"`
-		}{Version: 1, ItemID: item.ID, PrimaryAssetID: asset.ID, Profile: "poster-v1"})
+		poster, err := json.Marshal(posterspec.Payload{Version: 1, ItemID: item.ID, PrimaryAssetID: asset.ID, Profile: posterspec.Profile})
 		if err != nil {
 			return err
 		}

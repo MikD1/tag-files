@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
+	"github.com/mikd1/tag-files/app/internal/storageprotocol"
 )
 
 var ErrIntegrity = errors.New("stored object failed full size/SHA256 verification")
@@ -31,8 +32,11 @@ type Config struct {
 	HTTPClient                                     aws.HTTPClient
 }
 type Client struct {
-	s3     *s3.Client
-	bucket string
+	s3                             *s3.Client
+	bucket                         string
+	storageID, libraryID, volumeID string
+	epoch                          string
+	control                        *storageprotocol.Client
 }
 type Object struct {
 	Key, ETag, ContentType string
@@ -110,7 +114,11 @@ func New(config Config) (*Client, error) {
 		o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
 		o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
 	})
-	return &Client{s3: client, bucket: config.Bucket}, nil
+	control, err := storageprotocol.NewClient(config.Endpoint, config.AccessKey, config.SecretKey, config.HTTPClient)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{s3: client, bucket: config.Bucket, control: control}, nil
 }
 
 func oneAttempt(o *s3.Options) { o.RetryMaxAttempts = 1 }

@@ -2,6 +2,7 @@ package storageprofile
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -22,7 +23,7 @@ type gateway struct {
 // The network-facing S3 port is opened only after the complete live preflight.
 // This closes the startup window for an already-running app reconnecting while
 // private bucket access/lifecycle configuration is still being checked.
-func openGateway() (*gateway, error) {
+func openGateway(installation *Installation, credentials aws.Credentials) (*gateway, error) {
 	listener, err := net.Listen("tcp", "0.0.0.0:8333")
 	if err != nil {
 		return nil, fmt.Errorf("open private S3 gateway: %w", err)
@@ -37,6 +38,17 @@ func openGateway() (*gateway, error) {
 	epoch := domain.NewUUID()
 	proxy.ModifyResponse = func(response *http.Response) error {
 		response.Header.Set(storageprotocol.EpochHeader, epoch)
+		state, err := installation.Snapshot()
+		if err != nil {
+			return err
+		}
+		response.Header.Set(storageprotocol.StorageHeader, state.ID)
+		response.Header.Set(storageprotocol.VolumeHeader, state.VolumeID)
+		if state.LibraryID != "" {
+			response.Header.Set(storageprotocol.LibraryHeader, state.LibraryID)
+		} else {
+			response.Header.Del(storageprotocol.LibraryHeader)
+		}
 		return nil
 	}
 	// The default Director preserves the original Host, which belongs to the
@@ -44,7 +56,7 @@ func openGateway() (*gateway, error) {
 	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, _ error) {
 		http.Error(w, "storage backend unavailable", http.StatusBadGateway)
 	}
-	g := &gateway{server: &http.Server{Handler: epochGate(epoch, proxy), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second}, transport: transport, done: make(chan error, 1)}
+	g := &gateway{server: &http.Server{Handler: pairingGate(installation, credentials, epoch, epochGate(epoch, proxy)), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second}, transport: transport, done: make(chan error, 1)}
 	go func() { g.done <- g.server.Serve(listener) }()
 	return g, nil
 }

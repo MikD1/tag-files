@@ -37,3 +37,13 @@ Application upload admission and root Compose wiring remain open. The older
 fixture provisions its bucket before fsync and is only wire/checker evidence.
 These checks do not prove physical power-loss durability or the final cold
 backup/restore contract.
+
+Storage ownership format2 now binds one logical library UUID and records a
+physical root fingerprint. Format1 upgrades retain logical UUID/configuration;
+a copied format2 marker on another root is refused. The private authenticated
+control endpoint publishes bounded identity/epoch data and permits only one
+idempotent durable binding. S3 library/root guards run before forwarding, while
+ordinary unbound S3 calls remain available for isolated conformance/offline work.
+Application bootstrap details and the required cold-restore fingerprint rebase
+are documented in [librarybinding](../librarybinding/README.md). The restore tooling and
+actual application admission wiring remain open.

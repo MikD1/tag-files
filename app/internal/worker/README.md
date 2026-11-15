@@ -33,7 +33,15 @@ exercises real SDK MPU/complete, SQLite, FFmpeg, ready cleanup and failed-input
 retention. The current disposable runtime image tests media/process/scratch;
 the CGO SQLite worker is not yet packaged into a runnable server/SPA image.
 
-Startup reset of interrupted jobs, safe stale-scratch reclamation, persistent
-library/storage pairing, whole-volume upload admission/HTTP507, poster/deletion
-handlers and application HTTP/shutdown wiring remain integration gates. Merely
-opening a store must not be treated as completion of those recovery steps.
+Startup SQL recovery is now available through `ingestion.RecoverInterrupted`.
+It requires a stored pair and preflights every job/manifest/cleanup/poster payload
+and external-write codec in pages. Running generations are fenced/requeued even
+if the wall clock moved back; queued jobs become available, retry waits are
+bounded by the shared delay policy, and failed jobs remain. No journal, source,
+candidate or receipt is retired. Recovery is sealed after success or first claim.
+Ready primary/poster work never recreates an upload session.
+
+Safe stale-scratch reclamation, whole-volume upload admission/HTTP507, actual
+poster/deletion handlers and application startup/HTTP/shutdown wiring remain
+integration gates. Persistent pairing primitives are in `librarybinding`; merely
+opening a store must not be treated as completion of the startup sequence.

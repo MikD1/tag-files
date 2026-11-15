@@ -281,7 +281,7 @@ func Run(ctx context.Context, options Options, credentials aws.Credentials, uid,
 			return err
 		}
 	}
-	gateway, err := openGateway()
+	gateway, err := openGateway(p, credentials)
 	if err != nil {
 		return err
 	}

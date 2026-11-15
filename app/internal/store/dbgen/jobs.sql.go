@@ -12,6 +12,24 @@ import (
 	"github.com/mikd1/tag-files/app/internal/domain"
 )
 
+const boundRetryWait = `-- name: BoundRetryWait :execrows
+UPDATE jobs SET next_attempt_at=?1
+WHERE id=?2 AND state='retry_wait' AND next_attempt_at>?1
+`
+
+type BoundRetryWaitParams struct {
+	Bound string
+	ID    string
+}
+
+func (q *Queries) BoundRetryWait(ctx context.Context, arg BoundRetryWaitParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, boundRetryWait, arg.Bound, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const claimJob = `-- name: ClaimJob :one
 UPDATE jobs SET state='running',attempt=attempt+1,lease_generation=lease_generation+1,
     lease_until=?1,error_code=NULL
@@ -275,6 +293,70 @@ func (q *Queries) HeartbeatJob(ctx context.Context, arg HeartbeatJobParams) (int
 	return result.RowsAffected()
 }
 
+const listJobsForStartup = `-- name: ListJobsForStartup :many
+SELECT id, type, subject_id, dedupe_key, payload_json, state, attempt, next_attempt_at, lease_until, lease_generation, progress_json, error_code, created_at FROM jobs WHERE id>?1 ORDER BY id LIMIT ?2
+`
+
+type ListJobsForStartupParams struct {
+	AfterID    string
+	LimitCount int64
+}
+
+func (q *Queries) ListJobsForStartup(ctx context.Context, arg ListJobsForStartupParams) ([]Job, error) {
+	rows, err := q.db.QueryContext(ctx, listJobsForStartup, arg.AfterID, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Job{}
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.SubjectID,
+			&i.DedupeKey,
+			&i.PayloadJson,
+			&i.State,
+			&i.Attempt,
+			&i.NextAttemptAt,
+			&i.LeaseUntil,
+			&i.LeaseGeneration,
+			&i.ProgressJson,
+			&i.ErrorCode,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const makeQueuedJobAvailable = `-- name: MakeQueuedJobAvailable :execrows
+UPDATE jobs SET next_attempt_at=?1
+WHERE id=?2 AND state='queued' AND next_attempt_at>?1
+`
+
+type MakeQueuedJobAvailableParams struct {
+	Now string
+	ID  string
+}
+
+func (q *Queries) MakeQueuedJobAvailable(ctx context.Context, arg MakeQueuedJobAvailableParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, makeQueuedJobAvailable, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const releaseLeasedJob = `-- name: ReleaseLeasedJob :execrows
 UPDATE jobs SET state='queued',attempt=max(0,attempt-1),lease_until=NULL,
  lease_generation=lease_generation+1,next_attempt_at=?1,error_code=NULL
@@ -295,6 +377,26 @@ func (q *Queries) ReleaseLeasedJob(ctx context.Context, arg ReleaseLeasedJobPara
 		arg.Generation,
 		arg.Now,
 	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const resetInterruptedJob = `-- name: ResetInterruptedJob :execrows
+UPDATE jobs SET state='queued',attempt=max(0,attempt-1),lease_until=NULL,
+ lease_generation=lease_generation+1,next_attempt_at=?,error_code=NULL,progress_json=NULL
+WHERE id=? AND lease_generation=? AND state='running'
+`
+
+type ResetInterruptedJobParams struct {
+	NextAttemptAt   string
+	ID              string
+	LeaseGeneration int64
+}
+
+func (q *Queries) ResetInterruptedJob(ctx context.Context, arg ResetInterruptedJobParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, resetInterruptedJob, arg.NextAttemptAt, arg.ID, arg.LeaseGeneration)
 	if err != nil {
 		return 0, err
 	}

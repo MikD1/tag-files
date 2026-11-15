@@ -18,6 +18,19 @@ var ErrNoStorageEpoch = errors.New("S3 endpoint does not publish a valid owned s
 // StorageEpoch is transient backend-lifetime identity, not the persistent
 // storage/library identity or evidence that an earlier write succeeded.
 func (c *Client) StorageEpoch(ctx context.Context) (string, error) {
+	if c.storageID != "" {
+		identity, err := c.control.Identity(ctx)
+		if err != nil {
+			return "", err
+		}
+		if identity.StorageID != c.storageID || identity.LibraryID != c.libraryID || identity.VolumeID != c.volumeID {
+			return "", storageprotocol.ErrBindingMismatch
+		}
+		if c.epoch != "" && identity.Epoch != c.epoch {
+			return "", &Error{Status: 409, Code: storageprotocol.EpochMismatchCode, Cause: ErrNoStorageEpoch}
+		}
+		return identity.Epoch, nil
+	}
 	result, err := c.s3.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(c.bucket)})
 	if err != nil {
 		return "", failure(err)
@@ -46,5 +59,23 @@ func (c *Client) AtEpoch(epoch string) (*Client, error) {
 	}
 	options := c.s3.Options()
 	options.APIOptions = append(options.APIOptions, smithyhttp.SetHeaderValue(storageprotocol.ExpectedEpochHeader, strings.ToLower(epoch)))
-	return &Client{s3: s3.New(options), bucket: c.bucket}, nil
+	return &Client{s3: s3.New(options), bucket: c.bucket, storageID: c.storageID, libraryID: c.libraryID, volumeID: c.volumeID, epoch: strings.ToLower(epoch), control: c.control}, nil
+}
+
+// AtLibrary pins the persistent pair on every S3 request, including epoch
+// discovery. A replacement volume cannot become an epoch barrier for this app.
+func (c *Client) AtLibrary(storageID, libraryID, volumeID string) (*Client, error) {
+	if domain.ValidateUUID(storageID) != nil || domain.ValidateUUID(libraryID) != nil || !storageprotocol.ValidVolumeID(volumeID) {
+		return nil, storageprotocol.ErrBindingMismatch
+	}
+	storageID, libraryID = strings.ToLower(storageID), strings.ToLower(libraryID)
+	if c.storageID != "" {
+		if c.storageID != storageID || c.libraryID != libraryID || c.volumeID != volumeID {
+			return nil, storageprotocol.ErrBindingMismatch
+		}
+		return c, nil
+	}
+	options := c.s3.Options()
+	options.APIOptions = append(options.APIOptions, smithyhttp.SetHeaderValue(storageprotocol.ExpectedStorageHeader, storageID), smithyhttp.SetHeaderValue(storageprotocol.ExpectedLibraryHeader, libraryID), smithyhttp.SetHeaderValue(storageprotocol.ExpectedVolumeHeader, volumeID))
+	return &Client{s3: s3.New(options), bucket: c.bucket, storageID: storageID, libraryID: libraryID, volumeID: volumeID, epoch: c.epoch, control: c.control}, nil
 }

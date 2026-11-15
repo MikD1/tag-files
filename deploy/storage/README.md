@@ -77,3 +77,12 @@ volume, including dotfiles and `config/s3.json`, plus the external app secret
 files and exact image digests. The separate backup/restore tooling and drills
 remain a later rewrite task. These container tests do not establish physical
 power-loss durability or macOS/Docker Desktop acceptance.
+
+Ownership format2 adds a once-bound library UUID and a physical root fingerprint;
+owned format1 upgrades preserve logical IDs and credentials. The private control
+protocol and SDK library/root pins prevent an unrelated live storage epoch from
+being used as proof that an old writer stopped. Copying a format2 marker to a
+different root is refused. The external cold restore/rehearsal tool must validate
+the generation and explicitly rebase that physical fingerprint in both copied
+storage metadata and SQLite. Runtime has no reset/rebind endpoint. This tooling
+is still pending, together with the complete app/Compose release integration.

@@ -33,6 +33,8 @@ No release, migration of real data, or production-readiness claim has been made.
   pass full object verification and publish through a leased ready transaction
   that removes visible uploads and creates independent cleanup/poster work.
   Media processing and application/Compose admission wiring remain open.
+  Persistent pairing primitives now bind the logical storage UUID and physical
+  root in SQLite/storage metadata, with authenticated identity/epoch discovery.
 - Task 5 started: one bounded Linux process supervisor now runs FFmpeg/ffprobe;
   local scratch probe, full decode, photo passthrough/conversion and H264/AAC
   video preparation pass actual fixtures on host and the pinned runtime image.
@@ -41,8 +43,10 @@ No release, migration of real data, or production-readiness claim has been made.
   A serial durable runner now joins verified source streaming, isolated scratch,
   conversion, candidate publication and independent ready cleanup; session/job
   failure, manual retry, heartbeat and graceful interruption are implemented.
-  Startup job/scratch recovery and the complete media matrix remain open.
-- Next: startup recovery/pairing and full disk admission, poster execution,
+  Startup SQL job recovery now preflights payloads/journal, fences interrupted
+  work and bounds queue timing across clock rollback without expiring input.
+  Safe crash-scratch reclamation and the complete media matrix remain open.
+- Next: crash-scratch reclamation/startup wiring and full disk admission, poster execution,
   media HTTP streaming and application runtime wiring.
   No executable application/SPA image exists yet.
 
@@ -541,6 +545,67 @@ old scratch, and validate persistent library/storage pairing before admission.
 Full metadata/storage/scratch upload budgets and HTTP mapping, poster/deletion/
 media routes, the wider media matrix, UI, external tools and release integration
 remain open. No runnable rewritten server/SPA or full rewrite acceptance claim.
+
+### Persistent pair and startup recovery
+
+SQLite schema4 adds a nullable logical storage UUID/physical-root fingerprint
+pair, set atomically and immutable once bound. Owned storage format2 records the
+same root fingerprint and one library UUID. The format1 upgrade preserves its
+logical identity, credentials/configuration and data. Schema3->4 upgrade tests
+preserve library/item/tag identities, duplicate Unicode names and max int64 ticks;
+old runtimes refuse newer library/storage versions before use.
+
+Storage commits/syncs the pair first; SQLite then uses a conditional write.
+Actual-file/real-SQLite tests cover concurrent one-winner binding, restart,
+lost storage reply, failed SQLite commit, retry of the same pair, immutable
+binding, foreign library/volume refusal and a mixed bound-DB/unbound-storage
+restore marker. A physical-root fingerprint (Linux filesystem type/fsid/inode)
+prevents a copied marker from claiming an independently live root with the same
+logical UUID. The external cold restore/rehearsal tool must validate its frozen
+generation, then explicitly rebase this fingerprint in both restored sides;
+that tool remains pending. Physical Mac/VM lifecycle is not inferred from Linux
+container restart, and pairing is not a coherent-backup/hash validator.
+
+Private GET/POST control uses bounded strict JSON, HMAC-SHA256 request/response
+proofs and fresh UUID nonces. Tampering, replay, wrong credentials, oversized
+responses and unknown versions are rejected. Library-bound SDK clients retain
+all permanent guards across epoch binding without mutating their base client.
+Their epoch discovery authenticates persistent identity too: a foreign volume
+or older gateway that ignores new headers cannot become a false barrier. S3
+guards reject mismatched/duplicate identity headers before forwarding a body.
+This is a private storage protocol, not an application backup/diagnostics API.
+
+Startup SQL recovery is one-shot and serialized against the first job claim.
+It requires a stored pair and preflights all independent write codecs and known
+ingest/cleanup/poster jobs/manifests before commit. Unknown versions and state
+disagreements roll back every change. Running jobs receive higher generations
+without charging unfinished attempts, even under clock rollback. Queued jobs
+become available; retry_wait is bounded by the shared 5/30/120 s policy. Failed work,
+inputs, MPUs, candidates, receipts and journals remain. Tests cover 107 pending
+jobs across pages and independent poster recovery without recreating uploads.
+This SQL reset does not prove an old local process or remote writer stopped.
+
+Fresh scripts/check, expanded host scripts/check-media native/race, and the
+nonroot/read-only/network-disabled media/process/scratch image suite passed.
+Full scripts/check-storage-image with real media enabled passed under race in
+303.844s: real lost-response upload/cancel/publication recovery, negative private/
+fsync/credential checks, killed initialization, actual same-volume restart,
+foreign-epoch refusal with retained uncertainty, and real worker/photo/failed-
+input retention. The owned-pair native case passed 42.84s and worker 20.93s. An
+initial native assertion incorrectly expected an XML error code from HeadBucket;
+the SDK exposes generic 409 for HEAD, so refusal/journal assertions were corrected.
+Bound epoch discovery now uses authenticated control identity instead.
+
+Exact native arm64 images: storage
+`sha256:5ff5629e0f28f5746c9504b34a5c020edd9bc548ccc2e39d5aad0b1e9cfb1867`,
+media-check
+`sha256:0585a94c21dff0ac0c40fbd20cdef55e1b1379b51365e9f634865e47109a3e89`.
+Fixture containers/volumes were removed. No production data, push or publication.
+
+Complete application startup/admission/HTTP/shutdown wiring is still absent.
+Safe old-scratch producer quiescence/reclamation, full disk507, actual poster/
+deletion/media routes, wider media/Mac gates, UI, external migration/cold restore
+and release integration remain open. No Task4/5 or full rewrite completion claim.
 
 ## Independent review
 

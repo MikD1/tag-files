@@ -6,3 +6,6 @@ SELECT * FROM items WHERE upload_id=? AND state='ready';
 
 -- name: AdvanceSearchGeneration :exec
 UPDATE library_meta SET search_generation=search_generation+1 WHERE singleton=1;
+
+-- name: BindLibraryStorage :execrows
+UPDATE library_meta SET storage_id=?,storage_volume_id=? WHERE singleton=1 AND library_id=? AND storage_id IS NULL;

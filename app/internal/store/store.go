@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	SchemaVersion     = 3
+	SchemaVersion     = 4
 	FormatVersion     = 1
 	ReaderConnections = 4
 )
@@ -34,15 +34,35 @@ var (
 var migrationFiles embed.FS
 
 type Store struct {
-	lifecycle sync.RWMutex
-	closed    bool
-	directory string
-	writer    *sql.DB
-	reader    *sql.DB
-	lock      *os.File
-	closeOnce sync.Once
-	closeErr  error
+	startup       sync.Mutex
+	startupSealed bool
+	lifecycle     sync.RWMutex
+	closed        bool
+	directory     string
+	writer        *sql.DB
+	reader        *sql.DB
+	lock          *os.File
+	closeOnce     sync.Once
+	closeErr      error
 }
+
+var ErrStartupSealed = errors.New("startup recovery is sealed after recovery or job claims begin")
+
+// RecoverStartup serializes recovery against the first public job claim. The
+// store's process ownership lock is already held; callbacks contain SQL only.
+func (s *Store) RecoverStartup(ctx context.Context, fn func(*sql.Tx) error) error {
+	s.startup.Lock()
+	defer s.startup.Unlock()
+	if s.startupSealed {
+		return ErrStartupSealed
+	}
+	if err := s.Write(ctx, fn); err != nil {
+		return err
+	}
+	s.startupSealed = true
+	return nil
+}
+func (s *Store) sealClaims() { s.startup.Lock(); s.startupSealed = true; s.startup.Unlock() }
 
 func Open(ctx context.Context, directory string) (_ *Store, err error) {
 	if err = os.MkdirAll(directory, 0700); err != nil {

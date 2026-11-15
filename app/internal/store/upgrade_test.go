@@ -106,6 +106,57 @@ VALUES('44444444-4444-4444-8444-444444444444','55555555-5555-4555-8555-555555555
 	}
 }
 
+func TestSchemaThreeUpgradeAddsUnboundPairWithoutChangingHistoricalData(t *testing.T) {
+	dir := t.TempDir()
+	legacy, err := sql.Open("sqlite3", dsn(filepath.Join(dir, "library.sqlite"), false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := fstest.MapFS{}
+	for _, name := range []string{"00001_library.sql", "00002_object_write_intents.sql", "00003_candidate_descriptor.sql"} {
+		data, err := migrationFiles.ReadFile("migrations/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files[name] = &fstest.MapFile{Data: data}
+	}
+	provider, err := goose.NewProvider(goose.DialectSQLite3, legacy, files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := provider.Up(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var identity string
+	if err := legacy.QueryRow("SELECT library_id FROM library_meta").Scan(&identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := legacy.Exec(`INSERT INTO tags(id,name) VALUES(11,'猫'),(12,'猫'); INSERT INTO items(id,media_kind,uploaded_at_utc,duration_ticks,state) VALUES(23,'Video','2001-02-03T04:05:06.1234567Z',9223372036854775807,'missing')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := legacy.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(ctx, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	var got string
+	var storage, volume sql.NullString
+	if err := s.Reader().QueryRow("SELECT library_id,storage_id,storage_volume_id FROM library_meta").Scan(&got, &storage, &volume); err != nil || got != identity || storage.Valid || volume.Valid {
+		t.Fatalf("upgrade adopted storage or replaced library: %s %v %v %v", got, storage, volume, err)
+	}
+	var ticks int64
+	var count int
+	if err := s.Reader().QueryRow("SELECT duration_ticks FROM items WHERE id=23").Scan(&ticks); err != nil || ticks != 9223372036854775807 {
+		t.Fatal("upgrade rounded ticks", err)
+	}
+	if err := s.Reader().QueryRow("SELECT count(*) FROM tags WHERE name='猫'").Scan(&count); err != nil || count != 2 {
+		t.Fatal("upgrade merged legacy tag IDs", err)
+	}
+}
+
 func TestObjectWriteIntentCannotChangeOwnerEpochOrRequestAfterRegistration(t *testing.T) {
 	s := openTest(t)
 	if err := s.Write(ctx, func(tx *sql.Tx) error {

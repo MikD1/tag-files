@@ -36,8 +36,13 @@ write or epoch-rebinding method; new writes require another journalled operation
 If a known request is still running in this process, epoch recovery first waits
 through its metadata acknowledgement and reloads the authoritative journal row;
 it does not race that owner or reconcile work it has already settled.
-The runtime must verify persistent library/storage pairing and the single owned
-volume topology before relying on a boot epoch as proof of quiescence.
+The runtime must verify persistent library/storage/root pairing and the single
+owned volume topology before relying on a boot epoch as proof of quiescence.
+`librarybinding.Ensure` and `AtLibrary` supply this bootstrap path. A bound
+adapter authenticates identity/epoch with the private control nonce protocol,
+then adds permanent identity and epoch guards to SDK requests. Foreign volumes
+and older gateways cannot supply a false barrier. Startup codec preflight never
+settles an external intent just because the application process restarted.
 
 The Complete intent binds a version-1 canonical manifest identity:
 `{"version":1,"parts":[{"partNumber":N,"size":S,"etag":E,"sha256":H},...]}`
@@ -52,5 +57,6 @@ and independent cancellation cleanup. Active-session recovery also validates old
 requests against their immutable MPU/part/frozen manifest and records extra owned
 MPUs for separate cleanup. The primary candidate/ready path also uses typed Put,
 full hash verification and independent intent reconciliation after session removal.
-Actual media probing/conversion, poster/process/scratch work, runtime startup
-pairing and API wiring remain open.
+Media/process/scratch execution and serial ingestion are tested too. Poster
+execution, safe crash-scratch reclamation and complete application startup/API
+wiring remain open; these library primitives are not a runnable application.

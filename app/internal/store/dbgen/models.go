@@ -93,6 +93,8 @@ type LibraryMetum struct {
 	SchemaVersion    int64
 	FormatVersion    int64
 	SearchGeneration int64
+	StorageID        sql.NullString
+	StorageVolumeID  sql.NullString
 }
 
 type NavigationContext struct {
