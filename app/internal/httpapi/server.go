@@ -29,12 +29,17 @@ import (
 const MaxJSONBytes = 1024 * 1024
 
 type Options struct {
-	Clock func() time.Time
-	Media *mediaserve.Service
+	Clock     func() time.Time
+	Media     *mediaserve.Service
+	Version   string
+	Readiness func(context.Context) error
+	Disk      func(context.Context) (map[string]any, error)
+	Admit     func() (release func(), accepted bool)
 }
 type server struct {
-	s   *store.Store
-	now func() time.Time
+	s       *store.Store
+	now     func() time.Time
+	options Options
 }
 type scope struct {
 	method, path string
@@ -52,7 +57,10 @@ func New(s *store.Store, options Options) (http.Handler, error) {
 	if options.Clock == nil {
 		options.Clock = time.Now
 	}
-	service := &server{s: s, now: options.Clock}
+	if options.Version == "" {
+		options.Version = "development"
+	}
+	service := &server{s: s, now: options.Clock, options: options}
 	spec, err := api.GetSwagger()
 	if err != nil {
 		return nil, err
@@ -93,6 +101,14 @@ func New(s *store.Store, options Options) (http.Handler, error) {
 		info := scope{method: r.Method, path: r.URL.Path, trace: uuid.MustParse(domain.NewUUID())}
 		r = r.WithContext(context.WithValue(r.Context(), scopeKey{}, info))
 		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if options.Admit != nil {
+			release, accepted := options.Admit()
+			if !accepted {
+				writeProblem(w, r.Context(), &protocolError{503, "runtime_stopping", "Application is stopping"})
+				return
+			}
+			defer release()
+		}
 		if options.Media != nil && strings.HasPrefix(r.URL.Path, "/media/") {
 			if err := options.Media.Serve(w, r); err != nil {
 				var mediaError *mediaserve.Error

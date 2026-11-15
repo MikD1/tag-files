@@ -19,9 +19,11 @@ Application startup must use this sequence:
 5. Prove old scratch producers stopped before reclaiming their paths; construct
    one worker and open admission only after the remaining runtime gates pass.
 
-Steps 1–4 have tested primitives; there is no complete application/server startup
-constructor yet. Scratch reclamation, full capacity/HTTP507 and HTTP/shutdown
-wiring remain open. Direct unbound S3 clients are reserved for isolated fixtures
+`application.Open` now wires this sequence while holding both library and scratch
+ownership, preflights SQL before reclaim, and exposes HTTP/worker execution only
+after success. Failed startup releases owners and keeps unsupported work/caches.
+`application.Serve` closes admission and joins HTTP/worker before releasing them.
+Full capacity/HTTP507 and upload HTTP wiring remain open. Direct unbound S3 clients are reserved for isolated fixtures
 and standalone offline operations; runtime must not infer pairing from a bucket
 name, an empty listing, elapsed lease, or a boot epoch alone.
 

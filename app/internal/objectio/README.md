@@ -64,5 +64,6 @@ MPUs for separate cleanup. The primary candidate/ready path also uses typed Put,
 full hash verification and independent intent reconciliation after session removal.
 Media/process/scratch execution, independent posters, guarded crash-scratch
 reclamation, deletion/restart reconciliation and media HTTP streams are tested
-too. Complete application startup/API wiring remains open; these library
-primitives are not a runnable application.
+too. The application factory now supplies the bound adapter after pairing and
+startup recovery and joins HTTP/worker activity before releasing owners. Upload
+HTTP/full disk admission and final server/SPA container packaging remain open.

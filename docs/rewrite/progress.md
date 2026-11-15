@@ -15,7 +15,7 @@ No release, migration of real data, or production-readiness claim has been made.
   catalog retrieval and atomic metadata/favorite/view commands.
 - Task 3 core implemented: full OpenAPI source, generated Go/TypeScript,
   strict JSON adapters for catalog/organization, durable operation results
-  and navigation contexts. Upload/system handlers and the full API-only
+  and navigation contexts. System health/status is wired. Upload handlers and the full API-only
   acceptance matrix remain open alongside Tasks 4–9.
 - Task 4 started: the S3 adapter and read-only checker pass real pinned
   SeaweedFS/SDK conformance. The owned storage image now has resumable bootstrap,
@@ -32,7 +32,7 @@ No release, migration of real data, or production-readiness claim has been made.
   duplicate owned MPUs. Primary candidates now persist immutable descriptors,
   pass full object verification and publish through a leased ready transaction
   that removes visible uploads and creates independent cleanup/poster work.
-  Application/Compose admission wiring remains open.
+  Whole-volume upload/Compose admission wiring remains open.
   Persistent pairing primitives now bind the logical storage UUID and physical
   root in SQLite/storage metadata, with authenticated identity/epoch discovery.
 - Task 5 started: one bounded Linux process supervisor now runs FFmpeg/ffprobe;
@@ -46,7 +46,7 @@ No release, migration of real data, or production-readiness claim has been made.
   Startup SQL job recovery now preflights payloads/journal, fences interrupted
   work and bounds queue timing across clock rollback without expiring input.
   Guarded scratch now provides producer-lifetime locks and bounded reclamation
-  after proven quiescence; executable startup wiring and the full media matrix remain open.
+  after proven quiescence; the full media matrix remains open.
   The media module now generates and validates bounded JPEG posters with
   orientation/whole HEIF/alpha handling. Independent durable poster workers now
   stream the ready primary, publish verified candidates and retain orphan/write
@@ -56,9 +56,11 @@ No release, migration of real data, or production-readiness claim has been made.
   Same-origin media now streams owned GET/HEAD, single/multipart ranges and
   conditional responses, with safe legacy downloads and cancellation. Deletion
   waits admitted key-specific reads; actual poster 404 queues a durable rebuild.
-- Next: startup wiring and full disk admission,
-  upload/system HTTP and application runtime wiring, then UI/tools/releases.
-  No executable application/SPA image exists yet.
+  The application factory and development executable now wire persistent pairing,
+  startup SQL recovery, scratch reclaim, all four worker kinds, HTTP admission,
+  liveness/readiness/status and joined shutdown. Full disk/upload admission remains open.
+- Next: full disk admission and upload HTTP, then UI/tools/releases.
+  No executable application/SPA release image exists yet.
 
 ## Decisions
 
@@ -836,6 +838,44 @@ All check sessions exited 0 and disposable containers were removed.
 Application startup/admission, full disk 507, upload/system HTTP, the remaining
 media/browser/Mac matrix, React v27, offline tools and runnable release containers
 remain open. Task 5 and the full goal are not complete.
+
+## Application startup and joined shutdown (2026-11-15)
+
+`application.Open` now holds the library/scratch owners, rejects overlapping
+canonical roots, verifies/binds the persistent storage pair, preflights and
+recovers SQL, then reclaims guarded scratch before HTTP or worker admission.
+It constructs one runner with all four durable handlers. Future payloads,
+foreign pairs and live scratch producers refuse startup without removing their
+working data. A relative/absolute path-alias regression was reproduced and fixed.
+
+The development `cmd/tag-files` server now runs implemented APIs with explicit
+secret files/configuration, readiness/liveness/system status and actual
+SIGINT/SIGTERM shutdown. Admission closes before cancellation. HTTP connections,
+admitted handlers and the worker are joined before scratch/SQLite close;
+forced connection close does not retire a still-running handler. Interrupted
+poster reading requeues with a newer generation and no retry charge, preserves
+primary and leaves no live attempt. Unmeasured S3 capacity is explicitly unknown.
+
+Fresh `scripts/check` and expanded `scripts/check-media` passed including that
+last worker-shutdown regression; `scripts/check-media-image` passed against its
+unchanged media/process/scratch sources. Full
+`TAG_FILES_MEDIA_INTEGRATION=1 scripts/check-storage-image` passed in 361.191 s
+(13 cases, race). Its new application case took 25.83 s: actual interrupted
+ingest recovery, FFmpeg, primary/poster HTTP, paused/resumed SeaweedFS readiness,
+built server executable, health subcommand, actual SIGTERM and owner reacquisition.
+The final native source remained unchanged while the additional ordinary
+application test was added and the ordinary/host suites were rerun.
+
+Tested native arm64 images: storage
+`sha256:26890d637aa4516ef529db46f5c3d93180ddb5a619ff015c32bd78b6f7e4f134`,
+media check
+`sha256:0da229c8112f0598d19a1c60af7cac4e0627737749f022a5179425f97f7dab2b`.
+Logs: `/tmp/tag-files-runtime-final-{check,media,media-image,storage-image}.log`
+and `/tmp/tag-files-runtime-worker-shutdown.log`. All check sessions exited 0;
+disposable containers were removed. This supplies a development server, not the
+completed app/SPA release image. Upload HTTP/full disk admission, the remaining
+media/browser/Mac matrix, React v27, offline migration/backup/restore, Compose/
+release publication and final branch review remain required.
 
 ## Completion boundary
 

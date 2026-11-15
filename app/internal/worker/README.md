@@ -57,7 +57,10 @@ bounded by the shared delay policy, and failed jobs remain. No journal, source,
 candidate or receipt is retired. Recovery is sealed after success or first claim.
 Ready primary/poster work never recreates an upload session.
 
-Scratch has guarded, bounded reclamation after producer quiescence. Whole-volume
-upload admission/HTTP507 and application startup/HTTP/shutdown
-wiring remain integration gates. Persistent pairing primitives are in `librarybinding`; merely
-opening a store must not be treated as completion of the startup sequence.
+Scratch has guarded, bounded reclamation after producer quiescence. The
+application factory now verifies pairing, preflights/recovers SQL and reclaims
+before starting one runner with all four handlers. HTTP and worker share shutdown
+cancellation and are joined before owners close. Whole-volume upload admission/
+HTTP507, upload HTTP and server/SPA container packaging remain integration gates.
+Persistent pairing primitives are in `librarybinding`; merely opening a store
+must not be treated as completion of the startup sequence.

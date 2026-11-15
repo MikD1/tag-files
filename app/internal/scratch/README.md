@@ -37,6 +37,7 @@ cleanup permission. Unproven ordinary caches remain retained and budgeted.
 
 This protocol assumes the pinned media tools preserve inherited descriptors;
 actual FFmpeg and adversarial descendant tests exercise this boundary. Arbitrary
-commands that close their inherited guards are outside this profile. App startup
-must still wire reclaim before worker/HTTP admission; full disk admission, process
+commands that close their inherited guards are outside this profile. Application
+startup now acquires scratch ownership, verifies the persistent storage pair,
+preflights/recovers SQL and reclaims before worker/HTTP admission. Full disk admission, process
 RSS and Mac capacity remain open.

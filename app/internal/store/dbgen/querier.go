@@ -31,6 +31,7 @@ type Querier interface {
 	CountDeletionDependencies(ctx context.Context, arg CountDeletionDependenciesParams) (int64, error)
 	CountItemAssets(ctx context.Context, itemID sql.NullInt64) (int64, error)
 	CountJobIdentity(ctx context.Context, id string) (int64, error)
+	CountJobsByState(ctx context.Context) ([]CountJobsByStateRow, error)
 	CountUninventoriedAssets(ctx context.Context, arg CountUninventoriedAssetsParams) (int64, error)
 	CountUnverifiedDeletionEpochs(ctx context.Context, arg CountUnverifiedDeletionEpochsParams) (int64, error)
 	CountUploadCompleteIntents(ctx context.Context, targetID string) (int64, error)

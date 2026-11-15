@@ -19,7 +19,7 @@ scripts/check
 `api/openapi.yaml` owns the full HTTP contract. Go JSON adapters currently expose
 the catalog, organization, operations and navigation tags. A separately wired
 media handler now streams GET/HEAD, byte ranges and conditional responses;
-upload and system adapters still require implementation. Binary handlers bypass
+system health/status is wired, while upload adapters still require implementation. Binary handlers bypass
 JSON binding. Generated Go and TypeScript files are checked
 in and must be regenerated together through `scripts/generate`.
 
@@ -28,9 +28,12 @@ and race tests. Integration tests use real temporary SQLite libraries. They do
 not access existing media, MinIO or user databases. `scripts/check-storage`
 runs the optional isolated Docker S3 conformance suite; see the
 [wire profile](internal/objectstore/README.md) and the separate
-[storage preflight](internal/storageprofile/README.md). Production storage
-bootstrap/readiness wiring, ingestion, FFmpeg/browser/tool and Mac acceptance
-gates remain open.
+[storage preflight](internal/storageprofile/README.md). Final paired release
+images, complete upload/disk admission, browser/tool and Mac acceptance
+gates remain open. The development server is `go run ./cmd/tag-files`; its
+startup/configuration and current scope are documented in
+[application lifecycle](internal/application/README.md). It is not the completed
+rewritten product or a release image.
 
 To prepare module/toolchain caches for offline checks, run the above online
 once. Go generators can then run with `GOPROXY=off` using the installed pinned
