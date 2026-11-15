@@ -1,0 +1,4 @@
+# Hosted labels documented at https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+# were added after the pinned actionlint1.7.12 runner catalog.
+self-hosted-runner:
+  labels: [ubuntu-26.04, ubuntu-26.04-arm]

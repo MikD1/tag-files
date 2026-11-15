@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+project_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+large_image=${TAG_FILES_LARGE_STORAGE_IMAGE:-tag-files-storage:local-check}
+large_image_ref=$(docker image inspect --format '{{.Id}}' "$large_image")
+large_work=$(mktemp -d "$project_root/.large-upload.XXXXXX")
+trap 'rm -rf -- "$large_work"' EXIT
+cd "$project_root/app"
+TAG_FILES_STORAGE_IMAGE="$large_image_ref" \
+TAG_FILES_LARGE_UPLOAD=1 TAG_FILES_LARGE_WORK_DIR="$large_work" \
+  go test -race ./internal/storageimage -run '^TestProductionMaximum20GiBUploadBoundedRSSAndRetainedFailure$' \
+  -count=1 -v -timeout=50m

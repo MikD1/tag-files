@@ -92,6 +92,7 @@ func settingsFrom(getenv func(string) string) (settings, error) {
 	}
 	return settings{listen: env(getenv, "TAG_FILES_LISTEN", ":8080"), app: application.Config{
 		DataDir: env(getenv, "TAG_FILES_DATA_DIR", "/data"),
+		WebDir:  getenv("TAG_FILES_WEB_DIR"),
 		Scratch: scratch.Config{Root: env(getenv, "TAG_FILES_SCRATCH_DIR", "/scratch"), MaxBytes: scratchMax, MinFreeBytes: minimumFree},
 		Storage: objectstore.Config{Endpoint: env(getenv, "TAG_FILES_S3_ENDPOINT", "http://storage:8333"), Region: "us-east-1", Bucket: "tag-files", AccessKey: access, SecretKey: secret},
 		Media:   p, Version: version, MinimumFreeBytes: minimumFree,
@@ -123,6 +124,30 @@ func health(ctx context.Context, address string) error {
 	return nil
 }
 
+func openApplication(ctx context.Context, config application.Config, open func(context.Context, application.Config) (*application.App, error)) (*application.App, error) {
+	delay := 100 * time.Millisecond
+	for {
+		app, err := open(ctx, config)
+		if err == nil {
+			return app, nil
+		}
+		var network net.Error
+		if !errors.As(err, &network) {
+			return nil, err
+		}
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+		if delay < 2*time.Second {
+			delay *= 2
+		}
+	}
+}
+
 func run(ctx context.Context, getenv func(string) string, args []string) error {
 	if len(args) == 1 && args[0] == "check" {
 		return health(ctx, env(getenv, "TAG_FILES_LISTEN", ":8080"))
@@ -135,7 +160,7 @@ func run(ctx context.Context, getenv func(string) string, args []string) error {
 		return err
 	}
 	startup, cancel := context.WithTimeout(ctx, 90*time.Second)
-	app, err := application.Open(startup, config.app)
+	app, err := openApplication(startup, config.app, application.Open)
 	cancel()
 	if err != nil {
 		return err

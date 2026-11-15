@@ -65,6 +65,9 @@ func (s *Store) RecoverStartup(ctx context.Context, fn func(*sql.Tx) error) erro
 func (s *Store) sealClaims() { s.startup.Lock(); s.startupSealed = true; s.startup.Unlock() }
 
 func Open(ctx context.Context, directory string) (_ *Store, err error) {
+	if _, markerErr := os.Lstat(filepath.Join(directory, ".cold-restore-incomplete")); !errors.Is(markerErr, os.ErrNotExist) {
+		return nil, fmt.Errorf("incomplete external cold restore; restore into new empty volumes before starting the application")
+	}
 	if err = os.MkdirAll(directory, 0700); err != nil {
 		return nil, err
 	}

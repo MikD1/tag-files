@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+backup_project_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+backup_tool_image="tag-files-cold-backup:local-drill"
+backup_storage_image="tag-files-cold-backup-storage:local-drill"
+docker build --progress=plain -f "$backup_project_root/tools/backup/Dockerfile" -t "$backup_tool_image" "$backup_project_root"
+docker build --progress=plain -f "$backup_project_root/deploy/storage/Dockerfile" -t "$backup_storage_image" "$backup_project_root"
+backup_tool_ref=$(docker image inspect --format '{{.Id}}' "$backup_tool_image")
+backup_storage_ref=$(docker image inspect --format '{{.Id}}' "$backup_storage_image")
+cd "$backup_project_root/tools/backup"
+python3 -m unittest discover -s . -p host_test.py
+TAG_FILES_BACKUP_IMAGE="$backup_tool_ref" TAG_FILES_STORAGE_IMAGE="$backup_storage_ref" go test -race ./... -count=1 -v -timeout=10m

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+output=${1:?Provide an output directory}
+mkdir -p "$output/modules"
+go list -deps -f '{{with .Module}}{{if not .Main}}{{.Path}} {{.Version}} {{.Dir}}{{end}}{{end}}' ./cmd/tag-files | sort -u > "$output/go-modules.txt"
+: > "$output/missing-go-notices.txt"
+while read -r module_path module_version module_dir; do
+  [[ -n "$module_path" ]] || continue
+  module_target="$output/modules/$module_path@$module_version"
+  mkdir -p "$module_target"
+  found=0
+  for notice in "$module_dir"/[Ll][Ii][Cc][Ee][Nn][Ss][Ee]* "$module_dir"/[Nn][Oo][Tt][Ii][Cc][Ee]* "$module_dir"/COPYING*; do
+    if [[ -f "$notice" ]]; then cp "$notice" "$module_target/"; found=1; fi
+  done
+  if [[ $found == 0 ]]; then printf '%s %s\n' "$module_path" "$module_version" >> "$output/missing-go-notices.txt"; fi
+done < "$output/go-modules.txt"
+if [[ -s "$output/missing-go-notices.txt" ]]; then
+  echo "Runtime Go dependencies are missing distribution notices" >&2
+  exit 1
+fi

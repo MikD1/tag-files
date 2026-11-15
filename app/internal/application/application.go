@@ -28,6 +28,7 @@ import (
 	"github.com/mikd1/tag-files/app/internal/storageprotocol"
 	"github.com/mikd1/tag-files/app/internal/store"
 	"github.com/mikd1/tag-files/app/internal/store/dbgen"
+	"github.com/mikd1/tag-files/app/internal/webui"
 	"github.com/mikd1/tag-files/app/internal/worker"
 )
 
@@ -36,6 +37,7 @@ var ErrLifecycle = errors.New("application cannot be served more than once or af
 
 type Config struct {
 	DataDir                             string
+	WebDir                              string
 	Scratch                             scratch.Config
 	Storage                             objectstore.Config
 	Media                               media.Config
@@ -195,6 +197,12 @@ func Open(ctx context.Context, c Config) (_ *App, err error) {
 	if err != nil {
 		return nil, err
 	}
+	if c.WebDir != "" {
+		a.handler, err = webui.New(c.WebDir, a.handler)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return a, nil
 }
 
@@ -256,6 +264,8 @@ func (a *App) Serve(ctx context.Context, listener net.Listener) error {
 	a.mu.Unlock()
 	server := &http.Server{Handler: a.handler, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: time.Minute, MaxHeaderBytes: 32 * 1024, BaseContext: func(net.Listener) context.Context { return runCtx }}
 	httpDone, workerDone := make(chan error, 1), make(chan error, 1)
+	housekeepingDone := make(chan struct{})
+	go a.housekeep(runCtx, housekeepingDone)
 	go func() { httpDone <- server.Serve(listener) }()
 	go func() { workerDone <- a.worker.Run(runCtx) }()
 	var httpErr, workerErr error
@@ -283,6 +293,7 @@ func (a *App) Serve(ctx context.Context, listener net.Listener) error {
 	if !workerStopped {
 		workerErr = <-workerDone
 	}
+	<-housekeepingDone
 	// Close stops connections but does not join handlers. Admission is already
 	// closed under the same mutex as Add, so Wait cannot race a new registration.
 	a.requests.Wait()

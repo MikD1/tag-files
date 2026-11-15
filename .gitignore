@@ -4,3 +4,9 @@ data/
 .superpowers/
 node_modules/
 dist/
+web/test-results/
+web/playwright-report/
+__pycache__/
+.large-upload.*/
+.env
+secrets/

@@ -134,6 +134,9 @@ func initialState(root string) (StorageState, bool, error) {
 // before any backend process or S3 request. It never adopts arbitrary existing
 // bytes or replaces credentials/configuration belonging to a ready installation.
 func Prepare(root string, app aws.Credentials, uid, gid int) (_ *Installation, err error) {
+	if _, markerErr := os.Lstat(filepath.Join(root, ".cold-restore-incomplete")); !errors.Is(markerErr, os.ErrNotExist) {
+		return nil, fmt.Errorf("incomplete external cold restore; restore into new empty volumes before starting storage")
+	}
 	if len(app.AccessKeyID) < 20 || len(app.AccessKeyID) > 256 || len(app.SecretAccessKey) < 20 || len(app.SecretAccessKey) > 256 || app.SessionToken != "" || strings.ContainsAny(app.AccessKeyID+app.SecretAccessKey, "\x00\r\n") {
 		return nil, fmt.Errorf("explicit private static credentials of 20..256 bytes are required")
 	}

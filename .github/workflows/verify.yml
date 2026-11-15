@@ -1,0 +1,97 @@
+name: Verify rewrite
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Exact release tag embedded in the image tested by this run
+        type: string
+        default: development
+      export-images:
+        description: Retain the sealed tested image archives for release promotion
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-26.04
+            arch: amd64
+          - runner: ubuntu-26.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    env:
+      TAG_FILES_VERSION: ${{ inputs.version }}
+      TARGET_ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.27.4
+          cache-dependency-path: |
+            app/go.sum
+            tools/codegen/go.sum
+            tools/migrate/go.sum
+            tools/backup/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.13.0
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Prepare pinned frontend and host media dependencies
+        run: |
+          npm ci --prefix web
+          npm ci --prefix tools/codegen
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg=7:8.0.1-3ubuntu2
+          cd web
+          npx playwright install --with-deps chromium webkit
+      - name: Generated contracts, Go race suites, offline tools and web
+        run: scripts/check
+      - name: Pinned FFmpeg media/process/scratch image
+        run: scripts/check-media-image
+      - name: Owned storage and full runtime integration
+        run: TAG_FILES_MEDIA_INTEGRATION=1 scripts/check-storage-image
+      - name: Real API SQLite browser workflows
+        run: npm --prefix web run test:browser
+      - name: Build native release-version archives and load exact images
+        run: scripts/release-images build --version "$TAG_FILES_VERSION" --arch "$TARGET_ARCH" --directory "$RUNNER_TEMP/verified-images"
+      - name: Exact application/storage images, browser upload and restart
+        env:
+          TAG_FILES_SKIP_IMAGE_BUILD: '1'
+        run: scripts/check-app-image
+      - name: Offline migration with real versioned S3
+        run: |
+          cd tools/migrate
+          TAG_FILES_MIGRATE_INTEGRATION=1 TAG_FILES_MIGRATE_STORAGE_IMAGE=tag-files-storage:local-check go test -race ./... -count=1 -timeout=5m
+      - name: Complete external cold backup and fresh-volume recovery
+        run: tools/backup/check-drill
+      - name: Versioned install/update with required cold backup
+        run: TAG_FILES_DEPLOYMENT_INTEGRATION=1 python3 -m unittest discover -s scripts -p test_install_update.py -v
+      - name: Seal identities only after every verification gate passes
+        run: scripts/release-images seal --version "$TAG_FILES_VERSION" --arch "$TARGET_ARCH" --directory "$RUNNER_TEMP/verified-images"
+      - name: Hand off these exact tested images to publication
+        if: inputs.export-images
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-images-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/verified-images
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 7
+      - name: Retain failure traces and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-${{ matrix.runner }}
+          path: |
+            web/test-results
+            ${{ runner.temp }}/verified-images/bundle.json
+          retention-days: 7

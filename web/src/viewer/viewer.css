@@ -1,0 +1,8 @@
+.production-viewer .viewer-stage { height: 80dvh; }
+.production-viewer .viewer-stage:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.production-viewer .viewer-unavailable { text-align: center; color: var(--muted); padding: 24px; }
+.production-viewer .viewer-unavailable p { margin-bottom: 12px; }
+.production-viewer .viewer-context-message { color: var(--muted); font-size: 12px; margin: 12px 0; }
+.production-viewer .viewer-navigation:not(:has(.image-tools)) { grid-template-columns: minmax(35px, 1fr) auto minmax(35px, 1fr); }
+
+.production-viewer .viewer-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }

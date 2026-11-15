@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+"""External host orchestration. The ephemeral tool never receives Docker socket."""
+import argparse
+import datetime
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import stat
+import subprocess
+import sys
+import tempfile
+
+
+def check_containers(rows, app_name, storage_name, metadata, storage, require_layout=True, protected_paths=()):
+    if metadata == storage:
+        raise ValueError("metadata and storage must be different named volumes")
+    selected = []
+    for name in (app_name, storage_name):
+        match = [r for r in rows if r.get("Name", "").lstrip("/") == name or r.get("Id") == name]
+        if len(match) != 1:
+            raise ValueError("explicit app and storage containers must exist")
+        selected.append(match[0])
+    if selected[0]["Id"] == selected[1]["Id"]:
+        raise ValueError("app and storage must be separate stopped containers")
+    protected = {metadata, storage}
+    for row, expected, role in zip(selected, (metadata, storage), ("app", "storage")):
+        state = row.get("State", {})
+        if any(state.get(k) for k in ("Running", "Paused", "Restarting")):
+            raise ValueError(role + " must be fully stopped before native volume access")
+        data_mounts = [m for m in row.get("Mounts", []) if m.get("Destination") == "/data"]
+        if len(data_mounts) != 1 or data_mounts[0].get("Type") != "volume":
+            raise ValueError(role + " must have exactly one named /data volume")
+        data = data_mounts[0]
+        if require_layout and data.get("Name") != expected:
+            raise ValueError(role + " /data does not match the specified named volume")
+        protected.add(data.get("Name"))
+        for m in row.get("Mounts", []):
+            dest = m.get("Destination", "")
+            if dest == "/data" or role == "app" and dest == "/scratch" and m.get("Type") == "volume":
+                continue
+            if m.get("Type") == "bind" and not m.get("RW", True) and dest.startswith("/run/secrets/"):
+                if Path(dest).name not in ("s3_access_key", "s3_secret_key"):
+                    raise ValueError("unknown secret mount; this tool profile must be extended explicitly")
+                continue
+            raise ValueError("unsupported additional persistent mount: " + dest)
+    protected_paths = set(protected_paths)
+    for row in rows:
+        for m in row.get("Mounts", []):
+            if m.get("Type") == "volume" and m.get("Name") in protected and m.get("Source"):
+                protected_paths.add(m["Source"])
+    for row in rows:
+        state = row.get("State", {})
+        if any(state.get(k) for k in ("Running", "Paused", "Restarting")):
+            if any(m.get("Type") == "volume" and m.get("Name") in protected for m in row.get("Mounts", [])):
+                raise ValueError("a running container still holds one of the protected volumes")
+            for m in row.get("Mounts", []):
+                if m.get("Type") == "bind" and m.get("Source"):
+                    alias = Path(m["Source"])
+                    if any(alias == Path(p) or alias in Path(p).parents or Path(p) in alias.parents for p in protected_paths):
+                        raise ValueError("a running container holds a bind alias of a protected volume")
+    return selected
+
+
+def docker(*args, capture=True):
+    # No shell expansion. Never print inspect payloads or captured secrets.
+    result = subprocess.run(["docker", *args], text=True, stdout=subprocess.PIPE if capture else None,
+                            stderr=subprocess.PIPE if capture else None, check=False)
+    if result.returncode:
+        raise ValueError("docker " + args[0] + " failed" + (": " + result.stderr.strip() if capture else ""))
+    return result.stdout.strip() if capture else ""
+
+
+def all_containers():
+    ids = docker("ps", "-aq").splitlines()
+    return json.loads(docker("inspect", *ids)) if ids else []
+
+
+def named_volume(name):
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]+", name):
+        raise ValueError("explicit safe named volume required")
+    row = json.loads(docker("volume", "inspect", name))[0]
+    if row.get("Driver") != "local" or row.get("Options"):
+        raise ValueError("native backup supports plain local Linux named volumes only")
+    return row
+
+
+def image_info(ref):
+    row = json.loads(docker("image", "inspect", ref))[0]
+    if row.get("Os") != "linux" or not re.fullmatch(r"sha256:[0-9a-f]{64}", row.get("Id", "")):
+        raise ValueError("an exact local Linux image is required")
+    return {key: row.get(key) for key in ("Id", "RepoDigests", "Architecture", "Os")}
+
+
+def regular_tree(root):
+    if root.is_symlink() or not root.is_dir():
+        raise ValueError("deployment root must be a real directory")
+    for current, dirs, files in os.walk(root, followlinks=False):
+        for name in dirs + files:
+            info = (Path(current) / name).lstat()
+            if not stat.S_ISREG(info.st_mode) and not stat.S_ISDIR(info.st_mode):
+                raise ValueError("deployment contains a symlink or nonregular entry")
+
+
+def mount(kind, source, destination, readonly=True):
+    if "," in str(source):
+        raise ValueError("Docker mount source cannot contain a comma")
+    return ["--mount", f"type={kind},src={source},dst={destination}" + (",readonly" if readonly else "")]
+
+
+def safe_destination(p, volumes):
+    # Named volumes are accessed only through Docker, never through these paths.
+    p = p.resolve()
+    docker_root = Path(docker("info", "--format", "{{.DockerRootDir}}")).resolve()
+    for forbidden in [docker_root] + [Path(v["Mountpoint"]).resolve() for v in volumes]:
+        if p == forbidden or forbidden in p.parents or p in forbidden.parents:
+            raise ValueError("backup destination must be outside Docker's data root and active volumes")
+    return p
+
+
+def execute(args):
+    image = image_info(args.image)
+    base = ["run", "--rm", "--network=none", "--read-only", "--security-opt=no-new-privileges", "--cap-drop=ALL",
+            "--cap-add=CHOWN", "--cap-add=DAC_OVERRIDE", "--cap-add=FOWNER", "--cap-add=FSETID"]
+    if args.command == "verify":
+        archive = Path(args.archive).resolve(strict=True)
+        with tempfile.TemporaryDirectory(prefix=".cold-backup-work-", dir=archive.parent) as workspace:
+            base += mount("bind", workspace, "/work", False) + ["--env", "TMPDIR=/work"]
+            result = docker(*(base + mount("bind", archive, "/archive/" + archive.name) + [image["Id"], "verify", "--archive", "/archive/" + archive.name]))
+        print(result)
+        return
+    volumes = [named_volume(args.metadata_volume), named_volume(args.storage_volume)]
+    selected = check_containers(all_containers(), args.app_container, args.storage_container,
+                                args.metadata_volume, args.storage_volume, args.command == "backup", [v["Mountpoint"] for v in volumes])
+    if args.command == "backup":
+        dest = safe_destination(Path(args.destination), volumes)
+        dest.mkdir(mode=0o700, parents=True, exist_ok=True)
+        generation = args.generation or datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S")
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", generation) or generation.endswith(".part"):
+            raise ValueError("invalid generation name")
+        source_deployment = Path(args.deployment).resolve(strict=True)
+        regular_tree(source_deployment)
+        if dest == source_deployment or dest in source_deployment.parents or source_deployment in dest.parents:
+            raise ValueError("deployment source and archive destination must not overlap")
+        images = {"app": image_info(selected[0]["Image"]), "storage": image_info(selected[1]["Image"]), "tool": image}
+        with tempfile.TemporaryDirectory(prefix=".cold-backup-work-", dir=dest) as td:
+            base += mount("bind", td, "/work", False) + ["--env", "TMPDIR=/work"]
+            deployment = Path(td) / "deployment"
+            shutil.copytree(source_deployment, deployment)
+            deployment.chmod(0o700)
+            (deployment / "secrets").mkdir(mode=0o700, exist_ok=True)
+            # Capture the effective image filer config, rather than trusting a
+            # similarly named host file. Extra overrides were refused above.
+            docker("cp", args.storage_container + ":/etc/seaweedfs/filer.toml", str(deployment / "filer.toml"))
+            for name in ("s3_access_key", "s3_secret_key"):
+                target = deployment / "secrets" / name
+                if target.exists() or target.is_symlink():
+                    target.unlink()
+                docker("cp", args.storage_container + ":/run/secrets/" + name, str(target))
+                target.chmod(0o444)
+            (deployment / "containers.json").write_text(json.dumps(selected, indent=2) + "\n")
+            (deployment / "images.json").write_text(json.dumps(images, indent=2) + "\n")
+            regular_tree(deployment)
+            # Repeat immediately before mounting; volume-level flocks fence a
+            # later app/storage start until the cold operation has returned.
+            check_containers(all_containers(), args.app_container, args.storage_container,
+                             args.metadata_volume, args.storage_volume)
+            cmd = base + mount("volume", args.metadata_volume, "/metadata") + mount("volume", args.storage_volume, "/storage")
+            cmd += mount("bind", deployment, "/deployment") + mount("bind", dest, "/archive", False)
+            cmd += [image["Id"], "backup", "--generation", generation, "--owner-uid", str(os.getuid()), "--owner-gid", str(os.getgid()), "--images", json.dumps({k: v["Id"] for k, v in images.items()})]
+            result = docker(*cmd)
+            check_containers(all_containers(), args.app_container, args.storage_container,
+                             args.metadata_volume, args.storage_volume)
+            print(result)
+    else:
+        archive = safe_destination(Path(args.archive), volumes)
+        if not archive.is_dir():
+            raise ValueError("archive generation must exist")
+        output = Path(args.deployment_output).resolve()
+        if output == archive or output in archive.parents or archive in output.parents:
+            raise ValueError("deployment output must not overlap the immutable archive")
+        output.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if list(output.iterdir()):
+            raise ValueError("deployment output must be empty")
+        # Verify independently before granting any destination-volume writes.
+        with tempfile.TemporaryDirectory(prefix=".cold-backup-work-", dir=archive.parent) as workspace:
+            base += mount("bind", workspace, "/work", False) + ["--env", "TMPDIR=/work"]
+            docker(*(base + mount("bind", archive, "/archive/" + archive.name) + [image["Id"], "verify", "--archive", "/archive/" + archive.name]))
+            return execute_restore(args, base, archive, output, image)
+
+
+def execute_restore(args, base, archive, output, image):
+    saved = json.loads((archive / "backup.json").read_text())
+    for ref in saved["images"].values():
+        image_info(ref)  # Same exact local images must remain available.
+    check_containers(all_containers(), args.app_container, args.storage_container,
+                     args.metadata_volume, args.storage_volume, False,
+                     [named_volume(args.metadata_volume)["Mountpoint"], named_volume(args.storage_volume)["Mountpoint"]])
+    cmd = base + mount("bind", archive, "/archive/" + archive.name) + mount("volume", args.metadata_volume, "/metadata", False)
+    cmd += mount("volume", args.storage_volume, "/storage", False) + mount("bind", output, "/deployment", False)
+    result = docker(*(cmd + [image["Id"], "restore", "--archive", "/archive/" + archive.name]))
+    check_containers(all_containers(), args.app_container, args.storage_container,
+                     args.metadata_volume, args.storage_volume, False,
+                     [named_volume(args.metadata_volume)["Mountpoint"], named_volume(args.storage_volume)["Mountpoint"]])
+    print(result)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="External stopped-volume backup/restore; never starts or stops services")
+    sub = parser.add_subparsers(dest="command", required=True)
+    for command in ("backup", "verify", "restore"):
+        p = sub.add_parser(command)
+        p.add_argument("--image", required=True, help="separate locally built cold-backup tool image")
+        if command == "verify":
+            p.add_argument("--archive", required=True)
+            continue
+        p.add_argument("--app-container", required=True)
+        p.add_argument("--storage-container", required=True)
+        p.add_argument("--metadata-volume", required=True)
+        p.add_argument("--storage-volume", required=True)
+        if command == "backup":
+            p.add_argument("--deployment", required=True, help="directory containing compose/config files")
+            p.add_argument("--destination", required=True, help="external host directory outside Docker data root")
+            p.add_argument("--generation")
+        else:
+            p.add_argument("--archive", required=True)
+            p.add_argument("--deployment-output", required=True, help="new empty host config/secrets directory")
+    args = parser.parse_args()
+    try:
+        execute(args)
+    except (ValueError, OSError, json.JSONDecodeError) as error:
+        print("cold-backup: " + str(error), file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

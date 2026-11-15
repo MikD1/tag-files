@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 project_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-storage_test_image="tag-files-storage:local-check"
+storage_test_image="tag-files-storage:check-$(openssl rand -hex 8)"
+trap 'docker image rm "$storage_test_image" >/dev/null 2>&1 || true' EXIT
 docker build --progress=plain -f "$project_root/deploy/storage/Dockerfile" -t "$storage_test_image" "$project_root"
 storage_test_ref=$(docker image inspect --format '{{.Id}}' "$storage_test_image")
 cd "$project_root/app"

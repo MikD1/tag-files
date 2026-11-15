@@ -1,0 +1,256 @@
+#!/usr/bin/env python3
+"""Disposable exact-image amd64 browser/video/restart gate; never real libraries.
+
+Register only amd64 QEMU first when running on arm64 (see deploy/AMD64-EVIDENCE.md).
+The script does not change host binfmt handlers or publish images.
+"""
+import argparse
+import base64
+import hashlib
+import json
+import os
+from pathlib import Path
+import secrets
+import shutil
+import socket
+import subprocess
+import tempfile
+import time
+import urllib.error
+import urllib.request
+import uuid
+
+ROOT = Path(__file__).resolve().parent.parent
+APP = 'tag-files-app:amd64-check'
+STORAGE = 'tag-files-storage:amd64-check'
+
+
+def run(command, *, env=None, cwd=ROOT, output=None, timeout=900):
+    print('+ ' + ' '.join(map(str, command)), flush=True)
+    if output:
+        with Path(output).open('w') as stream:
+            return subprocess.run(command, cwd=cwd, env=env, check=True,
+                                  stdout=stream, stderr=subprocess.STDOUT, timeout=timeout)
+    return subprocess.run(command, cwd=cwd, env=env, check=True, timeout=timeout)
+
+
+def capture(command, *, env=None):
+    return subprocess.check_output(command, cwd=ROOT, env=env, text=True).strip()
+
+
+def image(ref):
+    info = json.loads(capture(['docker', 'image', 'inspect', ref]))[0]
+    assert info['Architecture'] == 'amd64' and info['Os'] == 'linux', info
+    return {k: info.get(k) for k in ('Id', 'Architecture', 'Os', 'RepoDigests', 'Descriptor')}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--skip-build', action='store_true')
+    parser.add_argument('--artifacts', type=Path)
+    args = parser.parse_args()
+    artifacts = args.artifacts or Path(tempfile.mkdtemp(prefix='tag-files-amd64-evidence-'))
+    artifacts.mkdir(parents=True, exist_ok=True)
+    artifacts = artifacts.resolve()
+    print(f'Artifacts: {artifacts}', flush=True)
+    host = json.loads(capture(['docker', 'version', '--format', '{{json .Server}}']))
+    assert host['Arch'] in ('arm64', 'amd64'), host['Arch']
+    if host['Arch'] != 'amd64':
+        handler = Path('/proc/sys/fs/binfmt_misc/qemu-x86_64').read_text()
+        assert 'enabled' in handler and 'F' in handler.split('flags: ', 1)[1].splitlines()[0], handler
+    else:
+        handler = None
+    evidence = {'host': {'architecture': host['Arch'], 'docker': host['Version']},
+                'emulated': host['Arch'] != 'amd64', 'binfmt': handler,
+                'workingTreeHEAD': capture(['git', 'rev-parse', 'HEAD']),
+                'startedUTC': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+                'inputHashes': {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest()
+                                for p in ('deploy/app/Dockerfile', 'deploy/storage/Dockerfile',
+                                          'deploy/compose.yml', 'web/e2e/release/uploads.spec.ts')}}
+    if not args.skip_build:
+        run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--load',
+             '-f', 'deploy/app/Dockerfile', '--target', 'app', '--build-arg',
+             'VERSION=amd64-check', '--metadata-file', str(artifacts / 'app-build.json'),
+             '-t', APP, '.'], output=artifacts / 'app-build.log', timeout=2400)
+        run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--load',
+             '-f', 'deploy/storage/Dockerfile', '--metadata-file', str(artifacts / 'storage-build.json'),
+             '-t', STORAGE, '.'], output=artifacts / 'storage-build.log', timeout=1200)
+    evidence['app'] = image(APP)
+    evidence['storage'] = image(STORAGE)
+    app_id, storage_id = evidence['app']['Id'], evidence['storage']['Id']
+    fixture = Path(tempfile.mkdtemp(prefix='tag-files-amd64-fixture-'))
+    project = 'tag-files-amd64-' + secrets.token_hex(6)
+    (fixture / 'compose.yml').write_bytes((ROOT / 'deploy/compose.yml').read_bytes())
+    (fixture / 'amd64.yml').write_text('services:\n  app:\n    platform: linux/amd64\n  storage:\n    platform: linux/amd64\n')
+    secret_dir = fixture / 'secrets'
+    secret_dir.mkdir(mode=0o700)
+    for filename, n in [('s3_access_key', 24), ('s3_secret_key', 32)]:
+        path = secret_dir / filename
+        path.write_text(secrets.token_hex(n) + '\n')
+        path.chmod(0o444)
+    media_dir = fixture / 'media'
+    media_dir.mkdir(mode=0o777)
+    media_dir.chmod(0o777)  # Disposable bind destination for runtime UID10001.
+    with socket.socket() as bound:
+        bound.bind(('127.0.0.1', 0))
+        port = bound.getsockname()[1]
+    env = dict(os.environ, TAG_FILES_APP_IMAGE=app_id, TAG_FILES_STORAGE_IMAGE=storage_id,
+               TAG_FILES_PORT=str(port), TAG_FILES_RELEASE_ORIGIN=f'http://127.0.0.1:{port}')
+    origin = env['TAG_FILES_RELEASE_ORIGIN']
+    compose = ['docker', 'compose', '-p', project, '-f', str(fixture / 'compose.yml'),
+               '-f', str(fixture / 'amd64.yml')]
+    evidence['project'] = project
+
+    def request(path, method='GET', body=None, headers=None):
+        req = urllib.request.Request(origin + path, data=body, method=method, headers=headers or {})
+        with urllib.request.urlopen(req, timeout=120) as response:
+            return response.status, dict(response.headers), response.read()
+
+    def json_request(path, method='GET', body=None, headers=None):
+        h = dict(headers or {})
+        if body is not None:
+            body = json.dumps(body).encode()
+            h['Content-Type'] = 'application/json'
+        code, _, data = request(path, method, body, h)
+        return code, json.loads(data)
+
+    def docker_media(program, *arguments):
+        command = ['docker', 'run', '--rm', '--platform', 'linux/amd64', '--network', 'none',
+                   '--read-only', '--mount', f'type=bind,src={media_dir},dst=/fixtures',
+                   '--entrypoint', program, app_id, *arguments]
+        return capture(command)
+
+    start = time.monotonic()
+    success = False
+    try:
+        run(compose + ['up', '-d', '--pull', 'never', '--wait', '--wait-timeout', '600'], env=env)
+        ids = capture(compose + ['ps', '-q'], env=env).splitlines()
+        # Inspect the actual started image architecture, not just the tag.
+        for container in ids:
+            meta = json.loads(capture(['docker', 'inspect', container]))[0]
+            assert meta['Image'] in (app_id, storage_id), meta['Image']
+            image(meta['Image'])
+        assert request('/health/ready')[0] == 200
+        assert b'id="root"' in request('/content/1')[2]
+        assert json_request('/api/v1/items')[1]['totalItems'] == 0
+        run(['npm', 'exec', 'playwright', 'test', '--', '--config', 'playwright.release.config.ts',
+             '--timeout', '180000', '--output', str(artifacts / 'playwright')],
+            cwd=ROOT / 'web', env=env, output=artifacts / 'browser.log', timeout=600)
+        assert json_request('/api/v1/items')[1]['totalItems'] == 2
+        evidence['browser'] = 'Chromium and WebKit: two real worker/Blob-XHR photo uploads; Chromium lost-response reconciliation; HEAD/Range and navigation'
+        print('Both browser upload scenarios passed; checking actual amd64 FFmpeg video.', flush=True)
+        docker_media('ffmpeg', '-hide_banner', '-loglevel', 'error', '-nostdin',
+                     '-threads', '1', '-filter_threads', '1', '-y', '-f', 'lavfi',
+                     '-i', 'testsrc=size=80x48:rate=10:duration=0.6', '-f', 'lavfi',
+                     '-i', 'sine=frequency=440:duration=0.6', '-c:v', 'mpeg4',
+                     '-c:a', 'pcm_s16le', '-shortest', '/fixtures/input.mov')
+        source_probe = json.loads(docker_media('ffprobe', '-v', 'error', '-show_streams',
+                                              '-of', 'json', '/fixtures/input.mov'))
+        assert {s['codec_name'] for s in source_probe['streams']} == {'mpeg4', 'pcm_s16le'}, source_probe
+        evidence['runtimeUID'] = docker_media('id', '-u')
+        assert evidence['runtimeUID'] == '10001'
+        evidence['runtimeMachine'] = docker_media('uname', '-m')
+        assert evidence['runtimeMachine'] == 'x86_64'
+        evidence['ffmpegVersion'] = docker_media('ffmpeg', '-version').splitlines()[0]
+        source = (media_dir / 'input.mov').read_bytes()
+        source_hash = hashlib.sha256(source).hexdigest()
+        _, created = json_request('/api/v1/upload-sessions', 'POST', {'files': [{
+            'clientFileId': str(uuid.uuid4()), 'filename': 'amd64-video.mov',
+            'size': len(source), 'fingerprint': source_hash}]}, {'Idempotency-Key': str(uuid.uuid4())})
+        session = created['sessions'][0]
+        assert session['partCount'] == 1, session
+        upload_path = '/api/v1/upload-sessions/' + session['id']
+        _, _, raw_part = request(upload_path + '/parts/1', 'PUT', source, {
+            'Content-Type': 'application/octet-stream', 'X-Upload-Generation': str(session['generation']),
+            'X-Part-SHA256': base64.b64encode(hashlib.sha256(source).digest()).decode()})
+        part = json.loads(raw_part)
+        assert part['state'] == 'confirmed' and part['size'] == len(source), part
+        status, outcome = json_request(upload_path + '/complete', 'POST', {
+            'generation': session['generation'], 'parts': [{'partNumber': 1, 'etag': part['etag']}]},
+            {'Idempotency-Key': str(uuid.uuid4())})
+        assert status == 202 and outcome['state'] == 'pending', outcome
+        deadline = time.monotonic() + 300
+        while time.monotonic() < deadline:
+            _, outcome = json_request(upload_path)
+            assert outcome['state'] != 'failed', outcome
+            if outcome['state'] == 'ready':
+                break
+            time.sleep(0.5)
+        assert outcome['state'] == 'ready', outcome
+        _, item = json_request('/api/v1/items/' + str(outcome['itemId']))
+        assert item['mediaKind'] == 'Video' and abs(item['durationSeconds'] - 0.6) < 0.01, item
+        primary = request(item['contentUrl'])[2]
+        (media_dir / 'primary.mp4').write_bytes(primary)
+        probe = json.loads(docker_media('ffprobe', '-v', 'error', '-show_streams', '-show_format',
+                                       '-of', 'json', '/fixtures/primary.mp4'))
+        video = next(s for s in probe['streams'] if s['codec_type'] == 'video')
+        audio = next(s for s in probe['streams'] if s['codec_type'] == 'audio')
+        assert (video['codec_name'], video['width'], video['height'], audio['codec_name']) == ('h264', 80, 48, 'aac'), probe
+        assert 0 <= primary.find(b'moov') < primary.find(b'mdat'), 'missing MP4 faststart'
+        docker_media('ffmpeg', '-hide_banner', '-loglevel', 'error', '-nostdin',
+                     '-threads', '1', '-i', '/fixtures/primary.mp4', '-f', 'null', '-')
+        deadline = time.monotonic() + 120
+        while time.monotonic() < deadline:
+            _, item = json_request('/api/v1/items/' + str(outcome['itemId']))
+            if item.get('posterUrl'):
+                try:
+                    poster = request(item['posterUrl'])[2]
+                    if poster[:2] == b'\xff\xd8':
+                        break
+                except urllib.error.HTTPError as exc:
+                    assert exc.code == 404, exc
+            time.sleep(0.5)
+        else:
+            raise AssertionError('Video poster never became readable')
+        evidence['video'] = {'sourceBytes': len(source), 'sourceSHA256': source_hash,
+                             'primaryBytes': len(primary), 'primarySHA256': hashlib.sha256(primary).hexdigest(),
+                             'posterBytes': len(poster), 'posterSHA256': hashlib.sha256(poster).hexdigest(),
+                             'sourceProbe': source_probe, 'probe': probe, 'item': item}
+        assert json_request('/api/v1/upload-batches')[1] == []
+        deadline = time.monotonic() + 120
+        while time.monotonic() < deadline:
+            _, before = json_request('/api/v1/items')
+            assert before['totalItems'] == 3, before
+            if all(row.get('posterUrl') for row in before['items']):
+                break
+            time.sleep(0.5)
+        assert all(row.get('posterUrl') for row in before['items']), before
+        hashes = {}
+        for row in before['items']:
+            data = request(row['contentUrl'])[2]
+            hashes[str(row['id'])] = hashlib.sha256(data).hexdigest()
+            if row['mediaKind'] == 'Image':
+                assert data == (ROOT / 'app/internal/media/testdata/quadrants.png').read_bytes()
+            code, headers, body = request(row['contentUrl'], 'HEAD')
+            assert code == 200 and body == b'' and int(headers['Content-Length']) == len(data)
+            code, _, body = request(row['contentUrl'], headers={'Range': 'bytes=0-31'})
+            assert code == 206 and body == data[:32]
+        evidence['primaryHashes'] = hashes
+        run(compose + ['restart', '--timeout', '120'], env=env)
+        run(compose + ['up', '-d', '--pull', 'never', '--wait', '--wait-timeout', '600'], env=env)
+        _, after = json_request('/api/v1/items')
+        assert after == before, {'before': before, 'after': after}
+        for row in after['items']:
+            data = request(row['contentUrl'])[2]
+            assert hashlib.sha256(data).hexdigest() == hashes[str(row['id'])], row
+        assert b'id="root"' in request('/content/' + str(item['id']))[2]
+        assert request('/health/ready')[0] == 200
+        evidence['restart'] = 'same exact images; full catalog equality and all three complete primary SHA256 equal; SPA deep link and readiness'
+        evidence['seconds'] = round(time.monotonic() - start, 3)
+        evidence['result'] = 'passed'
+        success = True
+        print(f'amd64 gate passed in {evidence["seconds"]}s (emulated={evidence["emulated"]})', flush=True)
+    finally:
+        evidence.setdefault('result', 'failed')
+        (artifacts / 'report.json').write_text(json.dumps(evidence, indent=2) + '\n')
+        try:
+            run(compose + ['logs', '--no-color'], env=env, output=artifacts / 'runtime.log', timeout=30)
+        finally:
+            run(compose + ['down', '--volumes', '--remove-orphans', '--timeout', '120'], env=env, timeout=300)
+            shutil.rmtree(fixture)
+        if not success:
+            print(f'Failure evidence retained at {artifacts}', flush=True)
+
+
+if __name__ == '__main__':
+    main()

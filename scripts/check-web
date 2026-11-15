@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+project_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+cd "$project_root/web"
+npm run typecheck
+npm run lint
+npm test
+npm run build
+# Browser/S3/media/large-file gates are explicit separate commands so the fast
+# suite works after dependency preparation without installing browser runtimes.

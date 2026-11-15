@@ -24,14 +24,9 @@ func Measure(root string) (Snapshot, error) {
 	if err := syscall.Fstatfs(int(file.Fd()), &fs); err != nil {
 		return Snapshot{}, err
 	}
-	if fs.Bsize <= 0 {
-		return Snapshot{}, ErrUnavailable
-	}
-	// Round down by saturation: a huge filesystem must never wrap its available
-	// bytes or publish an integer that the JSON client cannot represent exactly.
-	available := int64(domain.MaxSafeInteger)
-	if fs.Bavail <= uint64(domain.MaxSafeInteger)/uint64(fs.Bsize) {
-		available = int64(fs.Bavail) * fs.Bsize
+	available, err := availableBytes(fs)
+	if err != nil {
+		return Snapshot{}, err
 	}
 	id := sha256.Sum256(fmt.Appendf(nil, "tag-files/filesystem/v1/%x/%08x/%08x", fs.Type, uint32(fs.Fsid.X__val[0]), uint32(fs.Fsid.X__val[1])))
 	rootID := sha256.Sum256(fmt.Appendf(nil, "tag-files/volume-root/v1/%x/%08x/%08x/%x", fs.Type, uint32(fs.Fsid.X__val[0]), uint32(fs.Fsid.X__val[1]), stat.Ino))
@@ -41,4 +36,21 @@ func Measure(root string) (Snapshot, error) {
 		s.AvailableInodes = &count
 	}
 	return s, nil
+}
+
+func availableBytes(fs syscall.Statfs_t) (int64, error) {
+	// f_bsize is preferred IO size. Block counts use f_frsize allocation units;
+	// they differ on virtiofs. Older Linux ABIs can report a zero fragment size.
+	unit := fs.Frsize
+	if unit == 0 {
+		unit = fs.Bsize
+	}
+	if unit <= 0 {
+		return 0, ErrUnavailable
+	}
+	// Saturate before multiplication; the API cannot represent larger integers.
+	if fs.Bavail > uint64(domain.MaxSafeInteger)/uint64(unit) {
+		return domain.MaxSafeInteger, nil
+	}
+	return int64(fs.Bavail) * unit, nil
 }

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+project_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+performance_image=${TAG_FILES_PERFORMANCE_STORAGE_IMAGE:-tag-files-storage:local-check}
+performance_image_ref=$(docker image inspect --format '{{.Id}}' "$performance_image")
+performance_work=$(mktemp -d "$project_root/.performance.XXXXXX")
+trap 'rm -rf -- "$performance_work"' EXIT
+cd "$project_root/app"
+TAG_FILES_STORAGE_IMAGE="$performance_image_ref" \
+TAG_FILES_PERFORMANCE=1 TAG_FILES_PERFORMANCE_WORK_DIR="$performance_work" \
+  go test -race ./internal/storageimage -run '^TestProductionCatalogPerformanceDuringSoftwareEncode$' \
+  -count=1 -v -timeout=8m

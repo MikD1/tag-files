@@ -1,0 +1,346 @@
+#!/usr/bin/env python3
+"""Build/test handoff and exact-image release promotion. Publishing is explicit."""
+import argparse
+import gzip
+import hashlib
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import secrets
+import subprocess
+import tarfile
+import tempfile
+
+ROOT = Path(__file__).resolve().parent.parent
+IMAGES = ('app', 'storage')
+ARCHES = ('amd64', 'arm64')
+DIGEST = re.compile(r'sha256:[0-9a-f]{64}\Z')
+VERSION = re.compile(r'v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?\Z')
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def validate_version(version, development=False):
+    if development and version == 'development':
+        return None
+    match = VERSION.fullmatch(version)
+    require(match is not None and len(version) <= 100, 'invalid release version')
+    if match[4]:
+        require(all(not part.isdigit() or part == '0' or not part.startswith('0')
+                    for part in match[4].split('.')), 'invalid numeric prerelease version')
+    return match
+
+
+def release_tags(version, prerelease):
+    match = validate_version(version)
+    require(bool(match[4]) == prerelease, 'release prerelease flag and version disagree')
+    canonical = version.removeprefix('v')
+    return [canonical] if prerelease else [canonical, f'{match[1]}.{match[2]}', 'latest']
+
+
+def local_ref(name, arch):
+    require(name in IMAGES and arch in ARCHES, 'unknown image or architecture')
+    return f'tag-files-verified-{name}:{arch}'
+
+
+def capture(command):
+    return subprocess.check_output(command, cwd=ROOT, text=True).strip()
+
+
+def execute(command):
+    print('+ ' + ' '.join(map(str, command)), flush=True)
+    subprocess.run(command, cwd=ROOT, check=True)
+
+
+def sha256_stream(stream):
+    digest = hashlib.sha256()
+    while chunk := stream.read(4 * 1024 * 1024):
+        digest.update(chunk)
+    return digest.hexdigest()
+
+
+def file_sha(path):
+    with path.open('rb') as stream:
+        return sha256_stream(stream)
+
+
+def archive_identity(path, expected_ref, arch, version, expected_commit=None):
+    """Read Docker exporter/save archives without extraction, including gzip blobs.
+
+    Classic Docker archives carry plain layer.tar; the containerd image store
+    can save gzip blobs. Identity is the original config and ordered *decoded*
+    layer hashes (diffIDs), independent of transport compression/store type.
+    """
+    with tarfile.open(path, 'r:*') as archive:
+        members = {}
+        for member in archive.getmembers():
+            parts = PurePosixPath(member.name)
+            require(not parts.is_absolute() and '..' not in parts.parts and '\x00' not in member.name,
+                    'unsafe image archive path')
+            require(member.isdir() or member.isfile(), 'unsupported image archive entry')
+            require(member.name not in members, 'duplicate image archive entry')
+            members[member.name] = member
+
+        def content(name):
+            require(name in members and members[name].isfile(), 'missing image archive member')
+            return archive.extractfile(members[name])
+
+        with content('manifest.json') as stream:
+            manifests = json.load(stream)
+        require(isinstance(manifests, list) and len(manifests) == 1, 'archive must contain exactly one image')
+        manifest = manifests[0]
+        require(manifest.get('RepoTags') == [expected_ref], 'archive image tag mismatch')
+        with content(manifest['Config']) as stream:
+            raw_config = stream.read()
+        config = json.loads(raw_config)
+        require(config.get('architecture') == arch and config.get('os') == 'linux', 'archive architecture mismatch')
+        require(config.get('config', {}).get('Labels', {}).get('org.opencontainers.image.version') == version,
+                'archive image version mismatch')
+        if expected_commit is not None:
+            require(config.get('config', {}).get('Labels', {}).get('org.opencontainers.image.revision') == expected_commit,
+                    'archive image source commit mismatch')
+        rootfs = config.get('rootfs', {})
+        diffs = rootfs.get('diff_ids', [])
+        require(rootfs.get('type') == 'layers' and len(diffs) == len(manifest['Layers']) and len(diffs) > 0,
+                'invalid image rootfs')
+        layer_hashes = {}
+        for name, expected in zip(manifest['Layers'], diffs, strict=True):
+            require(DIGEST.fullmatch(expected) is not None, 'invalid layer digest')
+            if name not in layer_hashes:
+                with content(name) as stream:
+                    magic = stream.read(2)
+                    stream.seek(0)
+                    if magic == b'\x1f\x8b':
+                        with gzip.GzipFile(fileobj=stream) as decoded:
+                            actual = sha256_stream(decoded)
+                    else:
+                        actual = sha256_stream(stream)
+                layer_hashes[name] = 'sha256:' + actual
+            require(layer_hashes[name] == expected, 'archive layer hash mismatch')
+        return {'configDigest': 'sha256:' + hashlib.sha256(raw_config).hexdigest(),
+                'diffIDs': diffs, 'platform': 'linux/' + arch}
+
+
+def write_bundle(directory, bundle):
+    (directory / 'bundle.json').write_text(json.dumps(bundle, indent=2) + '\n')
+
+
+def prepare_bundle(directory, version, arch, commit, run_id, attempt):
+    validate_version(version, development=True)
+    require(arch in ARCHES, 'unknown architecture')
+    require(re.fullmatch('[0-9a-f]{40}', commit) is not None, 'invalid source commit')
+    images = {}
+    for name in IMAGES:
+        path = directory / f'{name}.tar'
+        images[name] = {'archiveSHA256': file_sha(path),
+                        'identity': archive_identity(path, local_ref(name, arch), arch, version, commit)}
+    bundle = {'schema': 1, 'version': version, 'architecture': arch, 'sourceCommit': commit,
+              'runID': run_id, 'runAttempt': attempt, 'sealed': False, 'images': images,
+              'attestations': 'none: Docker archive transport; embedded inventories are not OCI SBOM/provenance'}
+    write_bundle(directory, bundle)
+    return bundle
+
+
+def verify_bundle(directory, version, arch, commit, run_id, attempt, sealed=True):
+    bundle = json.loads((directory / 'bundle.json').read_text())
+    for field, expected in [('schema', 1), ('version', version), ('architecture', arch),
+                            ('sourceCommit', commit), ('runID', run_id), ('runAttempt', attempt), ('sealed', sealed)]:
+        actual = bundle.get(field)
+        require(type(actual) is type(expected) and actual == expected, f'receipt {field} mismatch')
+    require(set(bundle.get('images', {})) == set(IMAGES), 'receipt images mismatch')
+    for name in IMAGES:
+        entry = bundle['images'][name]
+        path = directory / f'{name}.tar'
+        require(file_sha(path) == entry.get('archiveSHA256'), 'receipt archive SHA256 mismatch')
+        require(archive_identity(path, local_ref(name, arch), arch, version, commit) == entry.get('identity'),
+                'receipt image identity mismatch')
+        require(DIGEST.fullmatch(entry.get('testedImageID', '')) is not None, 'missing tested image identity')
+    return bundle
+
+
+def inspect_image(ref):
+    return json.loads(capture(['docker', 'image', 'inspect', ref]))[0]
+
+
+def verify_loaded(entry, ref, arch, version, same_engine=False):
+    info = inspect_image(ref)
+    require(info['Architecture'] == arch and info['Os'] == 'linux', 'loaded image architecture mismatch')
+    require(info['RootFS']['Layers'] == entry['identity']['diffIDs'], 'loaded rootfs identity mismatch')
+    require(info.get('Config', {}).get('Labels', {}).get('org.opencontainers.image.version') == version,
+            'loaded image version mismatch')
+    if same_engine:
+        require(info['Id'] == entry['testedImageID'], 'tested image identity changed after verification')
+    return info['Id']
+
+
+def verify_exported_image(entry, image_id, arch, version, directory):
+    """Bind the actually tested image's full config and layers to its source.
+
+    Docker's .Id may be a manifest/index digest or a config digest. Re-export
+    the immutable tested ID through a private tag instead of equating those
+    different identities or rebuilding a partial config from inspect output.
+    Proof bytes live beside the source archives, never in an implicit /tmp.
+    """
+    require(DIGEST.fullmatch(image_id) is not None, 'invalid tested image identity')
+    ref = 'tag-files-seal:' + secrets.token_hex(12)
+    with tempfile.TemporaryDirectory(prefix='.seal-', dir=directory) as temporary:
+        path = Path(temporary) / 'tested.tar'
+        execute(['docker', 'image', 'tag', image_id, ref])
+        try:
+            execute(['docker', 'image', 'save', '--output', str(path), ref])
+            actual = archive_identity(path, ref, arch, version)
+            require(actual == entry['identity'], 'tested config/rootfs identity differs from source archive')
+            return actual
+        finally:
+            execute(['docker', 'image', 'rm', ref])
+
+
+def check_alias(name):
+    return 'tag-files-app:local' if name == 'app' else 'tag-files-storage:local-check'
+
+
+def seal_bundle(directory, version, arch, commit, run_id, attempt):
+    bundle = verify_bundle(directory, version, arch, commit, run_id, attempt, sealed=False)
+    for name in IMAGES:
+        verify_loaded(bundle['images'][name], local_ref(name, arch), arch, version, same_engine=True)
+        verify_loaded(bundle['images'][name], check_alias(name), arch, version, same_engine=True)
+        verify_exported_image(bundle['images'][name], bundle['images'][name]['testedImageID'], arch, version, directory)
+        # Refuse a reference replacement while its immutable image was exported.
+        verify_loaded(bundle['images'][name], local_ref(name, arch), arch, version, same_engine=True)
+        verify_loaded(bundle['images'][name], check_alias(name), arch, version, same_engine=True)
+    bundle['sealed'] = True
+    write_bundle(directory, bundle)
+
+
+def build(directory, version, arch, commit, run_id, attempt):
+    validate_version(version, development=True)
+    require(arch in ARCHES, 'unknown architecture')
+    require(capture(['docker', 'version', '--format', '{{.Server.Arch}}']) == arch,
+            'release verification must use the matching native Docker architecture')
+    directory.mkdir(parents=True, exist_ok=False)
+    for name in IMAGES:
+        command = ['docker', 'buildx', 'build', '--platform', 'linux/' + arch,
+                   '--provenance=false', '--sbom=false', '--build-arg', 'VERSION=' + version,
+                   '--label', 'org.opencontainers.image.version=' + version,
+                   '--label', 'org.opencontainers.image.revision=' + commit,
+                   '--output', f'type=docker,dest={directory / (name + ".tar")}',
+                   '-t', local_ref(name, arch), '-f', f'deploy/{name}/Dockerfile']
+        if name == 'app':
+            command += ['--target', 'app']
+        execute(command + ['.'])
+    bundle = prepare_bundle(directory, version, arch, commit, run_id, attempt)
+    for name in IMAGES:
+        execute(['docker', 'image', 'load', '--input', str(directory / f'{name}.tar')])
+        bundle['images'][name]['testedImageID'] = verify_loaded(bundle['images'][name], local_ref(name, arch), arch, version)
+        # The existing exact-image check reads these dedicated CI-job local aliases.
+        execute(['docker', 'image', 'tag', local_ref(name, arch), check_alias(name)])
+    write_bundle(directory, bundle)
+
+
+def promote(directory, version, prerelease, repository, commit, run_id, attempt):
+    tags = release_tags(version, prerelease)
+    repository = repository.lower()
+    require(re.fullmatch(r'[a-z0-9][a-z0-9_.-]*/[a-z0-9][a-z0-9_.-]*', repository) is not None,
+            'invalid GitHub repository')
+    require(run_id.isdigit() and attempt.isdigit(), 'publishing requires GitHub run identity')
+    # Validate BOTH complete bundles before any load, push, or channel tag change.
+    bundles = {arch: verify_bundle(directory / arch, version, arch, commit, run_id, attempt) for arch in ARCHES}
+    promoted = {'schema': 1, 'version': version, 'sourceCommit': commit, 'runID': run_id,
+                'runAttempt': attempt, 'state': 'pushing', 'images': {}}
+
+    def retain():
+        path = directory / 'publication.json'
+        partial = path.with_suffix('.json.part')
+        with partial.open('w') as stream:
+            stream.write(json.dumps(promoted, indent=2) + '\n')
+            stream.flush()
+            os.fsync(stream.fileno())
+        partial.replace(path)
+
+    retain()
+    try:
+        for name in IMAGES:
+            remote = f'ghcr.io/{repository}-{name}'
+            details = {'architectures': {}, 'tags': [remote + ':' + tag for tag in tags]}
+            promoted['images'][name] = details
+            retain()
+            for arch in ARCHES:
+                entry = bundles[arch]['images'][name]
+                execute(['docker', 'image', 'load', '--input', str(directory / arch / f'{name}.tar')])
+                ref = local_ref(name, arch)
+                verify_loaded(entry, ref, arch, version)
+                stage = f'{remote}:verified-{run_id}-{attempt}-{arch}'
+                execute(['docker', 'image', 'tag', ref, stage])
+                record = {'stage': stage, 'testedConfigDigest': entry['identity']['configDigest'], 'verified': False}
+                details['architectures'][arch] = record
+                retain()
+                # Push existing loaded config/layers; no build or architecture execution.
+                output = capture(['docker', 'image', 'push', stage])
+                print(output, flush=True)
+                digests = re.findall(r'digest: (sha256:[0-9a-f]{64})', output)
+                require(len(digests) == 1, 'push did not return exactly one manifest digest')
+                source = remote + '@' + digests[0]
+                record['source'] = source
+                retain()
+                manifest = json.loads(capture(['docker', 'buildx', 'imagetools', 'inspect', '--raw', source]))
+                require(manifest.get('config', {}).get('digest') == entry['identity']['configDigest'],
+                        'registry config identity differs from tested archive')
+                require(len(manifest.get('layers', [])) == len(entry['identity']['diffIDs']),
+                        'registry layer count differs from tested rootfs')
+                record['verified'] = True
+                retain()
+        # Only after all four pushed manifests match original configs publish channels.
+        promoted['state'] = 'publishing-channels'
+        retain()
+        for details in promoted['images'].values():
+            command = ['docker', 'buildx', 'imagetools', 'create']
+            for tag in details['tags']:
+                command += ['--tag', tag]
+            details['publishingTags'] = details['tags']
+            retain()
+            execute(command + [details['architectures'][arch]['source'] for arch in ARCHES])
+            details['publishedTags'] = details.pop('publishingTags')
+            retain()
+        promoted['state'] = 'complete'
+        retain()
+    except BaseException as error:
+        promoted['state'] = 'failed'
+        promoted['error'] = str(error)
+        retain()
+        raise
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('command', choices=('validate-release', 'build', 'seal', 'promote'))
+    parser.add_argument('--version', required=True)
+    parser.add_argument('--prerelease', choices=('true', 'false'), default='false')
+    parser.add_argument('--arch', choices=ARCHES)
+    parser.add_argument('--directory', type=Path)
+    parser.add_argument('--repository', default=os.environ.get('GITHUB_REPOSITORY', ''))
+    parser.add_argument('--commit', default=os.environ.get('GITHUB_SHA', ''))
+    args = parser.parse_args()
+    if args.command == 'validate-release':
+        print(json.dumps(release_tags(args.version, args.prerelease == 'true')))
+        return
+    require(args.directory is not None, '--directory is required')
+    commit = args.commit or capture(['git', 'rev-parse', 'HEAD'])
+    run_id, attempt = os.environ.get('GITHUB_RUN_ID', 'local'), os.environ.get('GITHUB_RUN_ATTEMPT', '1')
+    directory = args.directory.resolve()
+    if args.command == 'promote':
+        promote(directory, args.version, args.prerelease == 'true', args.repository, commit, run_id, attempt)
+    else:
+        require(args.arch in ARCHES, '--arch is required')
+        if args.command == 'build':
+            require(capture(['git', 'rev-parse', 'HEAD']) == commit, 'checkout differs from expected source commit')
+            build(directory, args.version, args.arch, commit, run_id, attempt)
+        else:
+            seal_bundle(directory, args.version, args.arch, commit, run_id, attempt)
+
+
+if __name__ == '__main__':
+    main()

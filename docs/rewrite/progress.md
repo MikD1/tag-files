@@ -5,67 +5,36 @@ No release, migration of real data, or production-readiness claim has been made.
 
 ## Current state (2026-11-15)
 
-- Baseline inspected: clean main at `bc7d62d`; existing app is C#/Angular.
-- Requirements inspected: F/D contracts, product specification, target schema,
-  storage ADR, delivery gates and external backup/migration boundaries.
-- Environment: Linux arm64, Docker daemon available, Go 1.27.3 and Node 26.13.0.
-  Real macOS Safari/VoiceOver/power-loss checks cannot be inferred from this VM.
-- Task 1 implemented: durable SQLite foundation and generated job queries.
-- Task 2 implemented at the application/SQL layer: search, organization CRUD,
-  catalog retrieval and atomic metadata/favorite/view commands.
-- Task 3 core implemented: full OpenAPI source, generated Go/TypeScript,
-  strict JSON adapters for catalog/organization, durable operation results
-  and navigation contexts. System health/status and upload handlers are wired,
-  including durable asynchronous Complete. The full API-only acceptance matrix
-  remains open alongside Tasks 4–9.
-- Task 4 started: the S3 adapter and read-only checker pass real pinned
-  SeaweedFS/SDK conformance. The owned storage image now has resumable bootstrap,
-  fsync before bucket creation and a network gate after the complete preflight.
-  Its arm64 runtime tests pass; an amd64 image is built but not executed here.
-  Durable ingestion metadata now persists whole batches, one MPU identity and
-  immutable part bindings. Schema 2 adds independent external-write intents and
-  a bounded epoch-bound I/O manager. The coordinator now streams immutable parts,
-  reconciles acknowledgements, drains before freezing a completion manifest and
-  queues fully verified incoming bytes. Cancel removes visible work atomically
-  with independent cleanup; claimed cleanup jobs reconcile owned MPU/incoming/
-  candidates without retiring uncertain writers at the same epoch. Active-session
-  recovery now reconciles prior Create/part/Complete intents and durably cleans
-  duplicate owned MPUs. Primary candidates now persist immutable descriptors,
-  pass full object verification and publish through a leased ready transaction
-  that removes visible uploads and creates independent cleanup/poster work.
-  Physical admission now derives pending demand from SQLite and signed storage
-  observations. Upload HTTP/batch/retry and Compose wiring remain open.
-  Persistent pairing primitives now bind the logical storage UUID and physical
-  root in SQLite/storage metadata, with authenticated identity/epoch discovery.
-- Task 5 started: one bounded Linux process supervisor now runs FFmpeg/ffprobe;
-  local scratch probe, full decode, photo passthrough/conversion and H264/AAC
-  video preparation pass actual fixtures on host and the pinned runtime image.
-  The photo corpus now also covers all eight JPEG EXIF transforms, animated
-  PNG/GIF, single/tiled HEIC/AVIF and primary group rotation/mirroring.
-  A serial durable runner now joins verified source streaming, isolated scratch,
-  conversion, candidate publication and independent ready cleanup; session/job
-  failure, manual retry, heartbeat and graceful interruption are implemented.
-  Startup SQL job recovery now preflights payloads/journal, fences interrupted
-  work and bounds queue timing across clock rollback without expiring input.
-  Guarded scratch now provides producer-lifetime locks and bounded reclamation
-  after proven quiescence; the full media matrix remains open.
-  The media module now generates and validates bounded JPEG posters with
-  orientation/whole HEIF/alpha handling. Independent durable poster workers now
-  stream the ready primary, publish verified candidates and retain orphan/write
-  cleanup independently of upload sessions, including legacy items without uploadID.
-  Item deletion now has its versioned HTTP command, tombstone, paged resource
-  inventory, independent source/orphan dependencies and post-restart key verification.
-  Same-origin media now streams owned GET/HEAD, single/multipart ranges and
-  conditional responses, with safe legacy downloads and cancellation. Deletion
-  waits admitted key-specific reads; actual poster 404 queues a durable rebuild.
-  The application factory and development executable now wire persistent pairing,
-  startup SQL recovery, scratch reclaim, all four worker kinds, HTTP admission,
-  liveness/readiness/status and joined shutdown. Physical budget/507 now gates
-  coordinator data writes, metadata commands and media execution, preserving
-  replay/cleanup. Full upload HTTP/batch/retry integration remains open.
-- Next: upload HTTP using the disk budget, then remaining capacity/media/browser
-  acceptance, UI/tools/releases.
-  No executable application/SPA release image exists yet.
+- Work remains local on main; original clean baseline was `bc7d62d`. Legacy
+  C#/Angular sources and explicit legacy Compose copies remain for reference.
+- Tasks 1–3 are implemented: durable SQLite/schema/jobs, search/organization/
+  catalog semantics, generated OpenAPI contracts, HTTP commands, navigation
+  snapshots and durable replay. Current schema is6, external library format1.
+- Tasks 4–5 are implemented and extensively exercised on native Linux arm64:
+  owned private SeaweedFS4.53, physical/logical pairing, boot-epoch fencing,
+  immutable streaming uploads, asynchronous verified Complete, primary/poster
+  jobs, independent cleanup/deletion, same-origin media, bounded scratch,
+  physical admission and joined startup/recovery/shutdown.
+  **One explicit storage contract discrepancy is being corrected:** backend
+  ListParts omits SHA256; inferred binding hashes are insufficient for the
+  pre-Complete checksum requirement, even with full post-Complete verification.
+- Task 6 is implemented: actual React v27 UI, library/organization/atomic
+  editors, uploads and canonical viewer. Latest local evidence:83 web unit
+  tests,14 Chromium/WebKit API-browser cases, two actual-image browser uploads
+  and retained primaries/deep links after simultaneous pair restart.
+- Tasks 7/8 external tools are implemented with independent source/target,
+  resumable migration and complete cold native backup/restore. Native S3 and
+  actual Docker recovery/install/update rehearsals pass on synthetic fixtures.
+  Source-MinIO/full actual library and Mac evidence remain open.
+- Task 9 is in progress: root/deploy Compose now run the new app/storage;
+  release.published workflows verify before GHCR multiarch publication.
+  Both image architectures build; actual amd64 services also passed under
+  QEMU, which does not establish native amd64 CI or Mac compatibility.
+- Actual20GiB streaming/retained-failure/cleanup passed with bounded normal-app
+  RSS. The growth-profile SQL/API/encode/recovery performance probe passes locally.
+- [Acceptance matrix](ACCEPTANCE.md) separates F/D implementation evidence from
+  open gates. Final review, checksum correction, maximum browser/valid-large-
+  media evidence and real Mac/full-library/durability acceptance remain open.
 
 ## Decisions
 
@@ -979,8 +948,141 @@ This is progress on Tasks3–5, not full task/rewrite acceptance.
 
 ## Completion boundary
 
-There is no runnable rewritten server/SPA image yet. The legacy app/workflows
-remain present for reference and are not the requested final result. Real user
-data has not been connected. No F-ID is claimed fully accepted merely because
+The rewritten CGO server/SPA/FFmpeg image builds and runs with the owned
+storage image under root/deploy Compose; actual Chromium/WebKit uploads and
+restart checks pass. New verification/publication workflows replace the old
+release path. Legacy sources and explicit legacy Compose files remain until
+final acceptance. Real user data has not been connected. No F-ID is claimed fully accepted merely because
 its domain methods pass: HTTP/browser, S3, migration/restore and release gates
 must supply their own evidence before full completion.
+
+## React, offline tools and local images (2026-11-15)
+
+User-authorized parallel work split external migration, cold backup/restore and
+browser uploads/viewer into independent owners while the parent integrated UI,
+HTTP static serving, operational housekeeping and exact-image Compose tests.
+No publication, branch change or real-data access occurred.
+
+The joined hourly runtime loop prunes only expired operation receipts and
+navigation snapshots; old failed uploads remain. Real SQLite RED/GREEN, race
+checks, `scripts/check` and affected native application recovery passed.
+
+React now uses pinned dependencies/lockfile and generated OpenAPI types with
+Query as its shared server cache, URL filters and versioned preferences. v27
+CSS/vector sources were forked without editing accepted reference artifacts.
+Implemented: sidebar/72px rail, seven thumbnail sizes, grid/list/page selection,
+atomic single/bulk editor with focus return, collection search over all records,
+organization CRUD, upload collection selection, worker SHA/XHR and durable
+receipts, canonical viewer with contexts/zoom/rotate/video keys/three-second
+views/favorite/confirmed permanent deletion. YARL3.33.1's actual component gate
+showed Cmd-zoom interception and reset-on-rotate, so the native inline viewer
+implements the accepted controls without adding that dependency.
+
+Fresh common `scripts/check` passed: generation diff, Go formatting/vet/tests/
+race, both external modules, Python host safety and deployment tests, TypeScript,
+ESLint,83 web tests and production build. Fourteen catalog/editor/organization/
+category/viewer/focus/Clear/seven-size Chromium/WebKit scenarios passed. Screenshots are emitted into ignored `web/test-results`. The synthetic
+Go browser fixture uses the actual HTTP API/SQLite and generated PNG media; it
+does not stand in for S3 acceptance.
+
+The actual built app+storage pair also passed both browsers: incremental worker
+hash, Blob XHR, route change while processing, verified primary publication,
+empty ready queue, real image loading, HEAD and Range. Chromium additionally
+loses an accepted part response and reconciles without re-uploading it. WebKit
+uses native XHR because Playwright's intercepted Blob loses its body in
+`route.fetch`; that harness failure was identified as an empty 413 request,
+not bypassed in production. Full pair restart retains both primaries and SPA
+deep links. A real simultaneous restart exposed transient storage connection
+refusals; CLI startup now waits within its existing deadline for network errors,
+while permanent schema/configuration errors still fail promptly.
+
+Tools/migrate implements raw archival/frozen source, exhaustive catalog equality,
+real version/delete-marker inventory, immutable resumable PUT/MPU and full-hash
+verification. A real versioned S3 source behind a GET/HEAD-only gateway copied
+12 objects/14,000,086 bytes to the owned target, including lost successful PUT/
+Complete responses and all four category result sets; latest race rehearsal
+passed in29.62s (race package30.635s). Actual legacy MinIO-instance/full-library evidence remains open.
+
+Tools/backup implements external stopped-pair generations, all hidden/native
+state/deployment/credentials, integrity verification, empty-root restore and
+physical rebase with fail-closed markers. Latest native race drill passed in
+87.434s (85.05s drill), including147 native/archive entries, ten full objects,
+partial MPU, ready replay without session, interrupted work and independent
+cleanup. Exact image IDs and limits are in `tools/backup/EVIDENCE.md`.
+Install/update have18 tests (17 isolated, one opt-in actual Docker case),
+including install→tag write→mandatory cold backup→new declared version→healthy
+retained ID/value/secret. A stable private sibling flock now owns the complete
+install/update lifecycle before reading installed state, preventing a paused
+older updater from downgrading a newer completed update. Crash receipts and
+symlink/hardlink/path-swap tests also pass.
+Same image IDs were used across those declared versions; no future schema or
+registry-pull upgrade is implied.
+
+The true20GiB race gate passed in245.55s (package246.577s): exactly
+21,474,836,480bytes in640×32MiB parts with two concurrent transfers. Upload took
+51.746s; Complete/full verification, real20GiB scratch copy, unsupported-media
+failure retention, rehash and explicit cancel/cleanup took164.985s. Idle app
+RSS45,043,712bytes, peak54,693,888bytes over4664samples; scratch peaked at exactly
+20GiB. Observed native free-space delta22,385,344,512bytes and shared project
+filesystem delta43,882,315,776bytes include other filesystem activity and are
+observations, not universal space bounds. Cleanup receipts/intents reached zero.
+This was actual unsupported media; valid20GiB transcoding/browser is not implied.
+The large child binary preceded the subsequent capacity fix; latest-source
+startup/recovery on project virtiofs separately passed under race in25.65s.
+
+The large run exposed a real virtiofs capacity-unit error: preferred IO size was used
+instead of allocation-fragment size, overstating available bytes256-fold on
+this mount. Production measurement now uses positive Frsize with zero-only
+Bsize fallback; identity bytes remain unchanged. Dedicated regression and
+affected capacity/profile race tests passed. The complete current owned-image
+media/runtime race suite then passed in382.461s, with all14 native cases.
+
+Independent UI review closed all five findings: stale upload-list races,
+viewer autoplay/fallback, saved category binding/type, global tag statistics
+and immutable command keys after corrected input/uncertain responses. Delivery
+review also closed legacy parser parity, dispatch-epoch journaling, update
+ownership and partial-MPU budget credit. The latter requires source-part SHA
+and authoritative listing SHA or a separate durable validated ACK; old ETags
+receive no credit. A fresh native exact-logical-budget partial-MPU rehearsal
+passed; full physical capacity still gets checked before Complete.
+
+The latest exact arm64 app image passed both browser uploads and pair restart
+again (8.8s browser run). Its notices contain38 npm packages with complete texts,
+29 runtime Go modules and278 exact OS package versions. Root/deploy Compose
+are synchronized; local workflow lint and both Compose configurations pass.
+
+Remaining: mandatory ListParts checksum correction, growth-profile performance,
+final independent runtime/release review and broader media/durability gates. Real Mac Safari/Chrome/VoiceOver and physical
+power-loss checks remain explicit external acceptance, not Linux-test claims.
+
+
+## Additional acceptance and review corrections (2026-11-15)
+
+The explicit [F/D evidence matrix](ACCEPTANCE.md) now links implementation and
+actual checks for all38 functions and16 decisions, with external gates kept
+separate. A fresh independent runtime/release review found two P2 defects:
+foreign-platform images could pass update preflight, and publication rebuilt
+images after verification. Platform admission now checks the actual Docker
+daemon architecture (including aliases) for app/storage/backup before stopping
+anything. New regression tests reproduced the old failure; all18 host tests,
+including actual Docker install/backup/update, passed in40.506s. Release artifact
+promotion is being corrected separately, without publishing.
+
+A [growth-profile performance probe](PERFORMANCE.md) passed with10,000 SQL
+items/2,000 tags/100,000 links/350 collections. During actual libx264 encoding,
+search p95 was at most24.114ms, atomic two-item writes at most13.168ms, idle API
+RSS49.3MiB. All100 writes survived abrupt encode interruption and recovery;
+canonical publication/full checks completed4.272s after readiness. These are
+Linux SQL/API measurements, not100GB of objects or browser rendering timings.
+
+The independent [amd64 QEMU rehearsal](../../deploy/AMD64-EVIDENCE.md) passed
+real browser uploads, H264/AAC encode/poster/full decode and pair restart with
+three matching primary hashes. It remains distinct from native amd64 CI.
+
+Strict ListParts consumers now reject missing SHA instead of copying the
+expected binding. Three separate RED tests exposed the earlier acceptance of
+missing proof in Refresh, unknown-part retirement and frozen Complete recovery;
+all now reject it. The full ingestion race suite passed2.217s after updating
+older storage-peer fixtures to supply independently expected checksums. The
+owned gateway proof journal is still being implemented and must pass native
+restart/restore/fault tests before this contract discrepancy is closed.

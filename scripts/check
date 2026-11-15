@@ -3,6 +3,7 @@ set -euo pipefail
 project_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 check_tmp=$(mktemp -d)
 trap 'rm -rf -- "$check_tmp"' EXIT
+cmp "$project_root/compose.yml" "$project_root/deploy/compose.yml"
 
 # Compare to the working tree so a dirty generated file cannot hide behind a
 # committed baseline. Generators are pinned in their own module.
@@ -23,3 +24,18 @@ fi
 go vet ./...
 go test ./...
 go test -race ./...
+for tool_module in "$project_root/tools/migrate" "$project_root/tools/backup"; do
+  cd "$tool_module"
+  unformatted=$(gofmt -l .)
+  if [[ -n "$unformatted" ]]; then
+    echo "Go files require gofmt:" >&2
+    echo "$unformatted" >&2
+    exit 1
+  fi
+  go vet ./...
+  go test -race ./...
+done
+python3 -m unittest discover -s "$project_root/tools/backup" -p '*_test.py'
+python3 -m unittest discover -s "$project_root/scripts" -p 'test_install_update.py'
+python3 -m unittest discover -s "$project_root/scripts" -p 'test_release_images.py'
+"$project_root/scripts/check-web"

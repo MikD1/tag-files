@@ -1,0 +1,8 @@
+.git
+.superpowers
+**/node_modules
+**/dist
+web/test-results
+web/playwright-report
+data
+**/__pycache__
