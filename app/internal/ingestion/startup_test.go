@@ -12,6 +12,7 @@ import (
 	"github.com/mikd1/tag-files/app/internal/domain"
 	"github.com/mikd1/tag-files/app/internal/objectio"
 	"github.com/mikd1/tag-files/app/internal/objectstore"
+	"github.com/mikd1/tag-files/app/internal/poster"
 	"github.com/mikd1/tag-files/app/internal/store"
 	"github.com/mikd1/tag-files/app/internal/store/dbgen"
 )
@@ -178,6 +179,16 @@ func TestStartupRecoversIndependentPosterWithoutRecreatingUpload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	posters, err := poster.New(db, c.io)
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := primaryOutput()
+	output.ContentType = "image/jpeg"
+	candidate, err := posters.NewCandidate(testContext, posterJob, output, testTime.Add(time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := db.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -186,12 +197,18 @@ func TestStartupRecoversIndependentPosterWithoutRecreatingUpload(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if count, err := RecoverInterrupted(testContext, db, testTime.Add(-time.Hour)); err != nil || count != 3 {
+	if count, err := RecoverInterrupted(testContext, db, testTime.Add(-time.Hour)); err != nil || count != 4 {
 		t.Fatalf("independent recovery: %d %v", count, err)
 	}
 	current, err := dbgen.New(db.Reader()).GetJob(testContext, posterJob.ID)
 	if err != nil || current.State != domain.JobQueued || current.LeaseGeneration <= posterJob.LeaseGeneration {
 		t.Fatalf("poster not recoverable: %+v %v", current, err)
+	}
+	if a, err := dbgen.New(db.Reader()).GetCleanupAsset(testContext, candidate.ID); err != nil || a.State != domain.AssetCandidate {
+		t.Fatal("startup discarded poster candidate", err)
+	}
+	if _, err := dbgen.New(db.Reader()).FindPosterCandidateReceipt(testContext, candidate.ID); err != nil {
+		t.Fatal("startup discarded independent poster cleanup", err)
 	}
 	result, err := Lookup(testContext, db.Reader(), session.ID)
 	if err != nil || result.State != "ready" || result.ItemID != ready.ItemID || tableCount(t, db, "upload_sessions") != 0 {

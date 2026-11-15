@@ -12,6 +12,7 @@ import (
 type Querier interface {
 	AddItemTag(ctx context.Context, arg AddItemTagParams) error
 	AdvanceSearchGeneration(ctx context.Context) error
+	AttachPublishedPoster(ctx context.Context, arg AttachPublishedPosterParams) (int64, error)
 	AttachPublishedPrimary(ctx context.Context, arg AttachPublishedPrimaryParams) error
 	AttachUploadMultipart(ctx context.Context, arg AttachUploadMultipartParams) (int64, error)
 	BindLibraryStorage(ctx context.Context, arg BindLibraryStorageParams) (int64, error)
@@ -36,6 +37,8 @@ type Querier interface {
 	CreateNavigationContext(ctx context.Context, arg CreateNavigationContextParams) error
 	CreateObjectWriteIntent(ctx context.Context, arg CreateObjectWriteIntentParams) (ObjectWriteIntent, error)
 	CreateOperation(ctx context.Context, arg CreateOperationParams) error
+	CreatePosterCandidate(ctx context.Context, arg CreatePosterCandidateParams) (Asset, error)
+	CreatePosterCandidateReceipt(ctx context.Context, arg CreatePosterCandidateReceiptParams) (CleanupReceipt, error)
 	CreatePrimaryCandidate(ctx context.Context, arg CreatePrimaryCandidateParams) (Asset, error)
 	CreatePublishedItem(ctx context.Context, arg CreatePublishedItemParams) (Item, error)
 	CreateSavedSearch(ctx context.Context, arg CreateSavedSearchParams) (SavedSearch, error)
@@ -45,6 +48,8 @@ type Querier interface {
 	DeleteCleanupReceipt(ctx context.Context, id string) error
 	DeleteCollection(ctx context.Context, arg DeleteCollectionParams) (int64, error)
 	DeleteLeasedJob(ctx context.Context, arg DeleteLeasedJobParams) (int64, error)
+	DeleteOrphanPoster(ctx context.Context, id string) (int64, error)
+	DeleteReceiptJob(ctx context.Context, subjectID string) error
 	DeleteSavedSearch(ctx context.Context, arg DeleteSavedSearchParams) (int64, error)
 	DeleteSettledObjectWrite(ctx context.Context, arg DeleteSettledObjectWriteParams) (int64, error)
 	DeleteUploadIngestJobs(ctx context.Context, subjectID string) error
@@ -52,6 +57,7 @@ type Querier interface {
 	FailLeasedJob(ctx context.Context, arg FailLeasedJobParams) (int64, error)
 	FindCancellationReceipt(ctx context.Context, uploadID sql.NullString) (CleanupReceipt, error)
 	FindDuplicateMultipartReceipt(ctx context.Context, arg FindDuplicateMultipartReceiptParams) (CleanupReceipt, error)
+	FindPosterCandidateReceipt(ctx context.Context, payloadJson string) (CleanupReceipt, error)
 	FindReadyItemByUpload(ctx context.Context, uploadID sql.NullString) (Item, error)
 	FreezeUploadManifest(ctx context.Context, arg FreezeUploadManifestParams) error
 	GetCleanupAsset(ctx context.Context, id string) (Asset, error)
@@ -69,6 +75,7 @@ type Querier interface {
 	GetNavigationContext(ctx context.Context, id string) (NavigationContext, error)
 	GetObjectWriteIntent(ctx context.Context, id string) (ObjectWriteIntent, error)
 	GetOperation(ctx context.Context, operationID string) (OperationResult, error)
+	GetPublishedPoster(ctx context.Context, arg GetPublishedPosterParams) (Asset, error)
 	GetSavedSearch(ctx context.Context, id int64) (SavedSearch, error)
 	GetTag(ctx context.Context, id int64) (Tag, error)
 	GetUploadPart(ctx context.Context, arg GetUploadPartParams) (UploadPart, error)
@@ -90,6 +97,7 @@ type Querier interface {
 	MakeQueuedJobAvailable(ctx context.Context, arg MakeQueuedJobAvailableParams) (int64, error)
 	MarkItemReady(ctx context.Context, arg MarkItemReadyParams) error
 	MarkObjectWriteUncertain(ctx context.Context, arg MarkObjectWriteUncertainParams) (int64, error)
+	MarkPosterVerified(ctx context.Context, id string) (int64, error)
 	MarkPrimaryVerified(ctx context.Context, id string) error
 	MarkUploadProcessing(ctx context.Context, id string) error
 	PruneNavigationContexts(ctx context.Context, expiresAt string) (int64, error)

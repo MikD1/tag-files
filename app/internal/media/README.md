@@ -2,8 +2,8 @@
 
 This module processes owned local scratch files. It does not publish S3 objects,
 remove the durable incoming source, own SQLite transactions, or accept browser
-MIME claims. The ingestion worker supplies guarded scratch; the executable app
-startup and poster execution are not wired yet.
+MIME claims. Ingestion and independent poster workers supply guarded scratch;
+the executable application startup is not wired yet.
 `domain.MediaOutput` is shared with ingestion's immutable candidate protocol.
 
 The tested Linux profile is Ubuntu 26.04, FFmpeg package `7:8.0.1-3ubuntu2`.
@@ -51,8 +51,8 @@ These are internal defaults, not user options or a promise to improve quality.
 Native tests check landscape/portrait/odd/small images, white/partial-alpha
 compositing, representative video frame and rotation, all JPEG EXIF transforms,
 HEIC/AVIF whole grids/transforms and first animation frame without changing the
-primary. The separate durable poster job/publication/cleanup runner is still
-unimplemented; this method does not claim its S3/SQLite recovery acceptance.
+primary. The separate [`poster`](../poster/README.md) module owns durable
+job/publication/cleanup; the byte method itself performs no S3/SQLite work.
 
 HEIF primary selection also considers default tile groups, excluding dependent
 tile streams from independent-image selection. The bounded profile admits up to

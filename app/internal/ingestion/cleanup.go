@@ -8,13 +8,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mikd1/tag-files/app/internal/cleanup"
 	"github.com/mikd1/tag-files/app/internal/domain"
 	"github.com/mikd1/tag-files/app/internal/objectio"
 	"github.com/mikd1/tag-files/app/internal/objectstore"
 	"github.com/mikd1/tag-files/app/internal/store/dbgen"
 )
 
-var ErrIncompatibleCleanup = errors.New("unsupported or invalid cleanup payload")
+var ErrIncompatibleCleanup = cleanup.ErrIncompatibleJob
 
 type cleanupResource struct{ key, kind, id, mpu string }
 
@@ -58,16 +59,7 @@ func decodeCancellation(receipt dbgen.CleanupReceipt) (cancellationPlan, error) 
 	return plan, nil
 }
 func cleanupReceiptID(job dbgen.Job) (string, error) {
-	var payload struct {
-		Version   int    `json:"version"`
-		ReceiptID string `json:"receiptId"`
-	}
-	decoder := json.NewDecoder(strings.NewReader(job.PayloadJson))
-	decoder.DisallowUnknownFields()
-	if job.Type != domain.JobCleanup || decoder.Decode(&payload) != nil || !json.Valid([]byte(job.PayloadJson)) || payload.Version != 1 || domain.ValidateUUID(payload.ReceiptID) != nil || job.SubjectID != payload.ReceiptID || job.DedupeKey != "cleanup/"+payload.ReceiptID {
-		return "", ErrIncompatibleCleanup
-	}
-	return payload.ReceiptID, nil
+	return cleanup.DecodeJob(job)
 }
 
 // checkCancellationFence is sampled before removal and again in the final

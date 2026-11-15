@@ -26,11 +26,20 @@ old generation while preserving input/MPU/bindings. Future payload versions are
 retained and refused. `Cleanup` executes the independent receipt protocol;
 ready/cancel continue to remove visible uploads without a history or TTL.
 
+`Poster` independently reads a verified ready primary, prepares a bounded JPEG,
+and publishes a unique verified candidate without recreating uploads. Failure
+only updates the poster job. `Cleanup` dispatches strict receipt codecs to their
+resource module, including item-owned `poster_candidate` work without uploadID.
+Every poster candidate has its cleanup receipt before PUT; publication removes
+its own receipt while attaching the poster/version in the same SQL transaction.
+
 `scripts/check-media` includes the native media/ingestion/worker host race suite.
 The owned-storage test `TestIngestionWorkerOwnedImageProcessesPhotoAndRetainsFailedInput`
 requires both `TAG_FILES_MEDIA_INTEGRATION=1` and `TAG_FILES_STORAGE_IMAGE` and
-exercises real SDK MPU/complete, SQLite, FFmpeg, ready cleanup and failed-input
-retention. The current disposable runtime image tests media/process/scratch;
+exercises real SDK MPU/complete, SQLite, FFmpeg, poster publication, ready cleanup
+and failed-input retention. Native poster faults additionally cover lost PUT,
+same-volume restart, source-only recovery after scratch loss and orphan cleanup.
+The current disposable runtime image tests media/process/scratch;
 the CGO SQLite worker is not yet packaged into a runnable server/SPA image.
 
 Startup SQL recovery is now available through `ingestion.RecoverInterrupted`.
@@ -41,7 +50,7 @@ bounded by the shared delay policy, and failed jobs remain. No journal, source,
 candidate or receipt is retired. Recovery is sealed after success or first claim.
 Ready primary/poster work never recreates an upload session.
 
-Safe stale-scratch reclamation, whole-volume upload admission/HTTP507, actual
-poster/deletion handlers and application startup/HTTP/shutdown wiring remain
-integration gates. Persistent pairing primitives are in `librarybinding`; merely
+Scratch has guarded, bounded reclamation after producer quiescence. Whole-volume
+upload admission/HTTP507, item deletion and application startup/HTTP/shutdown
+wiring remain integration gates. Persistent pairing primitives are in `librarybinding`; merely
 opening a store must not be treated as completion of the startup sequence.

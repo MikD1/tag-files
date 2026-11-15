@@ -134,6 +134,10 @@ func validateStartupJob(ctx context.Context, q *dbgen.Queries, library dbgen.Lib
 			}
 			return checkExtraMultipartFence(ctx, q, receipt, plan)
 		}
+		if receipt.Reason == poster.CleanupReason {
+			_, err := poster.ValidateCleanup(ctx, q, receipt)
+			return err
+		}
 		plan, err := decodeCancellation(receipt)
 		if err != nil {
 			return err

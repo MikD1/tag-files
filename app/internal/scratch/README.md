@@ -18,8 +18,10 @@ bytes/inodes, including the configured physical free-space reserve. Neither
 quiet files nor lease age authorize removal. Symlinks/nonregular entries are
 refused and job IDs never become arbitrary paths.
 
-The ingestion pipeline checks capacity after download/conversion and once per
-second during work. Exhaustion cancels and joins the source read/media execution
+Ingestion and poster pipelines use `Attempt.Run` to own the inherited context,
+join the periodic monitor and close only after the callback returns. They check
+capacity after download/conversion and once per second during work. Exhaustion
+cancels and joins the source read/media execution
 before scratch removal; the durable S3 source remains authoritative. The typed
 insufficient-storage error is available for runtime HTTP507 mapping, which is
 not wired yet. This module measures scratch only; it does not infer physical

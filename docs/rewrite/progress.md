@@ -32,7 +32,7 @@ No release, migration of real data, or production-readiness claim has been made.
   duplicate owned MPUs. Primary candidates now persist immutable descriptors,
   pass full object verification and publish through a leased ready transaction
   that removes visible uploads and creates independent cleanup/poster work.
-  Media processing and application/Compose admission wiring remain open.
+  Application/Compose admission wiring remains open.
   Persistent pairing primitives now bind the logical storage UUID and physical
   root in SQLite/storage metadata, with authenticated identity/epoch discovery.
 - Task 5 started: one bounded Linux process supervisor now runs FFmpeg/ffprobe;
@@ -48,10 +48,11 @@ No release, migration of real data, or production-readiness claim has been made.
   Guarded scratch now provides producer-lifetime locks and bounded reclamation
   after proven quiescence; executable startup wiring and the full media matrix remain open.
   The media module now generates and validates bounded JPEG posters with
-  orientation/whole HEIF/alpha handling; durable poster execution/publication
-  remains open.
-- Next: startup wiring and full disk admission, poster execution,
-  media HTTP streaming and application runtime wiring.
+  orientation/whole HEIF/alpha handling. Independent durable poster workers now
+  stream the ready primary, publish verified candidates and retain orphan/write
+  cleanup independently of upload sessions, including legacy items without uploadID.
+- Next: startup wiring and full disk admission, item deletion,
+  media HTTP streaming and application runtime wiring, then UI/tools/releases.
   No executable application/SPA image exists yet.
 
 ## Decisions
@@ -700,9 +701,54 @@ partial alpha, distinct video/animation frames, rotated video, all eight JPEG
 EXIF transforms, complete HEIC/AVIF grids and primary transforms, byte exhaustion
 and cancellation. The final tested native arm64 image is
 `sha256:b05f85c4f7555d7edf13c345630ad77236cbc73f6dfa9fecdabf3ed85fbf22db`.
-This is local media-generation evidence. Durable poster candidate allocation,
-PUT/full GET/hash, leased publication, independent cleanup and worker registration
-still need implementation and their own fault/restart tests.
+This section records local media-generation evidence. The following durable
+poster slice adds candidate/publication/cleanup and its separate fault/restart
+verification.
+
+## Durable poster verification
+
+Independent poster work now streams and verifies the ready primary, uses guarded
+scratch and the media profile, and persists unique candidate bytes plus exact
+item/source/job/generation identity and independent cleanup before PUT. It works
+for legacy items with no upload ID. Publication requires full GET/hash and the
+current lease; asset attachment, item version/ETag change, job removal and its
+cleanup removal commit atomically. Other candidates keep their own receipts.
+Poster errors retain primary/item and never recreate a visible upload session.
+
+Cleanup uses a short SQL snapshot to prove permanent retirement, drains known
+I/O and preflights all journal pages before deleting only the exact owned key.
+An expired lease alone grants no permission. Unknown writes and future codecs
+retain attribution. Published unknown PUTs require an authenticated same-volume
+epoch change and full hash; orphan writes additionally reconcile deletion.
+Startup validates pending receipts before resetting interrupted generations.
+
+Fresh `scripts/check`, expanded `scripts/check-media` and
+`scripts/check-media-image` passed. Fault tests cover lost PUT/replay without
+rewrite, corrupt/mismatching objects, stale-generation winner, SQL rollback,
+tombstone/removed-job late publication, legacy ownership without sessions,
+future receipt and future journal entry beyond page 1, source integrity,
+capacity cancellation and producer joining. Shared bounded source streaming,
+scratch lifecycle and media failure classification serve ingestion and poster.
+
+`TAG_FILES_MEDIA_INTEGRATION=1 scripts/check-storage-image` passed in 346.047s
+under race detection against the actual owned native arm64 image. All prior
+upload/cancel/ready/storage-profile/pairing scenarios remained green. New poster
+work proves real lost PUT recovery, published/orphan journal retention at the
+same epoch, SQL reopen and storage SIGKILL/restart, and resume from durable
+primary after the previous local input/output disappear. The new attempt uses
+a fresh candidate and independent cleanup removes the interrupted candidate.
+The end-to-end ingestion runner also publishes and fully verifies its poster.
+
+Tested images: storage
+`sha256:f644172904edaf6432cc9ec7c572bf84383e40410b400e0ad08748e7da379fa4`,
+media check
+`sha256:9be3b2e301e6054478e8b8d4860572c068b98ca50d9db4f0506ede225364f1ac`.
+One earlier focused fixture failed because its proxy retained Docker's previous
+ephemeral port after restart; updating the fixture target restored authenticated
+control. The final full suite passes and disposable containers were removed.
+Executable app/startup/background reconciliation, whole-volume admission/507,
+item deletion, media/upload HTTP, wider media/browser acceptance and Tasks 6–9
+remain open. This evidence does not establish a runnable rewritten release.
 
 ## Completion boundary
 
