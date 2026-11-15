@@ -74,4 +74,3 @@ Missing, corrupt, foreign or unversioned proof metadata is rejected without
 inventing a checksum or deleting native parts. Application bindings and opaque
 ETags are not substitutes. The direct raw-backend conformance suite intentionally
 observes missing SHA; production ingestion requires the owned gateway's proof.
-

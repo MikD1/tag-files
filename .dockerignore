@@ -6,3 +6,5 @@ web/test-results
 web/playwright-report
 data
 **/__pycache__
+.large-upload.*
+.performance.*

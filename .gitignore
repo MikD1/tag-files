@@ -8,5 +8,6 @@ web/test-results/
 web/playwright-report/
 __pycache__/
 .large-upload.*/
+.performance.*/
 .env
 secrets/

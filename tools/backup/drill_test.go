@@ -383,8 +383,9 @@ func TestDockerColdRestoreFullNativeState(t *testing.T) {
 		t.Fatal(e)
 	}
 	parts, e := client.ListParts(ctx, partial.IncomingKey, partial.MultipartUploadID.String)
-	if e != nil || len(parts) != 1 {
-		t.Fatal("partial fixture", e)
+	partialSum := sha256.Sum256(partialBytes)
+	if e != nil || len(parts) != 1 || parts[0].Number != 1 || parts[0].Size != 5<<20 || parts[0].ETag == "" || parts[0].SHA256 != base64.StdEncoding.EncodeToString(partialSum[:]) {
+		t.Fatalf("partial fixture lacks independent actual-byte SHA proof: %+v %v", parts, e)
 	}
 	queued, e := createUpload(t, db, uploads, photo.Bytes(), int64(photo.Len()), true)
 	if e != nil {
@@ -443,6 +444,18 @@ func TestDockerColdRestoreFullNativeState(t *testing.T) {
 	}
 	archive := filepath.Join(destination, "fixture")
 	f.host(true, "verify", "--image", f.toolImage, "--archive", archive)
+	entries, e := readEntries(filepath.Join(archive, "manifest.jsonl"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	proofFiles, proofBytes := 0, int64(0)
+	for _, entry := range entries {
+		if entry.Role == "storage" && entry.Type == "file" && strings.HasPrefix(entry.Path, ".tag-files-mpu-proofs/") {
+			proofFiles++
+			proofBytes += entry.Size
+		}
+	}
+	t.Logf("cold archive includes %d checksummed multipart proof files / %d bytes; independent source part SHA256=%s", proofFiles, proofBytes, base64.StdEncoding.EncodeToString(partialSum[:]))
 	baseline, baselineDB, deployment, restored := f.restore(archive, "-baseline")
 	if restored.LibraryID != pair.LibraryID || restored.StorageID != pair.StorageID || restored.RestoredVolumeID == pair.VolumeID {
 		t.Fatalf("baseline rebase %+v", restored)
