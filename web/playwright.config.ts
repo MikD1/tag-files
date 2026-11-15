@@ -1,6 +1,6 @@
 import {defineConfig,devices} from '@playwright/test';
 export default defineConfig({
- testDir:'./e2e',testMatch:'**/*.spec.ts',testIgnore:['**/release/**','**/large/**'],fullyParallel:false,workers:1,
+ testDir:'./e2e',testMatch:'**/*.spec.ts',testIgnore:['**/release/**','**/large/**','**/performance/**'],fullyParallel:false,workers:1,
  timeout:30_000,expect:{timeout:5_000},retries:0,
  reporter:[['list']],outputDir:'test-results',
  use:{baseURL:'http://127.0.0.1:15173',trace:'retain-on-failure',viewport:{width:1440,height:1000}},

@@ -1269,3 +1269,30 @@ were preserved. [AMD64 evidence](../../deploy/AMD64-EVIDENCE.md) records exact
 index/manifest/config IDs, logs and source hashes. This closes the local
 final-source QEMU evidence gap; native amd64 CI and hosted publication remain
 separate. No production code or real data changed in this slice.
+
+## Actual-image browser first-use probe
+
+Added the opt-in [browser growth probe](BROWSER-PERFORMANCE.md), isolated from
+ordinary Playwright discovery/output. The frozen final arm64 app/storage pair
+served 10,000 items, 2,000 tags, 100,000 joins and 350 collections backed by 20,000
+real PNG primaries/JPEG posters, 122,510,000 payload bytes. Every object received
+full S3 size/SHA verification; all 58 distinct expected first-page IDs also
+received 116 complete same-origin primary/poster hash checks before timing.
+
+Each engine passed 120 warm samples across library/simple/compound searches and
+navigation/SPA submission, plus one separately reported fresh-context record.
+Maximum warm navigation 80.3/109 ms and warm SPA search 62.2/83 ms in Chromium/
+WebKit; zero page/network errors. Observations require exact independent 24-ID
+page order and one visible decoded thumbnail plus a rendering opportunity.
+Normal browser/Query caches are explicit; server caches were already warm.
+
+Independent review reproduced and closed two harness P2 issues: asynchronous
+Playwright predicate polling and noncanonical seeded media keys. Docker-only
+preparation-network/dependency lifecycle failures were also corrected before
+the accepted run. These were test preparation defects, not application fixes.
+Final records contain 121 samples per engine; timestamps, summary arithmetic,
+expected IDs, media preflight and cleanup were independently checked. Raw
+reports/screenshots/manifests remain in `.performance.browser-ose4zd_0`.
+The owned containers/networks/volumes, credentials and seeded DB were removed.
+This supplies bounded Linux browser evidence; actual Mac/100GB/reference
+performance and the other external acceptance gates remain open.

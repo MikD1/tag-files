@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""Opt-in growth-catalog browser rendering probe against pinned actual images.
+
+Every Docker resource is uniquely owned and cleaned. Raw browser records are
+retained in an ignored project .performance.* directory, outside test-results.
+"""
+import json
+import hashlib
+import os
+import pathlib
+import secrets
+import shutil
+import signal
+import socket
+import subprocess
+import tempfile
+import time
+import urllib.error
+import urllib.request
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+
+def command(*args, **kwargs):
+    return subprocess.check_output(args, text=True, **kwargs).strip()
+
+
+def port():
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        return listener.getsockname()[1]
+
+
+def main():
+    app = command("docker", "image", "inspect", "--format", "{{.Id}}", os.environ["TAG_FILES_BROWSER_APP_IMAGE"])
+    storage = command("docker", "image", "inspect", "--format", "{{.Id}}", os.environ["TAG_FILES_BROWSER_STORAGE_IMAGE"])
+    engines = os.environ.get("TAG_FILES_BROWSER_ENGINES", "chromium,webkit").split(",")
+    if not engines or any(engine not in ("chromium", "webkit") for engine in engines):
+        raise ValueError("only chromium and webkit are supported")
+    work = pathlib.Path(tempfile.mkdtemp(prefix=".performance.browser-", dir=ROOT))
+    project = "tag-files-browser-performance-" + secrets.token_hex(6)
+    compose = ["docker", "compose", "-p", project, "-f", str(work / "compose.yml")]
+    shutil.copyfile(ROOT / "deploy/compose.yml", work / "compose.yml")
+    # The fixture writer alone uses loopback S3 during offline preparation.
+    override = work / "fixture-ports.yml"
+    s3_port = port()
+    # Docker suppresses published ports on an internal-only network. A separate
+    # preparation network is detached before the app or timed browsers start.
+    override.write_text(f"services:\n  storage:\n    ports:\n      - '127.0.0.1:{s3_port}:8333'\n    networks: [library, fixture_preparation]\nnetworks:\n  fixture_preparation: {{}}\n")
+    compose += ["-f", str(override)]
+    (work / "secrets").mkdir(mode=0o700)
+    for name in ("s3_access_key", "s3_secret_key"):
+        path = work / "secrets" / name
+        path.write_text(secrets.token_hex(32) + "\n")
+        path.chmod(0o444)
+    origin = f"http://127.0.0.1:{port()}"
+    env = {**os.environ, "TAG_FILES_APP_IMAGE": app, "TAG_FILES_STORAGE_IMAGE": storage,
+           "TAG_FILES_PORT": origin.rsplit(":", 1)[1], "TAG_FILES_BROWSER_PERFORMANCE_WORK": str(work),
+           "TAG_FILES_BROWSER_PERFORMANCE_ORIGIN": origin,
+           "TAG_FILES_BROWSER_PERFORMANCE_S3": f"http://127.0.0.1:{s3_port}"}
+    image_info = {"app": json.loads(command("docker", "image", "inspect", app))[0],
+                  "storage": json.loads(command("docker", "image", "inspect", storage))[0],
+                  "sourceHEAD": command("git", "rev-parse", "HEAD", cwd=ROOT),
+                  "sourceDiffSHA256": hashlib.sha256(subprocess.check_output(["git", "diff", "HEAD"], cwd=ROOT)).hexdigest(),
+                  "dockerServer": command("docker", "version", "--format", "{{.Server.Os}}/{{.Server.Arch}}"),
+                  "startedAtUTC": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "origin": origin}
+    # Image inspection contains no app credentials; fixture secrets stay private.
+    (work / "images.json").write_text(json.dumps(image_info, indent=2) + "\n")
+    print(f"Actual pinned app={app}, storage={storage}; artifacts={work}", flush=True)
+    try:
+        subprocess.run([*compose, "up", "-d", "storage", "--pull", "never", "--wait", "--wait-timeout", "180"], env=env, check=True)
+        subprocess.run(["go", "run", "."], cwd=ROOT / "web/e2e/performance/backend", env=env, check=True)
+        storage_container = command(*compose, "ps", "-q", "storage", env=env)
+        (work / "storage-allocation.txt").write_text(command("docker", "exec", storage_container, "du", "-sk", "/data") + "\n")
+        # Create the normal app volume before copying offline seeded metadata.
+        subprocess.run([*compose, "create", "app", "--no-recreate", "--pull", "never"], env=env, check=True)
+        subprocess.run(["docker", "run", "--rm", "--user", "0", "--entrypoint", "/bin/sh",
+                        "-v", f"{project}_app_data:/data", "-v", f"{work / 'metadata'}:/fixture:ro", app,
+                        "-ec", "cp -a /fixture/. /data/; chown -R 10001:10001 /data"], check=True)
+        subprocess.run([*compose, "up", "-d", "app", "--no-deps", "--pull", "never", "--wait", "--wait-timeout", "180"], env=env, check=True)
+        # Detach only after Compose has finished all dependency reconciliation.
+        subprocess.run(["docker", "network", "disconnect", f"{project}_fixture_preparation", storage_container], check=True)
+        storage_runtime = json.loads(command("docker", "inspect", storage_container))[0]
+        if storage_runtime["State"]["Status"] != "running" or set(storage_runtime["NetworkSettings"]["Networks"]) != {f"{project}_library"}:
+            raise RuntimeError("storage must run on the private library network alone before browser timing")
+        (work / "storage-runtime.json").write_text(json.dumps({"state": storage_runtime["State"], "networks": list(storage_runtime["NetworkSettings"]["Networks"])}, indent=2) + "\n")
+        deadline = time.monotonic() + 30
+        while True:
+            try:
+                with urllib.request.urlopen(origin + "/health/ready", timeout=2) as response:
+                    if response.status == 200:
+                        break
+            except (OSError, urllib.error.URLError):
+                pass
+            if time.monotonic() >= deadline:
+                raise RuntimeError("actual app did not become ready")
+            time.sleep(0.1)
+        # Verify both same-origin roles for every independently expected first
+        # page before creating any browser timer; no fake media can satisfy it.
+        fixture = json.loads((work / "fixture.json").read_text())
+        preflight_ids = sorted({item for scenario in fixture["scenarios"] for item in scenario["expectedIDs"]})
+        for item in preflight_ids:
+            for role, name in ((1, "primary"), (2, "poster")):
+                with urllib.request.urlopen(origin + f"/media/00000000-0000-4000-800{role}-{item:012d}", timeout=15) as response:
+                    payload = response.read()
+                    if response.headers.get("Content-Type") != fixture[name]["contentType"] or len(payload) != fixture[name]["bytes"] or hashlib.sha256(payload).hexdigest() != fixture[name]["sha256"]:
+                        raise RuntimeError("same-origin fixture primary/poster bytes differ")
+        (work / "media-preflight.json").write_text(json.dumps({"ids": preflight_ids, "fullHashRequests": len(preflight_ids) * 2}) + "\n")
+        # A caller coordinating other builds can pause here until contention ends.
+        gate = os.environ.get("TAG_FILES_BROWSER_PERFORMANCE_START_FILE")
+        if gate:
+            print(f"Fixture ready; waiting for explicit local timing gate {gate}", flush=True)
+            while not pathlib.Path(gate).exists():
+                time.sleep(0.5)
+        for engine in engines:
+            output = work / "browser" / engine
+            output.mkdir(parents=True)
+            runner = subprocess.Popen(["npm", "exec", "playwright", "test", "--", "--config", "e2e/performance/config.ts", "--project", engine],
+                                      cwd=ROOT / "web", env={**env, "TAG_FILES_BROWSER_PERFORMANCE_OUTPUT": str(output)}, start_new_session=True)
+            try:
+                status = runner.wait()
+            except BaseException:
+                os.killpg(runner.pid, signal.SIGINT)
+                runner.wait(timeout=15)
+                raise
+            if status:
+                raise subprocess.CalledProcessError(status, runner.args)
+    except BaseException:
+        subprocess.run([*compose, "logs", "--no-color", "--tail", "60"], env=env, check=False)
+        raise
+    finally:
+        subprocess.run([*compose, "down", "--volumes", "--remove-orphans", "--timeout", "120"], env=env, check=True)
+        # Keep only evidence; never retain credentials or the disposable DB.
+        shutil.rmtree(work / "secrets")
+        shutil.rmtree(work / "metadata", ignore_errors=True)
+        (work / "cleanup.json").write_text(json.dumps({"project": project, "containersNetworksVolumesRemoved": True}) + "\n")
+        print(f"Owned Docker resources removed; evidence retained at {work}", flush=True)
+
+
+if __name__ == "__main__":
+    main()

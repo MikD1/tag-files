@@ -79,11 +79,16 @@ See [INSTALL](INSTALL.md) for update, required cold backup and rollback rules.
   under QEMU: two browser cases 7.0 s, real video conversion and restart/full
   hashes, runtime 63.953 s; 343-file/all-layer storage audit passed.
   [AMD64 evidence](AMD64-EVIDENCE.md) identifies those separate check images.
+- The final arm64 pair passed the [browser growth probe](../docs/rewrite/BROWSER-PERFORMANCE.md):
+  10,000 items with 20,000 real PNG/JPEG objects, 122,510,000 payload bytes;
+  each engine 120 warm samples plus one fresh-context record, zero page/network
+  errors. Warm navigation max 80.3/109 ms, SPA search max 62.2/83 ms. This uses
+  small repeated media and normal caches on Linux.
 
 Full traceability and remaining gates are in [ACCEPTANCE](../docs/rewrite/ACCEPTANCE.md).
 Actual macOS Safari/Chrome/VoiceOver, Desktop sleep/power loss, native amd64 CI,
 hosted release/pull, full real legacy MinIO/SQLite migration around 100 GB and
-reference-profile/first-useful-browser measurements remain open. Existing legacy
+reference-profile performance measurements remain open. Existing legacy
 sources stay available until that acceptance is complete.
 
 Local final logs: `/tmp/tag-files-release-ready-build.log`,

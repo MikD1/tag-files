@@ -27,6 +27,7 @@ also depend on the unresolved cross-cutting gates at the end of this document.
 | `scripts/check-amd64` | [QEMU evidence](../../deploy/AMD64-EVIDENCE.md): final editor/packaging source 9856f01 rebuilt for amd64; both expanded browser cases 7.0 s, real MPEG4/PCM → H264/AAC/faststart/full decode/JPEG, restart and three full primary hashes; runtime 63.953 s. Actual storage 343-file/all-layer audit passed. Native amd64 CI remains separate. |
 | Owned multipart proof | [Gateway tests](../../app/internal/storageprofile/multipart_proof_lifecycle_test.go), [native fixture](../../app/internal/storageimage/multipart_proof_integration_test.go): actual-byte SHA, authenticated immutable bindings, fsync/resync faults, uncertain-writer/epoch fences, lost ACK/restart, 1,001 parts with explicit pagination and zero terminal journal directories. Corrected native test50.10 s / race package51.138 s; both independent P1 findings reproduced and closed. |
 | `scripts/check-performance` | [Growth-profile measurements](PERFORMANCE.md): 10,000 SQL items, 2,000 tags, 100,000 links, 350 collections. Real software encode overlaps all timed reads and 100 atomic writes; search p95 ≤24.114 ms, write max13.168 ms, idle API RSS49.3 MiB. Interrupted encode recovers/publication verifies in4.272 s after readiness. SQL descriptors do not constitute 100 GB of stored media or browser rendering evidence. |
+| `scripts/check-browser-performance` | [Actual-image browser probe](BROWSER-PERFORMANCE.md): final arm64 pair, 10,000 items/2,000 tags/100,000 links/350 collections and 20,000 fully verified real primary/poster objects, 122,510,000 payload bytes. Each engine passed120 warm samples plus one fresh-context record, zero page/network errors. Warm navigation max80.3/109 ms and SPA search max62.2/83 ms in Chromium/WebKit. Normal warmed caches and small repeated images; separate from Mac/100GB/reference-profile acceptance. |
 | Exact release handoff | Native arm64 build/export/load of both release-version images, actual browser/restart, install/cold-backup/update (18 tests,41.531 s) and native migration (33.402 s), followed by a real config/rootfs archive seal. The initial sealed bundle identifies55411fb. Later catalog artifacts have their own focused image checks. No registry push, hosted release workflow or native amd64 execution is inferred. |
 | Final local bundle | [Exact identities and launch command](../../deploy/LOCAL-EVIDENCE.md): source60f35ca, release-version arm64 archive-loaded pair, two expanded browser cases9.9 s, restart/retained media,343 storage notice/source files and all-layer Rust exclusion. Complete original config/rootfs seal passed on these tested images. Maximum/QEMU/full-native evidence retains its distinct source/image scope. |
 
@@ -111,9 +112,11 @@ also depend on the unresolved cross-cutting gates at the end of this document.
 - Read-only scan and full rehearsal on a copy of the actual legacy MinIO/SQLite
   library, approximately 100 GB, including independent backup/restore, unknown
   provenance exceptions, capacity and measured operational RTO/cutover window.
-- Useful-content20GiB video/long-encode coverage, warm browser first-useful timing
-  and the full reference performance profile remain separate. The passed padded
-  maximum browser case covers actual bytes, hashing, memory and controls.
+- Useful-content20GiB video/long-encode coverage and the full reference
+  performance profile remain separate. Warm first-useful rendering now has the
+  bounded actual-image Linux browser probe above; it does not establish timing
+  on the reference Mac/100GB library. The padded maximum browser case covers
+  actual bytes, hashing, memory and controls.
 - Final whole-change code review has closed both editor P2 findings. Artifact
   review has closed both missing-notice findings, including BusyBox embedded
   components and exact-version FlatBuffers license coverage. Actual hosted
