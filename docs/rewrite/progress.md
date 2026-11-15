@@ -1123,3 +1123,43 @@ Fresh common scripts/check also passed with83 web tests,18 deployment tests
 config seal P2 was independently closed after real export/config/rootfs checks.
 Full native runtime, maximum browser, refreshed amd64 QEMU and cold native restore
 are running against the corrected source; those outcomes are not inferred yet.
+
+## Corrected-runtime acceptance and final editor review
+
+The full native storage/media/runtime race suite passed435.188s with15 cases
+against the corrected journal source. Cold native backup/restore passed72.629s
+(70.27s native drill), including five archived journal files and independently
+expected restored part SHA/size/ETag before recovery. The renewed amd64 QEMU
+fixture passed59.424s; its exact source/image scope is recorded in
+[the amd64 report](../../deploy/AMD64-EVIDENCE.md).
+
+A real native arm64 release rehearsal built/exported and loaded both images
+from55411fb, exercised both browser uploads/restart, install/cold-backup/update
+(18 tests,41.531s) and native migration/full verification (33.402s). The release
+helper sealed those same tested images by independently re-exporting and
+checking config/rootfs identity against the archives. The sealed local bundle
+is `/home/mik.guest/projects/tag-files-release-verify-20261115-arm64`.
+Nothing was pushed or published; this is local build/load/test/seal evidence,
+not a claim that GitHub/GHCR or native amd64 CI ran.
+
+Final whole-change review identified two editor P2 issues: Collection remained
+editable during Save, and Enter in a search could implicitly submit the form.
+All fields/chips now disable together while saving, portal options disappear,
+and the form rejects repeated pending submissions. Search Enter only confirms
+an active existing option or an unambiguous existing exact tag; comma can
+confirm an exact existing tag. Unknown names cannot submit or create a tag.
+Arrow navigation still selects existing IDs. A failed save restores editable
+controls with the original draft intact.
+
+The new regression tests first failed5/9, then passed9/9; the reviewer independently
+repeated its original three reproductions and closed both findings. Fresh full
+web tests passed88/88 with TypeScript/ESLint (two existing Fast Refresh warnings),
+and16 actual HTTP/SQLite browser cases passed29.1s across Chromium/WebKit,
+including a deliberately delayed real PATCH. The whole-change review has no
+remaining concrete code findings within its documented scope.
+
+Chromium completed the full20GiB +256MiB browser gate in13.7min on the frozen
+pre-editor image pair; WebKit is still running. Upload/hash/XHR and Go runtime
+sources have not changed with this isolated catalog fix. Final images will
+be rebuilt and receive focused image/browser checks; the maximum upload need
+not be repeated for a catalog editor that the probe never opens.

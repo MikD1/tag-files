@@ -77,3 +77,44 @@ test('bulk Save replaces both metadata fields on precisely the selected rows',as
   expect(restore.ok()).toBe(true);
  }
 });
+
+test('editor search Enter never saves and an actual pending PATCH freezes every field',async({page,request})=>{
+ const original=await (await request.get('/api/v1/items/72')).json();
+ await page.goto('/library');await page.getByRole('button',{name:'List view'}).click();
+ await page.locator('tbody tr').first().getByRole('button',{name:'Edit media'}).click();
+ const writes:string[]=[];let release!:()=>void;
+ const pending=new Promise<void>(resolve=>{release=resolve;});
+ await page.route('**/api/v1/items/72',async route=>{
+  if(route.request().method()!=='PATCH')return route.continue();
+  writes.push(route.request().postData()!);
+  const response=await route.fetch();await pending;await route.fulfill({response});
+ });
+ try{
+  for(const name of ['Add tags','Collection']){
+   const search=page.getByRole('combobox',{name});
+   await search.fill('no-match');await search.press('Enter');
+   await expect(search).toBeFocused();await expect(page.getByRole('dialog')).toBeVisible();
+   expect(writes).toHaveLength(0);
+  }
+  const tags=page.getByRole('combobox',{name:'Add tags'});
+  await tags.fill('nature');await tags.press('Enter');
+  await expect(page.getByRole('button',{name:'Remove nature'})).toBeVisible();
+  await tags.fill('travel');await tags.press(',');
+  await expect(page.getByRole('button',{name:'Remove travel'})).toBeVisible();
+  const collection=page.getByRole('combobox',{name:'Collection'});
+  await collection.fill('Collection 350');await collection.press('ArrowDown');await collection.press('Enter');
+  await expect(collection).toHaveValue('Collection 350');expect(writes).toHaveLength(0);
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Saving…'})).toBeDisabled();
+  await expect(tags).toBeDisabled();await expect(collection).toBeDisabled();
+  for(const name of ['Clear collection','Remove nature','Remove travel','Cancel','Close editor'])await expect(page.getByRole('button',{name,exact:true})).toBeDisabled();
+  expect(writes).toHaveLength(1);
+  expect(JSON.parse(writes[0]!)).toEqual({tagIds:[...original.tags.map((tag:{id:number})=>tag.id),6,7],collectionId:350});
+ }finally{release();}
+ await expect(page.getByRole('dialog')).toHaveCount(0);
+ await page.unroute('**/api/v1/items/72');
+ const updated=await (await request.get('/api/v1/items/72')).json();
+ expect(updated.collectionId).toBe(350);
+ const restore=await request.patch('/api/v1/items/72',{headers:{'If-Match':`"${updated.version}"`},data:{tagIds:original.tags.map((tag:{id:number})=>tag.id),collectionId:original.collectionId}});
+ expect(restore.ok()).toBe(true);
+});

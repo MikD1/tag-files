@@ -1,5 +1,5 @@
 import {it,expect,vi,afterEach} from 'vitest';
-import {render,screen,waitFor} from '@testing-library/react';
+import {fireEvent,render,screen,waitFor} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {MantineProvider} from '@mantine/core';
 import {QueryClientProvider,QueryClient} from '@tanstack/react-query';
@@ -36,6 +36,56 @@ it('sends tags and one collection atomically with If-Match and preserves draft o
  await waitFor(()=>expect(writes).toHaveLength(1));expect(writes[0]!.headers.get('If-Match')).toBe('"7"');
  expect(await writes[0]!.clone().json()).toEqual({tagIds:[1],collectionId:2});
  expect(await screen.findByRole('alert')).toHaveTextContent('Reload before saving');expect(screen.getByRole('combobox',{name:'Collection'})).toHaveValue('Second');expect(close).not.toHaveBeenCalled();
+});
+
+it.each(['Collection','Add tags'])('freezes every draft control and the open %s popup during Save',async(openField)=>{
+ const writes:Request[]=[];let settle!:(response:Response)=>void;
+ vi.stubGlobal('fetch',async(request:Request)=>{
+  writes.push(request);return new Promise<Response>(resolve=>{settle=resolve;});
+ });
+ const cache=new QueryClient({defaultOptions:{queries:{retry:false,staleTime:Infinity},mutations:{retry:false}}});
+ cache.setQueryData(['tags'],[{id:1,name:'cat',version:1},{id:2,name:'dog',version:1}]);
+ cache.setQueryData(['collections'],[{id:1,name:'First',version:1,itemCount:1},{id:2,name:'Second',version:1,itemCount:0}]);
+ const close=vi.fn();const user=userEvent.setup();
+ render(<MantineProvider env="test" theme={{components:{Popover:{defaultProps:{hideDetached:false}}}}}><QueryClientProvider client={cache}><MetadataEditor items={[item]} onClose={close}/></QueryClientProvider></MantineProvider>);
+ await user.click(screen.getByRole('combobox',{name:openField}));
+ expect(await screen.findAllByRole('option')).not.toHaveLength(0);
+ fireEvent.submit(screen.getByRole('button',{name:'Save'}).closest('form')!);
+ expect(await screen.findByRole('button',{name:'Saving…'})).toBeDisabled();
+ for(const name of ['Collection','Add tags'])expect(screen.getByRole('combobox',{name})).toBeDisabled();
+ for(const name of ['Clear collection','Remove cat','Cancel','Close editor'])expect(screen.getByRole('button',{name})).toBeDisabled();
+ expect(screen.queryAllByRole('option')).toHaveLength(0);
+ await user.click(screen.getByRole('button',{name:'Clear collection'}));
+ fireEvent.submit(screen.getByRole('button',{name:'Saving…'}).closest('form')!);
+ expect(writes).toHaveLength(1);
+ expect(await writes[0]!.clone().json()).toEqual({tagIds:[1],collectionId:1});
+ settle(Response.json({title:'Reload before saving',status:412},{status:412}));
+ expect(await screen.findByRole('alert')).toHaveTextContent('Reload before saving');
+ expect(screen.getByRole('combobox',{name:'Collection'})).toBeEnabled();
+ expect(screen.getByRole('combobox',{name:'Collection'})).toHaveValue('First');
+ expect(screen.getByRole('button',{name:'Remove cat'})).toBeEnabled();
+ expect(close).not.toHaveBeenCalled();
+});
+
+it.each(['Add tags','Collection'])('never submits metadata on Enter in the %s search',async(field)=>{
+ const {writes}=setup();const user=userEvent.setup();
+ const search=await screen.findByRole('combobox',{name:field});
+ await user.click(search);await user.type(search,'no-match{Enter}');
+ expect(writes).toHaveLength(0);
+ expect(screen.getByRole('button',{name:'Save'})).toBeEnabled();
+});
+
+it('selects an existing exact tag by Enter or comma, and keeps Arrow+Enter option selection',async()=>{
+ const {writes}=setup();const user=userEvent.setup();
+ const search=await screen.findByRole('combobox',{name:'Add tags'});
+ await user.click(search);await user.type(search,'犬{Enter}');
+ expect(screen.getByRole('button',{name:'Remove 犬'})).toBeVisible();
+ await user.type(search,'cat,');
+ expect(screen.getAllByRole('button',{name:'Remove cat'})).toHaveLength(2);
+ await user.click(screen.getByRole('combobox',{name:'Collection'}));
+ await user.keyboard('{ArrowDown}{ArrowDown}{Enter}');
+ expect(screen.getByRole('combobox',{name:'Collection'})).toHaveValue('Second');
+ expect(writes).toHaveLength(0);
 });
 
 it('gives corrected bulk metadata a new key after a definitive validation rejection',async()=>{
