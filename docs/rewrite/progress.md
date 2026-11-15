@@ -45,8 +45,9 @@ No release, migration of real data, or production-readiness claim has been made.
   failure, manual retry, heartbeat and graceful interruption are implemented.
   Startup SQL job recovery now preflights payloads/journal, fences interrupted
   work and bounds queue timing across clock rollback without expiring input.
-  Safe crash-scratch reclamation and the complete media matrix remain open.
-- Next: crash-scratch reclamation/startup wiring and full disk admission, poster execution,
+  Guarded scratch now provides producer-lifetime locks and bounded reclamation
+  after proven quiescence; executable startup wiring and the full media matrix remain open.
+- Next: startup wiring and full disk admission, poster execution,
   media HTTP streaming and application runtime wiring.
   No executable application/SPA image exists yet.
 
@@ -657,6 +658,29 @@ Deferred review gates map to the still-open tasks: remaining upload/system/media
 handlers and API parity, real S3/media/poster publication, browser view lifecycle,
 event retention/performance, external tools/releases, and physical Mac durability.
 Manual arbitrary SQL corruption/repair is outside the application contract.
+
+## Guarded crash scratch verification
+
+`scripts/check`, `scripts/check-media` and `scripts/check-media-image` passed
+after adding inherited root/attempt flocks, process-start retirement and Linux
+parent-death signals. Actual process tests first reproduced a direct producer
+surviving application SIGKILL and removal of a still-live attempt; both now pass.
+The race detector exposed Start/descriptor-close overlap; explicit lifetime
+admission now serializes these operations and refuses retired contexts.
+
+The native host/race and nonroot, read-only, network-isolated arm64 image both
+test actual FFmpeg writing output while retaining both descriptors, then kill
+its application and prove producer reaping and scratch reclamation. An adversarial
+surviving descendant keeps the root unavailable until it stops. Reclaim refuses
+live/locked attempts, preflights all entries before mutation, preserves symlink
+targets and unproven legacy caches, and removes only known quiescent attempts.
+The final tested media image is
+`sha256:630328fd76730152b960dea09ba166f5b6fe9d27948b3dae5bc97339fdc6f290`.
+
+The executable startup must still invoke reclaim before admitting jobs/HTTP.
+The supported pinned tool profile retains inherited descriptors; arbitrary
+commands closing their guards are outside this protocol. Full disk admission,
+poster execution, wider media acceptance and Tasks 6–9 remain open.
 
 ## Completion boundary
 

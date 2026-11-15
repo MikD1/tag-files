@@ -45,6 +45,12 @@ func TestProcessFixture(t *testing.T) {
 		for {
 			time.Sleep(time.Hour)
 		}
+	case "supervise":
+		_, err := Run(context.Background(), fixtureCommand(t, "ignore", args[1]), shortLimits())
+		if err != nil {
+			os.Exit(12)
+		}
+		os.Exit(0)
 	case "orphan", "orphan-pipes", "cancel":
 		child := exec.Command(os.Args[0], "-test.run=^TestProcessFixture$", "--", "ignore", args[1])
 		child.Env = os.Environ()
@@ -74,6 +80,40 @@ func TestProcessFixture(t *testing.T) {
 		os.Exit(0)
 	}
 	os.Exit(11)
+}
+
+// Without the parent-death signal an abrupt application exit leaves the
+// direct media producer running, even though graceful cancellation works.
+func TestRunKillsDirectProducerWhenApplicationIsKilled(t *testing.T) {
+	if err := prepareSubreaper(); err != nil {
+		t.Fatal(err)
+	}
+	pidfile := filepath.Join(t.TempDir(), "producer.pid")
+	command := fixtureCommand(t, "supervise", pidfile)
+	parent := exec.Command(command.Path, command.Args...)
+	parent.Env = append(os.Environ(), command.Env...)
+	if err := parent.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = parent.Process.Kill(); _ = parent.Wait() }()
+	deadline := time.Now().Add(5 * time.Second)
+	var pid int
+	for pid == 0 {
+		raw, _ := os.ReadFile(pidfile)
+		pid, _ = strconv.Atoi(string(raw))
+		if time.Now().After(deadline) {
+			t.Fatal("producer did not start")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	defer func() { _ = syscall.Kill(-pid, syscall.SIGKILL); waitGroup(pid, time.Second) }()
+	if err := parent.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	_ = parent.Wait()
+	if !waitGroup(pid, 2*time.Second) {
+		t.Fatal("media producer survived application SIGKILL")
+	}
 }
 func fixtureCommand(t *testing.T, mode string, args ...string) Command {
 	t.Helper()

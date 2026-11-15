@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -70,6 +71,10 @@ func run(ctx context.Context, command Command, limits Limits) (Result, error) {
 	if err := prepareSubreaper(); err != nil {
 		return Result{ExitCode: -1}, err
 	}
+	// Linux's parent-death signal follows the thread that forks, rather than
+	// the whole Go process. Keep that thread alive until the command is reaped.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	stdout := &capture{limit: limits.StdoutBytes}
 	stderr := &capture{limit: limits.StderrBytes, tail: true}
 	cmd := exec.Command(command.Path, command.Args...)
@@ -77,10 +82,23 @@ func run(ctx context.Context, command Command, limits Limits) (Result, error) {
 	cmd.Env = append(os.Environ(), command.Env...)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
 	cmd.WaitDelay = limits.DrainTimeout
-	if err := cmd.Start(); err != nil {
-		return Result{ExitCode: -1}, err
+	var startErr error
+	if lifetime, ok := ctx.Value(lifetimeKey{}).(*Lifetime); ok {
+		lifetime.mu.Lock()
+		if lifetime.stopped {
+			startErr = os.ErrClosed
+		} else {
+			cmd.ExtraFiles = lifetime.files
+			startErr = cmd.Start()
+		}
+		lifetime.mu.Unlock()
+	} else {
+		startErr = cmd.Start()
+	}
+	if startErr != nil {
+		return Result{ExitCode: -1}, startErr
 	}
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()

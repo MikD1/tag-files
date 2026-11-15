@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/mikd1/tag-files/app/internal/domain"
+	"github.com/mikd1/tag-files/app/internal/process"
 )
 
 var ErrInsufficientStorage = errors.New("insufficient scratch storage")
@@ -35,6 +36,9 @@ type Attempt struct {
 	manager                   *Manager
 	sourceLimit, outputLimit  int64
 	closed                    bool
+	guard                     *os.File
+	lifetime                  *process.Lifetime
+	stopping                  bool
 }
 
 func Open(config Config) (*Manager, error) {
@@ -190,6 +194,25 @@ func (a *Attempt) Close() error {
 	if a.closed {
 		return nil
 	}
+	a.stopping = true
+	if a.lifetime != nil {
+		a.lifetime.Stop()
+	}
+	if a.guard != nil {
+		if err := a.guard.Close(); err != nil {
+			return err
+		}
+		a.guard = nil
+	}
+	// Closing our reference does not release a producer's inherited flock.
+	// Refuse removal even if a buggy caller returned before it had stopped.
+	guard, err := lockAttempt(a.Directory)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if guard != nil {
+		defer guard.Close()
+	}
 	if err := os.RemoveAll(a.Directory); err != nil {
 		return err
 	}
@@ -207,9 +230,8 @@ func (m *Manager) Close() error {
 	if len(m.active) > 0 {
 		return ErrInUse
 	}
-	if err := syscall.Flock(int(m.lock.Fd()), syscall.LOCK_UN); err != nil {
-		return err
-	}
+	// Never explicitly unlock the shared open-file description: an inherited
+	// producer may still hold it after an application crash. Last close wins.
 	m.closed = true
 	return m.lock.Close()
 }

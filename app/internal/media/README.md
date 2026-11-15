@@ -2,7 +2,8 @@
 
 This module processes owned local scratch files. It does not publish S3 objects,
 remove the durable incoming source, own SQLite transactions, or accept browser
-MIME claims. The worker/scratch lifecycle and poster execution are not wired yet.
+MIME claims. The ingestion worker supplies guarded scratch; the executable app
+startup and poster execution are not wired yet.
 `domain.MediaOutput` is shared with ingestion's immutable candidate protocol.
 
 The tested Linux profile is Ubuntu 26.04, FFmpeg package `7:8.0.1-3ubuntu2`.
@@ -19,6 +20,15 @@ reaping. Subreaping is enabled process-wide, but Wait4 only consumes the owned
 process group after its leader has been reaped. A leader that leaves descendants
 is an error even when it reports success. Cancellation also interrupts local
 copy/hash loops between reads.
+
+Every command receives a Linux parent-death SIGKILL. The forking Go thread stays
+locked through Wait because this signal follows the creating thread's lifetime.
+Guarded scratch contexts also supply inherited root/attempt lock descriptors;
+surviving descendants prevent scratch reclamation until their last close. See
+[`scratch`](../scratch/README.md). This relies on the pinned tools retaining
+their guards, rather than inferring quiescence from job age. The Linux contracts
+are documented in [PR_SET_PDEATHSIG](https://man7.org/linux/man-pages/man2/PR_SET_PDEATHSIG.2const.html)
+and [flock](https://man7.org/linux/man-pages/man2/flock.2.html).
 
 Input protocols are restricted to local files, with bounded probe bytes/time,
 stream count, decoder allocation and frame pixels. Formats/codecs have explicit

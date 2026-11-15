@@ -31,6 +31,10 @@ func (c *Coordinator) ProcessIngest(ctx context.Context, job dbgen.Job, processo
 		return err
 	}
 	defer func() { err = errors.Join(err, attempt.Close()) }()
+	ctx, err = attempt.Context(ctx)
+	if err != nil {
+		return err
+	}
 	work, cancel := context.WithCancelCause(ctx)
 	stopped := make(chan struct{})
 	go func() {

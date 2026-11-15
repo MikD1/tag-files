@@ -4,8 +4,37 @@ package process
 import (
 	"context"
 	"errors"
+	"os"
+	"sync"
 	"time"
 )
+
+type lifetimeKey struct{}
+
+// Lifetime serializes command admission with retirement of its inherited
+// descriptors. The caller owns files and closes them only after Stop. Media
+// tools must preserve the descriptors, including in their descendants.
+type Lifetime struct {
+	mu      sync.Mutex
+	files   []*os.File
+	stopped bool
+}
+
+func NewLifetime(files ...*os.File) *Lifetime {
+	return &Lifetime{files: append([]*os.File(nil), files...)}
+}
+func (l *Lifetime) Context(ctx context.Context) context.Context {
+	return context.WithValue(ctx, lifetimeKey{}, l)
+}
+
+// Stop waits for a concurrent Start and prevents further commands. Existing
+// children retain their own references; a flock cannot be released by closing
+// the parent's descriptors until those children have also closed theirs.
+func (l *Lifetime) Stop() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.stopped = true
+}
 
 var ErrDescendants = errors.New("media command left descendants after its leader exited")
 var ErrOutputLimit = errors.New("media command stdout exceeded its bounded capture")
