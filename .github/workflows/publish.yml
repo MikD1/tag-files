@@ -1,27 +1,44 @@
 name: Publish
 on:
+  push:
+    tags: ['v*']
   release:
     types: [published]
+concurrency:
+  group: publish-${{ github.event.release.tag_name || github.ref_name }}
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
   validate-release:
     runs-on: ubuntu-26.04
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
       - name: Validate version and stable/prerelease channel policy
+        id: release
         env:
-          RELEASE_VERSION: ${{ github.event.release.tag_name }}
+          RELEASE_VERSION: ${{ github.event.release.tag_name || github.ref_name }}
           RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
-        run: scripts/release-images validate-release --version "$RELEASE_VERSION" --prerelease "$RELEASE_PRERELEASE"
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            case "$RELEASE_VERSION" in
+              *-*) RELEASE_PRERELEASE=true ;;
+              *) RELEASE_PRERELEASE=false ;;
+            esac
+          fi
+          scripts/release-images validate-release --version "$RELEASE_VERSION" --prerelease "$RELEASE_PRERELEASE"
+          printf 'version=%s\nprerelease=%s\n' "$RELEASE_VERSION" "$RELEASE_PRERELEASE" >> "$GITHUB_OUTPUT"
   verify:
     needs: validate-release
     uses: ./.github/workflows/verify.yml
     with:
-      version: ${{ github.event.release.tag_name }}
+      version: ${{ needs.validate-release.outputs.version }}
       export-images: true
   publish:
-    needs: verify
+    needs: [validate-release, verify]
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     permissions:
@@ -45,19 +62,60 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-buildx-action@v3
-      - name: Push tested config/layers and assemble version/minor/latest manifests
-        env:
-          RELEASE_VERSION: ${{ github.event.release.tag_name }}
-          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
-        run: scripts/release-images promote --version "$RELEASE_VERSION" --prerelease "$RELEASE_PRERELEASE" --directory "$RUNNER_TEMP/verified-images"
-      - name: Attach the standalone installer and Compose template to the stable release
-        if: ${{ !github.event.release.prerelease }}
+      - name: Inspect the GitHub release for the tag
+        if: github.event_name == 'push'
+        id: existing-release
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ github.event.release.tag_name }}
+          RELEASE_VERSION: ${{ needs.validate-release.outputs.version }}
+          RELEASE_PRERELEASE: ${{ needs.validate-release.outputs.prerelease }}
+        run: |
+          release_state=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" |
+            jq -r --arg version "$RELEASE_VERSION" '.[] | select(.tag_name == $version) | [.draft, .prerelease] | map(tostring) | join(" ")')
+          case "$release_state" in
+            "") state=absent ;;
+            "true $RELEASE_PRERELEASE") state=draft ;;
+            "false $RELEASE_PRERELEASE") state=published ;;
+            *)
+              echo "::error::Release $RELEASE_VERSION has a different prerelease setting."
+              exit 1
+              ;;
+          esac
+          printf 'state=%s\n' "$state" >> "$GITHUB_OUTPUT"
+      - name: Push tested config/layers and assemble version/minor/latest manifests
+        env:
+          RELEASE_VERSION: ${{ needs.validate-release.outputs.version }}
+          RELEASE_PRERELEASE: ${{ needs.validate-release.outputs.prerelease }}
+        run: scripts/release-images promote --version "$RELEASE_VERSION" --prerelease "$RELEASE_PRERELEASE" --directory "$RUNNER_TEMP/verified-images"
+      - name: Create the GitHub release for the verified tag
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.validate-release.outputs.version }}
+          RELEASE_PRERELEASE: ${{ needs.validate-release.outputs.prerelease }}
+          RELEASE_STATE: ${{ steps.existing-release.outputs.state }}
+        run: |
+          if [ "$RELEASE_STATE" = published ]; then
+            exit 0
+          fi
+          latest=true
+          if [ "$RELEASE_PRERELEASE" = true ]; then
+            latest=false
+          fi
+          if [ "$RELEASE_STATE" = draft ]; then
+            gh release edit "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --draft=false --latest="$latest"
+          else
+            gh release create "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --verify-tag --title "Tag Files $RELEASE_VERSION" --generate-notes --prerelease="$RELEASE_PRERELEASE" --latest="$latest"
+          fi
+      - name: Attach the standalone installer and Compose template to the stable release
+        if: needs.validate-release.outputs.prerelease == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.validate-release.outputs.version }}
         run: |
           scripts/release-images installer-assets --version "$RELEASE_VERSION" --directory "$RUNNER_TEMP/installer-assets"
-          gh release upload "$RELEASE_VERSION" "$RUNNER_TEMP/installer-assets/setup.sh" "$RUNNER_TEMP/installer-assets/compose.yml" "$RUNNER_TEMP/installer-assets/SHA256SUMS" --clobber
+          gh release upload "$RELEASE_VERSION" "$RUNNER_TEMP/installer-assets/setup.sh" "$RUNNER_TEMP/installer-assets/compose.yml" "$RUNNER_TEMP/installer-assets/SHA256SUMS" --repo "$GITHUB_REPOSITORY" --clobber
       - name: Retain publication digest receipts
         if: always()
         uses: actions/upload-artifact@v4

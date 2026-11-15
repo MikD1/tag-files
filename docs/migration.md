@@ -26,7 +26,7 @@ The source, archive, target metadata and journal directories must be disjoint.
 
 ```sh
 deployment="$HOME/tag-files"
-scripts/install --directory "$deployment" --version 0.1.2 --app-image tag-files-app:local --storage-image tag-files-storage:local --project tag-files --no-pull
+scripts/install --directory "$deployment" --version 0.20.0 --app-image tag-files-app:local --storage-image tag-files-storage:local --project tag-files --no-pull
 compose() { docker compose --project-directory "$deployment" --env-file "$deployment/.env" -f "$deployment/compose.yml" "$@"; }
 install -d -m 700 /srv/migration-target-secrets
 install -m 600 "$deployment/secrets/s3_access_key" /srv/migration-target-secrets/s3_access_key

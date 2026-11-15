@@ -172,9 +172,9 @@ and project:
 
 ```sh
 docker build -f deploy/app/Dockerfile --target app \
-  --build-arg VERSION=v0.1.2 -t tag-files-app:local .
+  --build-arg VERSION=v0.20.0 -t tag-files-app:local .
 docker build -f deploy/storage/Dockerfile -t tag-files-storage:local .
-sh scripts/setup.sh --version 0.1.2 \
+sh scripts/setup.sh --version 0.20.0 \
   --app-image tag-files-app:local --storage-image tag-files-storage:local \
   --skip-pull --directory "$HOME/tag-files-dev" --project tag-files-dev --port 8081
 ```
@@ -205,18 +205,33 @@ harnesses create isolated libraries and may retain ignored failure reports.
 
 ## Release distribution
 
-Publishing a stable GitHub release runs native verification on amd64 and arm64,
-promotes the tested images to `ghcr.io/mikd1/tag-files-app:VERSION` and
-`ghcr.io/mikd1/tag-files-storage:VERSION` (for example, `0.1.2`), and attaches
-`setup.sh`, `compose.yml`, and `SHA256SUMS` to the release. The installer embeds that
-release version, pulls the matching images, and pins their exact local IDs in the
-generated `.env`. Subsequent `docker compose up -d` uses those images.
-Prereleases publish version-specific image tags. Stable releases also provide
-installer assets.
+Push a version tag to run native verification on amd64 and arm64, publish the
+tested images, and create a GitHub release. For example, prepare `v0.20.0` on the
+desired commit and send the branch and tag together:
+
+```sh
+git tag -a v0.20.0 -m "Tag Files v0.20.0"
+git push --atomic origin main v0.20.0
+```
+
+The `Publish` workflow promotes images to `ghcr.io/mikd1/tag-files-app:0.20.0`
+and `ghcr.io/mikd1/tag-files-storage:0.20.0`, and publishes the `0.20` and `latest`
+tags. It creates the release after image verification and publication, then
+attaches `setup.sh`, `compose.yml`, and `SHA256SUMS`. The installer embeds the
+release version and pins the pulled image IDs in the generated `.env`.
+Subsequent `docker compose up -d` uses those images.
+
+Publishing a release through GitHub's Releases page also runs this workflow.
+Prerelease tags such as `v0.20.0-rc.1` publish their version-specific images and a
+prerelease. Stable releases provide installer assets.
+
+For the first publication, set both GHCR packages' visibility to **Public** in
+their package settings so users can pull the images anonymously. Publication
+uses the workflow's `GITHUB_TOKEN` with `contents: write` and `packages: write`.
 
 To prepare the downloadable files in a local directory:
 
 ```sh
-scripts/release-images installer-assets --version v0.1.2 \
+scripts/release-images installer-assets --version v0.20.0 \
   --repository MikD1/tag-files --directory /path/to/new/release-assets
 ```
