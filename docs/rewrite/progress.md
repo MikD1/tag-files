@@ -1296,3 +1296,23 @@ reports/screenshots/manifests remain in `.performance.browser-ose4zd_0`.
 The owned containers/networks/volumes, credentials and seeded DB were removed.
 This supplies bounded Linux browser evidence; actual Mac/100GB/reference
 performance and the other external acceptance gates remain open.
+
+## Isolated-network final-image check
+
+The final arm64 pair passed a focused check with both service networks internal,
+no default routes and no published ports. A host-only bounded streaming
+forwarder preserves the trusted localhost browser origin. Both expanded release
+browser upload/editor cases passed 10.1 s with context-wide same-origin request
+assertions. Whole catalog and both complete primary hashes matched after pair
+restart. Both fresh browsers then executed the SPA and decoded both retained
+canonical viewer links, with matching item/media IDs and zero external/HTTP/
+page errors. [Offline evidence](../../deploy/OFFLINE-EVIDENCE.md) records exact
+scope, source/image identities and raw logs/screenshots.
+
+Independent review closed the insecure test origin, fallback-only deep-link
+claim and diagnostics-before-cleanup findings. An empty successful readiness
+body is now checked by status. Earlier failed test fixtures were cleaned.
+The accepted fixture and all three volumes, networks, containers and credentials
+are removed; the original sealed image bundle and production Compose remain
+unchanged. This is Linux two-PNG path evidence, not whole-product or Mac offline
+acceptance. A separate large-object migration CLI rehearsal is in progress.

@@ -5,6 +5,10 @@ import type {Schema} from '../../src/api/client';
 test('built app uploads through worker/XHR/S3 and freezes metadata while saving',async({page,request,browserName})=>{
  const before=await (await request.get('/api/v1/items')).json() as Schema<'ItemPage'>;
  const consoleErrors:string[]=[];page.on('pageerror',e=>consoleErrors.push(e.message));
+ const externalRequests:string[]=[];
+ if(process.env.TAG_FILES_RELEASE_EXPECT_SINGLE_ORIGIN==='1')page.context().on('request',request=>{
+  if(new URL(request.url()).origin!==new URL(process.env.TAG_FILES_RELEASE_ORIGIN!).origin)externalRequests.push(request.url());
+ });
  let workers=0,parts=0;page.on('worker',()=>workers++);page.on('request',r=>{if(r.method()==='PUT'&&r.url().includes('/parts/'))parts++;});
  let lostReceipt=false;
  // WebKit's intercepted Blob request is not exposed as postData by Playwright;
@@ -66,4 +70,5 @@ test('built app uploads through worker/XHR/S3 and freezes metadata while saving'
  const updated=await (await request.get(`/api/v1/items/${item.id}`)).json() as Schema<'Item'>;
  expect(updated.tags.map(t=>t.id)).toEqual([tag.id]);expect(updated.collectionId).toBe(collection.id);
  expect(consoleErrors).toEqual([]);
+ expect(externalRequests).toEqual([]);
 });

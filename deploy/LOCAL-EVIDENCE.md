@@ -84,6 +84,10 @@ See [INSTALL](INSTALL.md) for update, required cold backup and rollback rules.
   each engine 120 warm samples plus one fresh-context record, zero page/network
   errors. Warm navigation max 80.3/109 ms, SPA search max 62.2/83 ms. This uses
   small repeated media and normal caches on Linux.
+- The same pair passed the [isolated-network probe](OFFLINE-EVIDENCE.md): both
+  service networks internal, no default routes or published ports, two expanded
+  browser cases 10.1 s, full retained hashes after restart and both browsers
+  decoding both retained viewer links without external requests.
 
 Full traceability and remaining gates are in [ACCEPTANCE](../docs/rewrite/ACCEPTANCE.md).
 Actual macOS Safari/Chrome/VoiceOver, Desktop sleep/power loss, native amd64 CI,
