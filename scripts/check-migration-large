@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+project_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+# Source/archive/target/journal and test temporary files live on the project
+# filesystem. This gate never places the 2 GiB source/archive under /tmp.
+# The fixture accepts only this exact already-built final owned-storage image.
+export TAG_FILES_MIGRATE_STORAGE_IMAGE=sha256:70aa8659fd1622ffce9c39a65024c83b3619c248eb8a71c55ccc6af6f0e17ea5
+export TAG_FILES_MIGRATE_LARGE_INTEGRATION=1
+unset GOROOT
+cd "$project_root/tools/migrate"
+go test -race -count=1 -run '^TestLargeLegacyMigrationCLIResumeAndRSS$' -v -timeout=45m .

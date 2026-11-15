@@ -1315,4 +1315,33 @@ body is now checked by status. Earlier failed test fixtures were cleaned.
 The accepted fixture and all three volumes, networks, containers and credentials
 are removed; the original sealed image bundle and production Compose remain
 unchanged. This is Linux two-PNG path evidence, not whole-product or Mac offline
-acceptance. A separate large-object migration CLI rehearsal is in progress.
+acceptance. The separate large-object migration CLI rehearsal is recorded below.
+
+## Large-object normal migration CLI rehearsal
+
+The opt-in [large CLI gate](../../tools/migrate/LARGE-EVIDENCE.md) passed actual
+normal `scan`, SIGKILL `copy`, resumed `copy` and `verify` processes against a
+separate read-only native source and the final owned storage image. Twelve
+objects/2,147,483,734 actual bytes include one 2GiB marker fixture transferred as
+128×16MiB parts. Three durable local/native ACK tuples matched before the kill
+and before resumed dispatch; every part was forwarded exactly once. All full
+archive/target hashes and metadata, five legacy kinds, exact scalar/int64 ticks,
+duplicate Unicode/case tags, joins and four independent category ID sets matched.
+The frozen source SQLite hash stayed unchanged; source writes were rejected.
+
+The normal CLI stages took 7.232/9.980(SIGKILL)/34.106/15.106 s, with maximum
+sampled RSS/HWM 42.63 MiB and wait-rusage 82.74 MiB under a chosen 256MiB regression
+bound. The race parent fixture passed 102.33 s, package 103.356 s. Point-in-time
+host/source/target allocations are reported without a continuous peak claim.
+The seed alone occupied about 2GiB; no sparse disk saving is assumed.
+
+Independent review corrected an initially wrong source-volume cleanup proof and
+checked the accepted raw HTTP/ACK/checkpoint/RSS/SQLite/catalog evidence. Root
+recomputed memory summaries, verified normal binary identity and inspected both
+actual container IDs/volume names after cleanup. All owned resources, credentials
+and large source/archive work files were removed. A rejected earlier scan-only
+attempt has separate evidence and is not counted as a passing rehearsal.
+
+Only tests, scripts and evidence changed. Actual legacy MinIO/100GB data, measured
+continuous working peaks/full-library RTO, Mac/browser/accessibility/durability,
+native amd64 CI and hosted publication remain separate external acceptance gates.

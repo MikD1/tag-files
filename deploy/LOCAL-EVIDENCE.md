@@ -88,6 +88,11 @@ See [INSTALL](INSTALL.md) for update, required cold backup and rollback rules.
   service networks internal, no default routes or published ports, two expanded
   browser cases 10.1 s, full retained hashes after restart and both browsers
   decoding both retained viewer links without external requests.
+- The standalone [large migration CLI rehearsal](../tools/migrate/LARGE-EVIDENCE.md)
+  passed 102.33 s against the final storage image: actual 2GiB object, forced CLI
+  interruption, unchanged acknowledged parts, no part resend, full hashes and
+  independent catalog comparisons. Its source is synthetic SeaweedFS; this does
+  not establish real legacy MinIO/100GB migration or full-library restore/RTO.
 
 Full traceability and remaining gates are in [ACCEPTANCE](../docs/rewrite/ACCEPTANCE.md).
 Actual macOS Safari/Chrome/VoiceOver, Desktop sleep/power loss, native amd64 CI,

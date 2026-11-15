@@ -301,8 +301,16 @@ Fixtures use
 private disposable volumes/random credentials; containers/volumes were removed.
 This is a small synthetic sizing fixture, not throughput or full-library RTO.
 
+The separate [large CLI rehearsal](LARGE-EVIDENCE.md) also passed actual normal
+`scan`/SIGKILL `copy`/resumed `copy`/`verify` for a 2 GiB object in 128 real
+16 MiB parts. Three durable native/local ACK tuples survived unchanged and no
+part was resent; all bytes, metadata and independent catalog/category ID sets
+matched. Raw child RSS stayed within the chosen 256 MiB test regression bound.
+Run it with `scripts/check-migration-large` from the repository root. Its
+point-in-time native disk observations do not establish the physical working peak.
+
 Explicit remaining gates: the owner's actual MinIO version/encryption/lifecycle
-and native rollback snapshot; representative large-object storage peak/RSS and
+and native rollback snapshot; representative continuous storage working peaks and
 full-library disk sizing; 100% real source audit and owner exceptions; a full
 pilot/offline-window measurement; target media/browser/rename/sort/Range and
 release-container acceptance on a disposable copy; physical Mac/VM power-loss.
