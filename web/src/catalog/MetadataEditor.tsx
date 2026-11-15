@@ -5,6 +5,7 @@ import {api,errorMessage,unwrap,type Schema} from '../api/client';
 import {ImmutableCommand} from '../api/command';
 import {collectionsQuery,tagsQuery,invalidateLibrary} from '../api/queries';
 import {Button} from '../components/Button';
+import {Icon} from '../components/Icon';
 
 function SelectField({label,options,value,onSelect,clearable=false,disabled=false}:{label:string;options:{id:number;name:string}[];value:number|null;onSelect:(id:number|null)=>void;clearable?:boolean;disabled?:boolean}){
  const selected=options.find(o=>o.id===value)?.name??'';
@@ -12,7 +13,7 @@ function SelectField({label,options,value,onSelect,clearable=false,disabled=fals
  const store=useCombobox({onDropdownClose:()=>{setDraft(null);store.resetSelectedOption();}});
  const matches=options.filter(o=>o.name.toLocaleLowerCase().includes((draft??'').toLocaleLowerCase()));
  return <Combobox store={store} onOptionSubmit={id=>{if(disabled)return;onSelect(Number(id));setDraft(null);store.closeDropdown();}} withinPortal position="bottom-start" zIndex={250}>
-  <div className="editor-single-select"><Combobox.Target withExpandedAttribute><input aria-label={label} disabled={disabled} value={draft??selected} onFocus={()=>{setDraft('');store.openDropdown();}} onClick={()=>store.openDropdown()} onChange={e=>{setDraft(e.target.value);store.openDropdown();store.updateSelectedOptionIndex();}} onKeyDown={e=>{if(e.key==='Enter'&&!e.nativeEvent.isComposing)e.preventDefault();}} onBlur={()=>store.closeDropdown()} placeholder="No collection"/></Combobox.Target>{clearable&&value!==null&&<Button label="Clear collection" icon="close" className="ghost icon-button" disabled={disabled} onMouseDown={e=>e.preventDefault()} onClick={()=>{onSelect(null);setDraft(null);store.closeDropdown();}}/>}</div>
+  <div className="editor-single-select"><Combobox.Target withExpandedAttribute><input aria-label={label} disabled={disabled} value={draft??selected} onFocus={()=>{setDraft('');store.openDropdown();}} onClick={()=>store.openDropdown()} onChange={e=>{setDraft(e.target.value);store.openDropdown();store.updateSelectedOptionIndex();}} onKeyDown={e=>{if(e.key==='Enter'&&!e.nativeEvent.isComposing)e.preventDefault();}} onBlur={()=>store.closeDropdown()} placeholder="No collection"/></Combobox.Target>{clearable&&value!==null&&<Button label="Clear collection" icon="close" className="ghost icon-button" disabled={disabled} onMouseDown={e=>e.preventDefault()} onClick={()=>{onSelect(null);setDraft(null);store.closeDropdown();}}/>}<span className="single-select-chevron"><Icon name="chevron"/></span></div>
   {!disabled&&<Combobox.Dropdown className="production-options"><Combobox.Options mah={220} style={{overflowY:'auto',overscrollBehavior:'contain'}}>{matches.length?matches.map(o=><Combobox.Option key={o.id} value={String(o.id)}>{o.name}</Combobox.Option>):<Combobox.Empty>No matches</Combobox.Empty>}</Combobox.Options></Combobox.Dropdown>}
  </Combobox>;
 }
