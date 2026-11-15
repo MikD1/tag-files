@@ -24,6 +24,13 @@ arbitrary winner cannot mask an error. Repeating work for an existing profile
 finishes its job without replacing bytes. A tombstone/source change or stale
 generation refuses publication.
 
+Schema 7 retires previously generated video posters once, after correcting
+timestamp alignment in the FFmpeg compositor. It marks only owned, published,
+derived `poster-v1` video assets missing and queues normal replacement work;
+images, legacy posters and immutable primary bytes stay intact. Old poster
+objects retain their ownership for eventual item deletion. Reopening the library
+does not repeat the repair or replace newly published posters.
+
 `poster_candidate` receipts contain immutable library/item/source/asset/job/
 generation/key/size/SHA identity and survive parent work. Cleanup proves a
 permanent publication fence from one short SQL read snapshot: the job is gone,

@@ -129,6 +129,31 @@ func TestNativeVideoPosterUsesRepresentativeFrameAndDisplayOrientation(t *testin
 	}
 }
 
+func TestNativeVideoPosterContainsFrameWhenSeekFallsBetweenFrames(t *testing.T) {
+	p := nativeProcessor(t)
+	for _, tc := range []struct {
+		name, rate, duration string
+	}{
+		{"24fps", "24", "8"},
+		{"30fps-short", "30", "2.966667"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			directory := t.TempDir()
+			input := filepath.Join(directory, "blue.mp4")
+			fixtureFFmpeg(t, "-f", "lavfi", "-i", "color=blue:s=80x48:r="+tc.rate+":d="+tc.duration, "-c:v", "libx264", "-pix_fmt", "yuv420p", input)
+			prepared, err := p.PreparePoster(context.Background(), input, filepath.Join(directory, "poster"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			poster := readPoster(t, prepared, 80, 48)
+			r, g, b, _ := poster.At(40, 24).RGBA()
+			if b < 55000 || r > 6000 || g > 6000 {
+				t.Fatalf("poster lost the blue video frame: RGB=%d %d %d", r, g, b)
+			}
+		})
+	}
+}
+
 func TestNativePosterFailureKeepsPrimaryAndRemovesPartialOutput(t *testing.T) {
 	_ = nativeProcessor(t)
 	config := DefaultConfig()

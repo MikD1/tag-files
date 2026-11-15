@@ -83,7 +83,9 @@ func (p *Processor) PreparePoster(ctx context.Context, input, output string) (pr
 		selected = "[primary]"
 	}
 	size := strconv.FormatInt(w, 10) + ":" + strconv.FormatInt(h, 10)
-	graph += selected + "scale=" + size + ":flags=lanczos,setsar=1,format=rgba[scaled];color=c=white:s=" + strconv.FormatInt(w, 10) + "x" + strconv.FormatInt(h, 10) + ":r=1,format=rgba[white];[white][scaled]overlay=shortest=1:format=auto,format=yuvj444p[poster]"
+	// A seek between video frames leaves the first decoded frame at a positive
+	// timestamp. Align it with the white canvas so frame zero contains the image.
+	graph += selected + "setpts=PTS-STARTPTS,scale=" + size + ":flags=lanczos,setsar=1,format=rgba[scaled];color=c=white:s=" + strconv.FormatInt(w, 10) + "x" + strconv.FormatInt(h, 10) + ":r=1,format=rgba[white];[white][scaled]overlay=shortest=1:format=auto,format=yuvj444p[poster]"
 	args = append(args, "-filter_complex", graph, "-map", "[poster]", "-frames:v", "1", "-an", "-sn", "-dn", "-map_metadata", "-1", "-metadata:s:v:0", "rotate=0", "-c:v", "mjpeg", "-q:v", "3", "-pix_fmt", "yuvj444p", "-threads", "1", "-fs", strconv.FormatInt(p.PosterOutputLimit()+1, 10), "-f", "image2", output)
 	result, runErr := p.invoke(ctx, p.config.FFmpeg, args)
 	if runErr != nil {

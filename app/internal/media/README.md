@@ -42,14 +42,17 @@ one JPEG, longest edge at most 640px, no upscaling, Lanczos resize, square pixel
 quality 3 and 4:4:4 chroma. Transparency composites onto white, including partial
 alpha. Display transforms and whole HEIF tile groups are applied before resize.
 Images use the first frame; videos seek to 10% of probed duration using integer
-100ns ticks, or begin at the start when duration is unknown. The output is
+100ns ticks, or begin at the start when duration is unknown. The selected stream
+starts at timestamp zero before compositing, so a seek between frames cannot
+produce a frame containing only the white canvas. The output is
 exclusively created, bounded to the lesser of 8 MiB/configured output cap and
 five minutes/configured conversion timeout, probed/full-decoded and hashed.
 Failures remove only this new output; source/previous output remain intact.
 These are internal defaults, not user options or a promise to improve quality.
 
 Native tests check landscape/portrait/odd/small images, white/partial-alpha
-compositing, representative video frame and rotation, all JPEG EXIF transforms,
+compositing, representative video frame and rotation, seeks between frames at
+24/30fps, all JPEG EXIF transforms,
 HEIC/AVIF whole grids/transforms and first animation frame without changing the
 primary. The separate [`poster`](../poster/README.md) module owns durable
 job/publication/cleanup; the byte method itself performs no S3/SQLite work.

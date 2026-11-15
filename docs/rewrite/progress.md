@@ -5,11 +5,16 @@ No release, migration of real data, or production-readiness claim has been made.
 
 ## Current state (2026-11-15)
 
+- Local preview v0.1.1 corrects video poster timestamp alignment and schema 7
+  queues one-time replacement of existing derived video posters. The two
+  reported white JPEGs were reproduced, replaced and checked in Chromium;
+  all15 existing items and metadata were preserved. This local fix does not
+  extend the earlier v0.1.0 sealed artifact or external acceptance evidence.
 - Work remains local on main; original clean baseline was `bc7d62d`. Legacy
   C#/Angular sources and explicit legacy Compose copies remain for reference.
 - Tasks 1–3 are implemented: durable SQLite/schema/jobs, search/organization/
   catalog semantics, generated OpenAPI contracts, HTTP commands, navigation
-  snapshots and durable replay. Current schema is6, external library format1.
+  snapshots and durable replay. Current schema is7, external library format1.
 - Tasks 4–5 are implemented and extensively exercised on native Linux arm64:
   owned private SeaweedFS4.53, physical/logical pairing, boot-epoch fencing,
   immutable streaming uploads, asynchronous verified Complete, primary/poster
