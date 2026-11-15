@@ -12,7 +12,7 @@ dependencies only. The application image uses its pinned FFmpeg package and
 does not install these tools or the generator.
 
 The HEIC/AVIF inputs include single images, a cropped four-tile grid, a 24-tile
-grid exceeding the former 16-stream limit, a primary with a thumbnail, primary
+grid, a primary with a thumbnail, primary
 rotation, both mirroring axes, HDR transfer and auxiliary alpha. Unsupported
 conversions are asserted as errors with retained input and absent output.
 

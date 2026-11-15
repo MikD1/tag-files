@@ -1,5 +1,4 @@
 .git
-.superpowers
 **/node_modules
 **/dist
 web/test-results

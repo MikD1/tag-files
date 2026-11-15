@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Disposable exact-image amd64 browser/video/restart gate; never real libraries.
 
-Register only amd64 QEMU first when running on arm64 (see deploy/AMD64-EVIDENCE.md).
+Register amd64 QEMU first when running on an arm64 Docker host.
 The script does not change host binfmt handlers or publish images.
 """
 import argparse

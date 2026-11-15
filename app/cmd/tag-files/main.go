@@ -1,4 +1,4 @@
-// tag-files runs the application. Legacy import and backup/restore remain
+// tag-files runs the application. Data migration and backup/restore remain
 // separate offline tools; this command only serves or checks runtime health.
 package main
 

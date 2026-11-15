@@ -1,4 +1,4 @@
-name: Verify rewrite
+name: Verify
 
 on:
   workflow_call:
