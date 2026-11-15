@@ -2,11 +2,25 @@
 
 ## Deployment
 
-Follow [the quick start](../README.md) to build and install. Host scripts require
-Python 3 and native Linux Docker images. The application image includes all web
-assets and media tools; runtime browser assets do not use a CDN.
-Installation and update scripts copy the repository's root `compose.yml` into
-the external deployment directory. Integration checks use the same template.
+Follow [the quick start](../README.md#install-and-run) to install with Docker and
+the downloadable `setup.sh`. It needs no source checkout or Python. The script
+pulls versioned application/storage images, checks their native Docker platform,
+and runs `storage-run setup` offline inside the storage image to generate the
+deployment files and random credentials. It then starts Compose and waits for
+healthy services. Existing libraries and Docker project volumes are refused.
+
+The application image includes the web assets and media tools; runtime browser
+assets do not use a CDN. The repository's root `compose.yml` is the single
+deployment template, also bundled in the storage image and attached to stable
+releases. The installer prepares it with `.env` and credentials; a downloaded
+Compose file alone needs those settings before startup.
+
+Installation configuration lives in `$HOME/tag-files` by default. Persistent
+data lives in the paired Docker volumes `tag-files_app_data` and
+`tag-files_storage_data`; `tag-files_scratch` is disposable workspace. A custom
+`--project NAME` uses `NAME_` in volume names. Docker Desktop stores volumes in
+its VM disk; native Docker Engine exposes mount paths through
+`docker volume inspect`.
 
 Use the external deployment directory for every Compose command:
 
@@ -20,13 +34,15 @@ compose ps
 compose logs --tail 100 app storage
 ```
 
-To stop, run `compose stop app` followed by `compose stop storage`. To start:
+For everyday start and stop, the deployment directory and Docker are sufficient:
 
 ```sh
-compose up -d --pull never --wait storage
-compose exec -T storage storage-run check
-compose up -d --pull never --wait app
+cd "$deployment"
+docker compose stop
+docker compose up -d
 ```
+
+Compose starts storage before the application and waits for its health check.
 
 `app_data` contains SQLite; `storage_data` contains the complete SeaweedFS native
 state and write-proof journal; `scratch` contains disposable processing attempts.
@@ -66,6 +82,10 @@ manually customized deployments need configuration review before updating.
 `/api/v1/system/status` reports the app/schema versions, queue, and capacity.
 
 ## Updates
+
+The source-based maintenance scripts in this section and the cold backup section
+require a matching source checkout and Python 3. They are separate from normal
+installation and startup. Do not rerun `setup.sh` over an existing library.
 
 Build or load the requested application/storage images and a backup-tool image
 that supports the installed library schema. Choose a strictly increasing stable
@@ -135,6 +155,25 @@ isolated automated backup/restore integration suite.
 
 ## Development and checks
 
+For source builds, install Git and Python 3 as well as Docker, then run from the
+repository root. Pick the version being built and an unused deployment directory
+and project:
+
+```sh
+docker build -f deploy/app/Dockerfile --target app \
+  --build-arg VERSION=v0.1.2 -t tag-files-app:local .
+docker build -f deploy/storage/Dockerfile -t tag-files-storage:local .
+sh scripts/setup.sh --version 0.1.2 \
+  --app-image tag-files-app:local --storage-image tag-files-storage:local \
+  --skip-pull --directory "$HOME/tag-files-dev" --project tag-files-dev --port 8081
+```
+
+For an offline tool that needs an initialized deployment without starting the
+application, use `scripts/install` with the same image references, `--no-pull`,
+and no `--start`. This advanced host tool requires Python 3.
+
+Native checks require Go 1.27.4, a C compiler, Node.js 26, Python 3, and FFmpeg 8.
+Install pinned web/generator dependencies as described in the root README.
 Frontend development uses `npm --prefix web run dev` at `http://127.0.0.1:5173`.
 Vite proxies API/media to `http://127.0.0.1:8080`; set `TAG_FILES_API_ORIGIN` to
 change that target. API/schema generators live in `tools/codegen`.
@@ -152,3 +191,20 @@ change that target. API/schema generators live in `tools/codegen`.
 
 Install browser runtimes with the command in the root README. Integration
 harnesses create isolated libraries and may retain ignored failure reports.
+
+## Release distribution
+
+Publishing a stable GitHub release runs native verification on amd64 and arm64,
+promotes the tested images to `ghcr.io/mikd1/tag-files-app:VERSION` and
+`ghcr.io/mikd1/tag-files-storage:VERSION` (without the leading `v`), and attaches
+`setup.sh`, `compose.yml`, and `SHA256SUMS` to the release. The installer embeds that
+release version, pulls the matching images, and pins their exact local IDs in the
+generated `.env`. Subsequent `docker compose up -d` uses those images.
+Prereleases publish version-specific image tags without stable installer assets.
+
+To prepare the downloadable files locally without publishing:
+
+```sh
+scripts/release-images installer-assets --version v0.1.2 \
+  --repository MikD1/tag-files --directory /path/to/new/release-assets
+```

@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - uses: actions/checkout@v4
@@ -50,6 +50,14 @@ jobs:
           RELEASE_VERSION: ${{ github.event.release.tag_name }}
           RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
         run: scripts/release-images promote --version "$RELEASE_VERSION" --prerelease "$RELEASE_PRERELEASE" --directory "$RUNNER_TEMP/verified-images"
+      - name: Attach the standalone installer and Compose template to the stable release
+        if: ${{ !github.event.release.prerelease }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          scripts/release-images installer-assets --version "$RELEASE_VERSION" --directory "$RUNNER_TEMP/installer-assets"
+          gh release upload "$RELEASE_VERSION" "$RUNNER_TEMP/installer-assets/setup.sh" "$RUNNER_TEMP/installer-assets/compose.yml" "$RUNNER_TEMP/installer-assets/SHA256SUMS" --clobber
       - name: Retain publication digest receipts
         if: always()
         uses: actions/upload-artifact@v4

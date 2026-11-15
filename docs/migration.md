@@ -8,7 +8,7 @@ and exact duration ticks, and copies media without converting it.
    cold backup of its SQLite directory, including WAL/SHM/journal files, complete
    MinIO storage and configuration/secrets. Keep this rollback copy. Serve frozen
    objects through MinIO and keep the source unchanged throughout migration.
-2. Build both local images using [installation](../README.md), then prepare the
+2. Build both local images using [source builds](operations.md#development-and-checks), then prepare the
    deployment below. **Do not start the target application** before migration.
    Use a fresh target with empty `app_data` and `storage_data` volumes.
 3. Give the tool read-only source credentials able to list buckets, versions,

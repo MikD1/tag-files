@@ -42,6 +42,27 @@ def release_tags(version, prerelease):
     return [canonical] if prerelease else [canonical, f'{match[1]}.{match[2]}', 'latest']
 
 
+def installer_assets(directory, version, repository):
+    """Package a standalone, version-pinned installer for a stable release."""
+    match = validate_version(version)
+    require(match[4] is None, 'installer assets require a stable release')
+    repository = repository.lower()
+    require(re.fullmatch(r'[a-z0-9][a-z0-9_.-]*/[a-z0-9][a-z0-9_.-]*', repository) is not None,
+            'invalid GitHub repository')
+    installer = (ROOT / 'scripts/setup.sh').read_text()
+    for placeholder, value in [('@TAG_FILES_VERSION@', version), ('@TAG_FILES_REPOSITORY@', repository)]:
+        require(installer.count(placeholder) == 1, 'installer release placeholder mismatch')
+        installer = installer.replace(placeholder, value)
+    require('@TAG_FILES_' not in installer, 'unstamped installer placeholder')
+    compose = (ROOT / 'compose.yml').read_bytes()
+    directory.mkdir(parents=True, exist_ok=False)
+    (directory / 'setup.sh').write_text(installer)
+    (directory / 'setup.sh').chmod(0o755)
+    (directory / 'compose.yml').write_bytes(compose)
+    (directory / 'SHA256SUMS').write_text(''.join(
+        f'{file_sha(directory / name)}  {name}\n' for name in ('setup.sh', 'compose.yml')))
+
+
 def local_ref(name, arch):
     require(name in IMAGES and arch in ARCHES, 'unknown image or architecture')
     return f'tag-files-verified-{name}:{arch}'
@@ -316,7 +337,7 @@ def promote(directory, version, prerelease, repository, commit, run_id, attempt)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('validate-release', 'build', 'seal', 'promote'))
+    parser.add_argument('command', choices=('validate-release', 'installer-assets', 'build', 'seal', 'promote'))
     parser.add_argument('--version', required=True)
     parser.add_argument('--prerelease', choices=('true', 'false'), default='false')
     parser.add_argument('--arch', choices=ARCHES)
@@ -328,6 +349,10 @@ def main():
         print(json.dumps(release_tags(args.version, args.prerelease == 'true')))
         return
     require(args.directory is not None, '--directory is required')
+    if args.command == 'installer-assets':
+        require(args.prerelease == 'false', 'installer assets require a stable release')
+        installer_assets(args.directory.resolve(), args.version, args.repository)
+        return
     commit = args.commit or capture(['git', 'rev-parse', 'HEAD'])
     run_id, attempt = os.environ.get('GITHUB_RUN_ID', 'local'), os.environ.get('GITHUB_RUN_ATTEMPT', '1')
     directory = args.directory.resolve()

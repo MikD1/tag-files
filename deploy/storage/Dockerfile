@@ -39,6 +39,7 @@ FROM scratch
 COPY --from=runtime-files /runtime/ /
 COPY --from=upstream /usr/bin/weed /usr/bin/weed
 COPY deploy/storage/filer.toml /etc/seaweedfs/filer.toml
+COPY compose.yml /usr/share/tag-files/compose.yml
 COPY --from=build /out/storage-run /out/storage-check /usr/local/bin/
 COPY --from=build /out/notices /usr/share/tag-files/notices
 COPY deploy/storage/notices /usr/share/tag-files/notices/runtime

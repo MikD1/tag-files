@@ -37,5 +37,6 @@ done
 python3 -m unittest discover -s "$project_root/tools/backup" -p '*_test.py'
 python3 -m unittest discover -s "$project_root/scripts" -p 'test_install_update.py'
 python3 -m unittest discover -s "$project_root/scripts" -p 'test_release_images.py'
+python3 -m unittest discover -s "$project_root/scripts" -p 'test_setup.py'
 python3 -m unittest discover -s "$project_root/scripts" -p 'test_collect_go_notices.py'
 "$project_root/scripts/check-web"

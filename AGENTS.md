@@ -14,6 +14,8 @@ SeaweedFS object storage, and FFmpeg processing. Read [README.md](README.md) and
 - `tools/migrate/`, `tools/backup/`: separate offline data tools.
 - `tools/codegen/`: pinned Go/TypeScript generators.
 - `compose.yml`: deployment template used by installation and runtime checks.
+- `scripts/setup.sh`: Docker-only installer template, stamped for stable release
+  downloads; `storage-run setup` creates its configuration inside a container.
 - `deploy/`: container builds and distribution notices.
 - `scripts/`: generation, checks, installation, updates, and release tooling.
 

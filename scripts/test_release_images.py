@@ -6,6 +6,7 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import subprocess
 import tarfile
 import tempfile
 import unittest
@@ -270,6 +271,40 @@ class ReleaseImagesTest(unittest.TestCase):
                                     ('v1.2.3\nother', False)]:
             with self.subTest(version=version), self.assertRaises(ValueError):
                 release.release_tags(version, prerelease)
+
+    def test_installer_assets_pin_release_and_preserve_compose_template(self):
+        assets = self.root / 'assets'
+        release.installer_assets(assets, 'v1.2.3', 'Owner/Repo')
+        installer = assets / 'setup.sh'
+        text = installer.read_text()
+        self.assertIn("SETUP_VERSION='v1.2.3'", text)
+        self.assertIn("SETUP_REPOSITORY='owner/repo'", text)
+        self.assertNotIn('@TAG_FILES_', text)
+        subprocess.run(['sh', '-n', str(installer)], check=True)
+        self.assertEqual((assets / 'compose.yml').read_bytes(), (release.ROOT / 'compose.yml').read_bytes())
+        checksums = dict(line.split('  ', 1)[::-1] for line in (assets / 'SHA256SUMS').read_text().splitlines())
+        self.assertEqual(set(checksums), {'setup.sh', 'compose.yml'})
+        for filename, expected in checksums.items():
+            self.assertEqual(hashlib.sha256((assets / filename).read_bytes()).hexdigest(), expected)
+
+    def test_installer_assets_reject_invalid_inputs_before_writing(self):
+        assets = self.root / 'assets'
+        for version, repository in [('v1.2.3-rc.1', 'Owner/Repo'),
+                                    ('v01.2.3', 'Owner/Repo'),
+                                    ('v1.2.3', "owner/repo';touch injected"),
+                                    ('v1.2.3', 'owner/repo/extra')]:
+            with self.subTest(version=version, repository=repository), self.assertRaises(ValueError):
+                release.installer_assets(assets, version, repository)
+            self.assertFalse(assets.exists())
+
+    def test_installer_assets_never_overwrite_existing_output(self):
+        assets = self.root / 'assets'
+        assets.mkdir()
+        marker = assets / 'keep'
+        marker.write_text('existing release output')
+        with self.assertRaises(FileExistsError):
+            release.installer_assets(assets, 'v1.2.3', 'Owner/Repo')
+        self.assertEqual(marker.read_text(), 'existing release output')
 
 
 if __name__ == '__main__':

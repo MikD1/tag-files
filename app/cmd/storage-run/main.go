@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/mikd1/tag-files/app/internal/deploymentinit"
 	"github.com/mikd1/tag-files/app/internal/storageprofile"
 )
 
@@ -34,6 +35,9 @@ func secret(path string) (string, error) {
 	return strings.TrimSuffix(string(data), "\n"), nil
 }
 func run() error {
+	if len(os.Args) >= 2 && os.Args[1] == "setup" {
+		return deploymentinit.Run(os.Args[2:])
+	}
 	options := storageprofile.Options{DataDir: "/data", FilerConfig: "/etc/seaweedfs/filer.toml", S3Config: "/data/config/s3.json"}
 	if len(os.Args) == 2 && os.Args[1] == "check" {
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
@@ -41,7 +45,7 @@ func run() error {
 		return storageprofile.Ready(ctx, options)
 	}
 	if len(os.Args) != 1 {
-		return fmt.Errorf("usage: storage-run [check]")
+		return fmt.Errorf("usage: storage-run [check | setup --directory PATH --version VERSION --app-image ID --storage-image ID]")
 	}
 	access, err := secret("/run/secrets/s3_access_key")
 	if err != nil {
