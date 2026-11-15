@@ -1,10 +1,10 @@
 # Distribution sources
 
 All license, copyright and source files here retain their original contents.
-The Alpine BusyBox packaging archive repacks original `main/busybox` files
-without changing their bytes.
+The Alpine BusyBox packaging archive contains the original `main/busybox` file
+bytes.
 
-- SeaweedFS 4.53 is copied without rebuilding from
+- The SeaweedFS 4.53 executable comes from
   `chrislusf/seaweedfs:4.53@sha256:ccad23e18639c8b98cee17e7100b95830a06077b56d8e5b006d6dcf8ec5e94a0`.
   The executable identifies commit `4ab66fb76da83700739f5839e62fcaf15fb7d02a`,
   main module `v0.0.0-20261108181033-4ab66fb76da8`, Go 1.26.10, CGO disabled.
@@ -13,19 +13,18 @@ without changing their bytes.
   recursively, including `weed/glog/LICENSE` and embedded static assets, after
   matching downloaded module sums to the executable. Root LICENSE, Go LICENSE,
   module sums, build metadata and binary hash are under `../upstream/seaweedfs`.
-  This revision has no root NOTICE; nested notices retain their relative paths.
+  Nested notices retain their relative paths.
 - The nested `github.com/google/flatbuffers/go` module
   `v0.0.0-20230108230133-3b8644d32c50` omits the repository-root license from
   its module archive. Its version-scoped supplemental `LICENSE.txt` is the
   unmodified original from
   [the matching full commit](https://github.com/google/flatbuffers/blob/3b8644d32c50e86872584829af4b8caf180235ab/LICENSE.txt).
-  It supplements the verified module archive and cannot cover other versions.
+  It supplements this exact version's verified module archive.
 - BusyBox 1.37.0-r31 and musl 1.2.6-r3 come from
   `alpine:3.24.4@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a`.
-  Only BusyBox/applets, the musl loader/libc, generated passwd/group and
-  directories enter the scratch image. Exact package identities and file hashes
-  are recorded one directory above. No package manager, OpenSSL, FUSE, curl or
-  Rust executables are shipped.
+  The scratch image includes BusyBox/applets, the musl loader/libc, generated
+  passwd/group and directories. Exact package identities and file hashes are
+  recorded one directory above.
 - `BUSYBOX-LICENSE`, `BUSYBOX-AUTHORS` and `busybox-1.37.0.tar.bz2` come from the
   [official release](https://busybox.net/downloads/busybox-1.37.0.tar.bz2).
   Complete corresponding source includes that archive plus the recipe, config
@@ -37,8 +36,7 @@ without changing their bytes.
   official source archives and Alpine recipes are included separately:
   [utmps source](https://skarnet.org/software/utmps/utmps-0.1.3.2.tar.gz),
   [skalibs source](https://skarnet.org/software/skalibs/skalibs-2.14.5.0.tar.gz).
-  Those versions come from source/build provenance, rather than a version
-  self-report embedded in BusyBox.
+  Those versions come from source/build provenance.
 - `MUSL-COPYRIGHT` is the unmodified
   [musl 1.2.6 copyright/license](https://git.musl-libc.org/cgit/musl/plain/COPYRIGHT?h=v1.2.6).
 - The unchanged CA bundle comes from the pinned SeaweedFS image, whose

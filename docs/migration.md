@@ -2,14 +2,14 @@
 
 The separate offline tool transfers SQLite metadata and MinIO objects into the
 Go application with SQLite and SeaweedFS. It preserves IDs, duplicate tag names
-and exact duration ticks, and copies media without converting it.
+and exact duration ticks, and copies media bytes unchanged.
 
 1. Stop the old application and all source writers. Make and verify a consistent
    cold backup of its SQLite directory, including WAL/SHM/journal files, complete
    MinIO storage and configuration/secrets. Keep this rollback copy. Serve frozen
    objects through MinIO and keep the source unchanged throughout migration.
 2. Build both local images using [source builds](operations.md#development-and-checks), then prepare the
-   deployment below. **Do not start the target application** before migration.
+   deployment below. **Keep the target application stopped** throughout migration.
    Use a fresh target with empty `data/metadata` and `data/media` directories.
 3. Give the tool read-only source credentials able to list buckets, versions,
    metadata and tags and read all objects. Include every visible source bucket.
@@ -37,7 +37,7 @@ docker network connect --alias frozen-minio tag-files_library SOURCE_MINIO_CONTA
 ```
 
 Replace `SOURCE_MINIO_CONTAINER` with the frozen source MinIO container name.
-This connects it to the private target network without publishing storage ports.
+This connects it to storage through the private target network.
 Keep the application stopped; `copy` creates and pairs SQLite with storage.
 The private credential copies are for the transfer tool; keep the deployment's
 original secret files unchanged.
@@ -95,8 +95,8 @@ migration probe > /srv/migration/probe.json
 Review `/srv/migration/archive/run-001/manifest.json`, its blocking issues and the
 probe report. The archive retains raw SQLite rows and all inventoried objects,
 including orphans and historical versions. An interrupted scan needs a new archive
-path. Never edit a completed archive. Probe failures need review; hashes alone do
-not establish playable media.
+path. Keep completed archives immutable. Review probe failures and confirm media
+playability as well as hashes.
 
 Resolve blockers before copying. Owner decisions go in `Exceptions` as
 `{"issueId":"<manifest issue ID>","decision":"archive_only","reason":"...","owner":"..."}`.

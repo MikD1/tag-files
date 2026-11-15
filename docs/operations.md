@@ -3,17 +3,17 @@
 ## Deployment
 
 Follow [the quick start](../README.md#install-and-run) to install with Docker and
-the downloadable `setup.sh`. It needs no source checkout or Python. The script
-pulls versioned application/storage images, checks their native Docker platform,
-and runs `storage-run setup` offline inside the storage image to generate the
-deployment files and random credentials. It then starts Compose and waits for
-healthy services. Existing libraries and Docker project volumes are refused.
+the downloadable `setup.sh`. The script pulls versioned application/storage
+images, checks their native Docker platform, and runs `storage-run setup` offline
+inside the storage image to generate deployment files and random credentials.
+It then starts Compose and waits for healthy services. Existing libraries and
+Docker project volumes are refused.
 
-The application image includes the web assets and media tools; runtime browser
-assets do not use a CDN. The repository's root `compose.yml` is the single
-deployment template, also bundled in the storage image and attached to stable
-releases. The installer prepares it with `.env` and credentials; a downloaded
-Compose file alone needs those settings before startup.
+The application image includes the web assets and media tools. The application
+serves browser assets from its own origin. The repository's root `compose.yml`
+is the single deployment template, also bundled in the storage image and attached
+to stable releases. The installer prepares it with `.env` and credentials for
+startup.
 
 Installation configuration and all library data live in `$HOME/tag-files` by
 default. `data/metadata/library.sqlite` holds SQLite; `data/media/` holds complete
@@ -49,17 +49,16 @@ docker compose up -d
 Compose starts storage before the application and waits for its health check.
 
 The metadata and media directories share persistent library identities. Keep the
-pair and credentials together. Do not edit native storage files or copy an active
-SQLite/storage directory as a backup. Removing containers preserves these host
-directories.
+pair and credentials together. Treat native storage files as application-managed
+data and use the cold backup tool with both services stopped to capture a
+consistent copy. Removing containers preserves these host directories.
 
 ## Configuration
 
 The installer writes exact image IDs, `TAG_FILES_PORT`, and the runtime UID/GID to
 the deployment's `.env`. Secrets are individual files in its private `secrets/`
 directory. Storage is reachable only on the internal Compose network. Compose
-requires the bind directories to exist and does not silently create empty data
-directories at a mistaken path.
+requires existing bind directories.
 
 The application accepts these environment variables:
 
@@ -76,10 +75,10 @@ The application accepts these environment variables:
 | `TAG_FILES_SCRATCH_MAX_BYTES` | 64 GiB | Scratch reservation limit |
 | `TAG_FILES_MAX_OUTPUT_BYTES` | 20 GiB | Processed media size limit |
 
-Compose supplies the standard paths. Adjusting app environment requires an
-explicit Compose configuration change; `.env` values alone do not automatically
-become container environment variables. Keep sufficient physical disk space and
-inodes in both Docker and the host filesystem.
+Compose supplies the standard paths. Define application environment variables in
+Compose; use `.env` for values referenced by that configuration.
+Keep sufficient physical disk space and inodes in both Docker and the host
+filesystem.
 Automated updates require configuration matching the installation receipt;
 manually customized deployments need configuration review before updating.
 
@@ -90,7 +89,8 @@ manually customized deployments need configuration review before updating.
 
 The source-based maintenance scripts in this section and the cold backup section
 require a matching source checkout and Python 3. They are separate from normal
-installation and startup. Do not rerun `setup.sh` over an existing library.
+installation and startup. Use `setup.sh` for fresh installations and
+`scripts/update` for installed libraries.
 
 Build or load the requested application/storage images and a backup-tool image
 that supports the installed library schema. Choose a strictly increasing stable
@@ -109,7 +109,7 @@ The script validates images, stops the pair, creates and verifies a full cold
 backup, starts storage with its profile check, and starts the app. Receipts live
 under `updates/`. An incomplete operation blocks another automated update;
 inspect its receipt and container logs before recovery. Updates retain the
-installation's Compose mounts and runtime owner. No data directories are deleted.
+installation's Compose mounts and runtime owner.
 
 ## Cold backup and restore
 
@@ -159,9 +159,10 @@ Use the recorded images, runtime owner, and restored secrets. Run Compose from
 the restored directory after selecting it as the library to start. Start storage
 first, run `storage-run check`, and validate object hashes/metadata and unfinished parts.
 Exercise application recovery and browser workflows on a second restored copy
-before selecting the verified pair for use. Never remove incomplete-restore
-markers or manually rebind a mismatched pair. `tools/backup/check-drill` runs the
-isolated automated backup/restore integration suite.
+before selecting the verified pair for use. Preserve incomplete-restore markers
+for diagnosis and use the restore tool to establish a consistent pair.
+`tools/backup/check-drill` runs the isolated automated backup/restore integration
+suite.
 
 ## Development and checks
 
@@ -178,9 +179,9 @@ sh scripts/setup.sh --version 0.1.2 \
   --skip-pull --directory "$HOME/tag-files-dev" --project tag-files-dev --port 8081
 ```
 
-For an offline tool that needs an initialized deployment without starting the
-application, use `scripts/install` with the same image references, `--no-pull`,
-and no `--start`. This advanced host tool requires Python 3.
+To prepare a stopped deployment for an offline tool, use `scripts/install` with
+the same image references and `--no-pull`. Add `--start` to start the services
+after preparation. This advanced host tool requires Python 3.
 
 Native checks require Go 1.27.4, a C compiler, Node.js 26, Python 3, and FFmpeg 8.
 Install pinned web/generator dependencies as described in the root README.
@@ -206,13 +207,14 @@ harnesses create isolated libraries and may retain ignored failure reports.
 
 Publishing a stable GitHub release runs native verification on amd64 and arm64,
 promotes the tested images to `ghcr.io/mikd1/tag-files-app:VERSION` and
-`ghcr.io/mikd1/tag-files-storage:VERSION` (without the leading `v`), and attaches
+`ghcr.io/mikd1/tag-files-storage:VERSION` (for example, `0.1.2`), and attaches
 `setup.sh`, `compose.yml`, and `SHA256SUMS` to the release. The installer embeds that
 release version, pulls the matching images, and pins their exact local IDs in the
 generated `.env`. Subsequent `docker compose up -d` uses those images.
-Prereleases publish version-specific image tags without stable installer assets.
+Prereleases publish version-specific image tags. Stable releases also provide
+installer assets.
 
-To prepare the downloadable files locally without publishing:
+To prepare the downloadable files in a local directory:
 
 ```sh
 scripts/release-images installer-assets --version v0.1.2 \

@@ -23,25 +23,25 @@ SeaweedFS object storage, and FFmpeg processing. Read [README.md](README.md) and
 
 ## Engineering boundaries
 
-- Keep domain rules in their owning Go module; transport/storage adapters use
-  those rules rather than maintaining independent copies.
+- Keep domain rules in their owning Go module and reuse them in transport/storage
+  adapters.
 - Change `api/openapi.yaml` before changing a public HTTP contract. Schema changes
   belong in additive Goose migrations; static queries belong in sqlc sources.
-  Run `scripts/generate`; do not hand-edit generated files.
+  Update generated files through `scripts/generate`.
 - SQLite uses the production driver, WAL, FULL synchronization, foreign keys,
   and one immediate writer. S3 and FFmpeg calls stay outside SQL transactions.
 - Stream media with bounded buffers. Persist expected sizes and SHA-256 hashes
   before writes; verify full object bytes before publication. Published keys
   and byte descriptors are immutable.
 - Preserve job leases, generation fences, idempotency, and independent cleanup
-  receipts. Removing an upload session must not remove its cleanup obligations.
+  receipts. Retain cleanup obligations after removing an upload session.
 - Keep uploads/media on the application origin. Storage remains private and
-  browsers never receive storage credentials.
+  storage credentials stay in the backend.
 - Preserve integer IDs, duplicate/case-sensitive Unicode tag names, and nullable
-  integer 100 ns durations. Do not silently merge or discard data.
-- Backup and migration remain external tools, without app endpoints or UI.
-- Treat a deployment's SQLite and storage directories as one paired library. Never
-  run tests against an existing library or remove unrelated Docker resources.
+  integer 100 ns durations. Make data merges and removals explicit.
+- Implement backup and migration as external command-line tools.
+- Treat a deployment's SQLite and storage directories as one paired library. Run
+  tests against disposable libraries and scope cleanup to their Docker resources.
 
 ## Validation and documentation
 
@@ -55,6 +55,6 @@ suite. Use the focused media/storage/container commands in
 Run checks relevant to the change and report actual results. Keep tests,
 fixture provenance, lockfiles, schema history, licenses, and distribution notices.
 Keep documentation in English, concise, and about implemented behavior. Place
-human guides in `docs/` and draw diagrams with Mermaid. Do not commit local
-libraries, credentials, build output, test reports, screenshots, or planning
-artifacts.
+human guides in `docs/` and draw diagrams with Mermaid. Keep local libraries,
+credentials, build output, test reports, screenshots, and planning artifacts
+outside version control.

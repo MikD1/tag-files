@@ -9,8 +9,7 @@ SeaweedFS service stores media.
 
 Install and start **Docker with Compose v2**. On macOS, use Docker Desktop; on
 Linux, use Docker Engine with the Compose plugin or Docker Desktop. Supported
-Docker platforms are Linux amd64 and arm64. No Git, Python, or source checkout is
-needed.
+Docker platforms are Linux amd64 and arm64.
 
 Download **[setup.sh from the latest stable release](https://github.com/MikD1/tag-files/releases/latest/download/setup.sh)**
 to your Downloads folder. In a terminal, run it once:

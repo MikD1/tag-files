@@ -42,8 +42,7 @@ bytes occupy the disk containing that directory.
 The gateway checks the private storage profile and library/volume identity.
 Its boot epoch fences writes from a stopped storage instance. A durable proof
 journal records actual multipart byte hashes for reconciliation. The Go S3
-adapter uses AWS SDK v2; browsers receive application media URLs rather than
-storage credentials or object-store URLs.
+adapter uses AWS SDK v2; browsers access media through application URLs.
 
 ## Data model
 
@@ -113,8 +112,7 @@ part-size/hash bindings. `jobs` holds completion, ingestion, poster, cleanup,
 and deletion work with leases and generation fencing. `object_write_intents`
 records in-flight or uncertain external writes. Independent `cleanup_receipts`
 and `deletion_assets` retain cleanup obligations after their initiating upload
-or item is removed. These ownership links also use IDs and versioned payloads;
-they are not all database foreign keys.
+or item is removed. These ownership links use IDs and versioned payloads.
 
 `operation_results` stores replayable mutation outcomes. `navigation_contexts`
 stores ordered viewer snapshots, and `view_events` deduplicates view counts.
@@ -125,7 +123,7 @@ stores ordered viewer snapshots, and `view_events` deduplicates view counts.
 The application currently supplies a 20 GiB file limit, 32 MiB parts, and two
 parallel transfers. Uploads process image and video inputs through explicit
 container, codec, pixel, output-size, and time limits. FFprobe inspects actual
-bytes; filename extensions and browser MIME claims do not select the output.
+bytes to determine the media profile and processing path.
 
 ```mermaid
 flowchart TD
@@ -147,11 +145,13 @@ needed. Video becomes H.264 MP4 with AAC audio when present and faststart
 metadata. Output is probed and fully decoded before its descriptor is accepted.
 Unsupported profiles fail the upload with a retained error.
 
-Primary publication makes the item available without waiting for its poster.
-Posters are JPEGs within a 640-pixel square, without upscaling; transparent
-regions use white. Poster failure leaves the primary available. Ready and
-canceled uploads atomically lose their sessions while cleanup remains durable.
-The Uploads view contains pending/error work, with no age-based session deletion.
+Primary publication makes the item available; an independent job creates its
+poster. Posters are JPEGs within a 640-pixel square. Scaling is capped at the
+source resolution, and transparent regions use white. Poster failure leaves the
+primary available. Ready and canceled uploads atomically lose their sessions
+while cleanup remains durable.
+The Uploads view contains pending/error work. Sessions are retained until an
+explicit lifecycle transition removes them.
 
 ## Consistency and resource boundaries
 
@@ -172,5 +172,5 @@ durable incoming bytes remain in object storage until publication and cleanup.
 Mutations use version checks and durable idempotency results where specified.
 Binary handlers stream upload bodies and media separately from JSON binding.
 `/media/{assetId}` resolves owned assets and supports GET, HEAD, byte ranges,
-and conditional requests without exposing storage keys. Offline migration and
+and conditional requests through application asset IDs. Offline migration and
 cold backup/restore tools live in `tools/`, outside the application API and UI.
