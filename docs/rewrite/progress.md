@@ -5,6 +5,10 @@ No release, migration of real data, or production-readiness claim has been made.
 
 ## Current state (2026-11-15)
 
+- Local preview v0.1.2 removes the list-view `Select page` control and hides
+  the selection toolbar until individual rows are selected. Bulk edit/clear
+  remain available for selected rows. Web checks (88 tests), eight actual
+  Chromium/WebKit library cases and the updated local15-item gallery passed.
 - Local preview v0.1.1 corrects video poster timestamp alignment and schema 7
   queues one-time replacement of existing derived video posters. The two
   reported white JPEGs were reproduced, replaced and checked in Chromium;

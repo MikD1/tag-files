@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 
-test('library pagination, invalid query, page selection and Cancel preserve real metadata',async({page,request},testInfo)=>{
+test('library pagination, invalid query, row selection and Cancel preserve real metadata',async({page,request},testInfo)=>{
  await page.goto('/library');
  await expect(page.locator('.media-card')).toHaveCount(24);
  await expect(page.getByText('72 items',{exact:true})).toBeVisible();
@@ -15,8 +15,12 @@ test('library pagination, invalid query, page selection and Cancel preserve real
  await expect(page).toHaveURL(/page=2/);
  expect(await page.locator('.media-card a').first().getAttribute('href')).toBe(before);
  await page.getByRole('button',{name:'List view'}).click();
- await page.getByRole('checkbox',{name:'Select current page'}).check();
- await expect(page.getByText('24 selected',{exact:true})).toBeVisible();
+ await expect(page.getByRole('checkbox',{name:'Select current page'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Edit selected'})).toHaveCount(0);
+ const rows=page.locator('tbody tr');
+ await rows.nth(0).getByRole('checkbox').check();
+ await rows.nth(1).getByRole('checkbox').check();
+ await expect(page.getByText('2 selected',{exact:true})).toBeVisible();
  const original=await request.get('/api/v1/items/48');const metadata=await original.json();
  await page.getByRole('button',{name:'Edit selected'}).click();
  await expect(page.getByRole('dialog')).toBeVisible();
@@ -26,6 +30,8 @@ test('library pagination, invalid query, page selection and Cancel preserve real
  await page.getByRole('button',{name:'Cancel',exact:true}).click();
  await expect(page.getByRole('dialog')).toHaveCount(0);
  expect(await (await request.get('/api/v1/items/48')).json()).toEqual(metadata);
+ await page.getByRole('button',{name:'Clear selection'}).click();
+ await expect(page.getByRole('button',{name:'Edit selected'})).toHaveCount(0);
  await page.getByRole('button',{name:'Collapse sidebar'}).click();
  await expect(page.locator('.sidebar')).toHaveCSS('width','72px');
  await page.reload();
