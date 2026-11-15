@@ -122,7 +122,7 @@ func (c *Coordinator) recoverFrozenSource(ctx context.Context, session Session, 
 	}
 	for i, part := range listed {
 		bound := frozen[i]
-		if part.Number != bound.Number || part.Size != bound.Size || part.ETag != bound.ETag || (part.SHA256 != "" && part.SHA256 != bound.SHA256) {
+		if part.Number != bound.Number || part.Size != bound.Size || part.ETag != bound.ETag || part.SHA256 != bound.SHA256 {
 			return objectstore.ErrIntegrity
 		}
 	}

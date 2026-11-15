@@ -28,4 +28,6 @@ Retry/cancel job routes operate on upload Complete/ingestion work. Independent
 cleanup/deletion jobs continue their resource protocol; they cannot be abandoned
 through upload controls. Cancel returns the ready winner, an independent cleanup
 receipt, or absence. Polling exposes public state/IDs without object keys or MPU
-credentials. React/browser, 20 GiB/RSS and release-image acceptance remain open.
+credentials. Local React/browser, real-image uploads/restart and 20 GiB server
+RSS checks now have evidence in `docs/rewrite/ACCEPTANCE.md`; that index also
+lists the remaining native-platform and full-library acceptance gates.

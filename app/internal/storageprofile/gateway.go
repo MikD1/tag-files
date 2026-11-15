@@ -24,10 +24,6 @@ type gateway struct {
 // This closes the startup window for an already-running app reconnecting while
 // private bucket access/lifecycle configuration is still being checked.
 func openGateway(installation *Installation, credentials aws.Credentials) (*gateway, error) {
-	listener, err := net.Listen("tcp", "0.0.0.0:8333")
-	if err != nil {
-		return nil, fmt.Errorf("open private S3 gateway: %w", err)
-	}
 	target, _ := url.Parse(backendS3Endpoint)
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	transport := http.DefaultTransport.(*http.Transport).Clone()
@@ -36,6 +32,16 @@ func openGateway(installation *Installation, credentials aws.Credentials) (*gate
 	transport.MaxIdleConnsPerHost = 32
 	proxy.Transport = transport
 	epoch := domain.NewUUID()
+	proof, err := newMultipartProof(installation.root, installation.State.ID, epoch, credentials, target, transport)
+	if err != nil {
+		transport.CloseIdleConnections()
+		return nil, fmt.Errorf("multipart checksum proof preflight: %w", err)
+	}
+	listener, err := net.Listen("tcp", "0.0.0.0:8333")
+	if err != nil {
+		transport.CloseIdleConnections()
+		return nil, fmt.Errorf("open private S3 gateway: %w", err)
+	}
 	proxy.ModifyResponse = func(response *http.Response) error {
 		response.Header.Set(storageprotocol.EpochHeader, epoch)
 		state, err := installation.Snapshot()
@@ -56,7 +62,28 @@ func openGateway(installation *Installation, credentials aws.Credentials) (*gate
 	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, _ error) {
 		http.Error(w, "storage backend unavailable", http.StatusBadGateway)
 	}
-	g := &gateway{server: &http.Server{Handler: pairingGate(installation, credentials, epoch, epochGate(epoch, proxy)), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second}, transport: transport, done: make(chan error, 1)}
+	// Proof responses bypass ReverseProxy.ModifyResponse; apply the same owned
+	// identity headers to both paths before any handler can acknowledge bytes.
+	proofHandler := proof.wrap(proxy)
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !r.URL.Query().Has("uploadId") {
+			proxy.ServeHTTP(w, r)
+			return
+		}
+		state, e := installation.Snapshot()
+		if e != nil {
+			http.Error(w, "storage unavailable", 503)
+			return
+		}
+		w.Header().Set(storageprotocol.EpochHeader, epoch)
+		w.Header().Set(storageprotocol.StorageHeader, state.ID)
+		w.Header().Set(storageprotocol.VolumeHeader, state.VolumeID)
+		if state.LibraryID != "" {
+			w.Header().Set(storageprotocol.LibraryHeader, state.LibraryID)
+		}
+		proofHandler.ServeHTTP(w, r)
+	})
+	g := &gateway{server: &http.Server{Handler: pairingGate(installation, credentials, epoch, epochGate(epoch, handler)), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second}, transport: transport, done: make(chan error, 1)}
 	go func() { g.done <- g.server.Serve(listener) }()
 	return g, nil
 }

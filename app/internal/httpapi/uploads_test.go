@@ -94,7 +94,7 @@ func uploadHarness(t *testing.T, data []byte) (*harness, *ingestion.Coordinator,
 			w.Header().Set("ETag", "part")
 			w.Header().Set("X-Amz-Checksum-Sha256", sum)
 		case r.Method == "GET" && r.URL.Query().Has("uploadId"):
-			fmt.Fprintf(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>part</ETag><Size>%d</Size></Part></ListPartsResult>`, len(data))
+			fmt.Fprintf(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>part</ETag><Size>%d</Size><ChecksumSHA256>%s</ChecksumSHA256></Part></ListPartsResult>`, len(data), sum)
 		case r.Method == "POST":
 			io.WriteString(w, `<CompleteMultipartUploadResult><ETag>source</ETag></CompleteMultipartUploadResult>`)
 		case r.Method == "HEAD":

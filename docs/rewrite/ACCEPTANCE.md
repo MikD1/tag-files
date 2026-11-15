@@ -24,6 +24,7 @@ also depend on the unresolved cross-cutting gates at the end of this document.
 | `tools/backup/check-drill` | [Native evidence](../../tools/backup/EVIDENCE.md): 87.434 s suite / 85.05 s drill, complete hidden state, ten full objects, partial MPU, physical rebase, isolated recovery and unchanged baseline/archive. |
 | Install/update | [Runbook](../../deploy/INSTALL.md), [tests](../../scripts/test_install_update.py): actual Docker install → tag write → required cold backup → declared newer version → healthy retained data/secrets. Isolated tests cover concurrent update ownership and crash receipts. Test versions share the same binary; future schema upgrade and registry pulls are not proven. |
 | `scripts/check-amd64` | [QEMU evidence](../../deploy/AMD64-EVIDENCE.md): real amd64 app/storage executables, both browsers, MPEG4/PCM → H264/AAC, faststart/full decode/JPEG, restart and three primary hashes. Native amd64 CI remains separate. |
+| Owned multipart proof | [Gateway tests](../../app/internal/storageprofile/multipart_proof_lifecycle_test.go), [native fixture](../../app/internal/storageimage/multipart_proof_integration_test.go): actual-byte SHA, authenticated immutable bindings, fsync/resync faults, uncertain-writer/epoch fences, lost ACK/restart, 1,001 parts with explicit pagination and zero terminal journal directories. Corrected native test50.10 s / race package51.138 s; both independent P1 findings reproduced and closed. |
 | `scripts/check-performance` | [Growth-profile measurements](PERFORMANCE.md): 10,000 SQL items, 2,000 tags, 100,000 links, 350 collections. Real software encode overlaps all timed reads and 100 atomic writes; search p95 ≤24.114 ms, write max13.168 ms, idle API RSS49.3 MiB. Interrupted encode recovers/publication verifies in4.272 s after readiness. SQL descriptors do not constitute 100 GB of stored media or browser rendering evidence. |
 
 ## Functional traceability
@@ -92,11 +93,10 @@ also depend on the unresolved cross-cutting gates at the end of this document.
 
 ## Open cross-cutting gates
 
-- **Storage contract discrepancy:** pinned SeaweedFS 4.53 omits ListParts SHA256.
-  Runtime currently reconciles immutable prior bindings and verifies every source
-  byte after Complete, but the explicit checksum gate in 07 requires a provable
-  ListParts checksum. This must be resolved and independently verified; successful
-  SDK acknowledgements and full-file verification do not silently waive that gate.
+- Full current-image regression, native backup/restore of the new multipart
+  proof journal and maximum browser evidence are being refreshed. The checksum
+  contract discrepancy itself now has independent actual-byte gateway proof;
+  physical power-loss durability remains an external check.
 - Native amd64 CI and actual release-triggered build/pull verification have not
   run here. Workflows are locally linted; no image was published. QEMU is separate
   evidence, with exact digests in the amd64 report.

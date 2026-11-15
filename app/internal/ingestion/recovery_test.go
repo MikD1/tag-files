@@ -122,7 +122,7 @@ func TestActiveCreateRecoveryRequiresEpochBarrierBeforeReplacingAnEmptyUnknownRe
 }
 
 func TestRecoveryReconcilesUnknownPartAgainstImmutableTupleBeforeRetirement(t *testing.T) {
-	for _, mode := range []string{"bound-match", "absent", "wrong-size", "unbound", "future-version"} {
+	for _, mode := range []string{"bound-match", "absent", "wrong-size", "missing-checksum", "unbound", "future-version"} {
 		t.Run(mode, func(t *testing.T) {
 			db := database(t)
 			session := smallSession(t, db)
@@ -156,7 +156,11 @@ func TestRecoveryReconcilesUnknownPartAgainstImmutableTupleBeforeRetirement(t *t
 				if mode == "wrong-size" {
 					size = 8
 				}
-				fmt.Fprintf(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>part</ETag><Size>%d</Size></Part></ListPartsResult>`, size)
+				listedSHA := sum
+				if mode == "missing-checksum" {
+					listedSHA = ""
+				}
+				fmt.Fprintf(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>part</ETag><Size>%d</Size><ChecksumSHA256>%s</ChecksumSHA256></Part></ListPartsResult>`, size, listedSHA)
 			}))
 			got, err := c.RecoverSession(testContext, session.ID)
 			if mode == "bound-match" || mode == "absent" {
@@ -197,7 +201,7 @@ func TestDuplicateCleanupPayloadCannotNameTheSelectedMultipart(t *testing.T) {
 }
 
 func TestActiveCompleteRecoveryPreservesFrozenManifestAndRequiresFullSourceVerification(t *testing.T) {
-	for _, mode := range []string{"verified-source", "missing-source", "old-part-before-complete", "changed-etag", "corrupt-source", "wrong-identity", "same-epoch"} {
+	for _, mode := range []string{"verified-source", "missing-source", "old-part-before-complete", "changed-etag", "missing-checksum", "corrupt-source", "wrong-identity", "same-epoch"} {
 		t.Run(mode, func(t *testing.T) {
 			db := database(t)
 			session := smallSession(t, db)
@@ -240,7 +244,7 @@ func TestActiveCompleteRecoveryPreservesFrozenManifestAndRequiresFullSourceVerif
 				_, err := dbgen.New(tx).CreateObjectWriteIntent(testContext, dbgen.CreateObjectWriteIntentParams{ID: domain.NewUUID(), OwnerID: domain.NewUUID(), TargetKind: "upload", TargetID: session.ID, Generation: 1, Operation: operation, ObjectKey: session.IncomingKey, StorageEpoch: epoch, PayloadJson: string(payload), CreatedAtUtc: session.CreatedAtUtc})
 				return err
 			})
-			sourceExists := mode != "missing-source" && mode != "old-part-before-complete" && mode != "changed-etag"
+			sourceExists := mode != "missing-source" && mode != "old-part-before-complete" && mode != "changed-etag" && mode != "missing-checksum"
 			completes, reads := 0, 0
 			c := coordinator(t, db, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch {
@@ -258,7 +262,11 @@ func TestActiveCompleteRecoveryPreservesFrozenManifestAndRequiresFullSourceVerif
 					if mode == "changed-etag" {
 						etag = "replacement-etag"
 					}
-					fmt.Fprintf(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>%s</ETag><Size>7</Size></Part></ListPartsResult>`, etag)
+					listedSHA := checksum
+					if mode == "missing-checksum" {
+						listedSHA = ""
+					}
+					fmt.Fprintf(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>%s</ETag><Size>7</Size><ChecksumSHA256>%s</ChecksumSHA256></Part></ListPartsResult>`, etag, listedSHA)
 				case r.Method == "POST":
 					completes++
 					sourceExists = true
@@ -281,7 +289,7 @@ func TestActiveCompleteRecoveryPreservesFrozenManifestAndRequiresFullSourceVerif
 				}
 			}))
 			got, err := c.RecoverSession(testContext, session.ID)
-			if mode == "changed-etag" || mode == "corrupt-source" || mode == "wrong-identity" {
+			if mode == "changed-etag" || mode == "missing-checksum" || mode == "corrupt-source" || mode == "wrong-identity" {
 				if !errors.Is(err, objectstore.ErrIntegrity) || tableCount(t, db, "object_write_intents") != 1 || tableCount(t, db, "jobs") != 0 || completes != 0 {
 					t.Fatalf("unsafe frozen recovery: %+v %v", got, err)
 				}

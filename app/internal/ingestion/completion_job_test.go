@@ -101,7 +101,8 @@ func TestDurableCompleteVerifiesSourceAndAtomicallyTransfersTheLease(t *testing.
 					if mode == "changed-listing" {
 						etag = "changed"
 					}
-					io.WriteString(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>`+etag+`</ETag><Size>7</Size></Part></ListPartsResult>`)
+					digest := sha256.Sum256([]byte("correct"))
+					io.WriteString(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>`+etag+`</ETag><Size>7</Size><ChecksumSHA256>`+base64.StdEncoding.EncodeToString(digest[:])+`</ChecksumSHA256></Part></ListPartsResult>`)
 				case r.Method == "POST":
 					if mode == "changed-listing" {
 						t.Error("changed client selectors reached Complete")

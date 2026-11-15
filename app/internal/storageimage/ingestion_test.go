@@ -117,9 +117,13 @@ func TestIngestionOwnedImageLostCreateAndPartResponsesRecoverImmutableBindings(t
 	if _, err := coordinator.UploadPart(ctx, session.ID, 1, binding, bytes.NewBuffer(first)); err == nil {
 		t.Fatal("injected lost part response reported success")
 	}
+	listedParts, err := client.ListParts(ctx, session.IncomingKey, resumed.MultipartUploadID.String)
+	if err != nil || len(listedParts) != 1 || listedParts[0].SHA256 != sum {
+		t.Fatalf("owned ListParts lacks independently proven checksum: %+v %v", listedParts, err)
+	}
 	outcome, err := coordinator.Refresh(ctx, session.ID)
 	if err != nil || len(outcome.Session.Parts) != 1 || outcome.Session.Parts[0].State != "confirmed" || outcome.Session.Parts[0].SHA256 != sum {
-		t.Fatalf("native ListParts recovery without checksum: %+v %v", outcome, err)
+		t.Fatalf("native ListParts checksum recovery: %+v %v", outcome, err)
 	}
 	before := uploads.Load()
 	different := binding

@@ -227,7 +227,7 @@ func TestCoordinatorReconcilesListPartsOnlyAgainstExistingBindings(t *testing.T)
 				fmt.Fprintf(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>listed</ETag><Size>%d</Size><ChecksumSHA256>%s</ChecksumSHA256></Part></ListPartsResult>`, size, checksum)
 			}))
 			got, err := c.Refresh(testContext, session.ID)
-			if mode == "missing-checksum" || mode == "matching" {
+			if mode == "matching" {
 				if err != nil || len(got.Session.Parts) != 1 || got.Session.Parts[0].State != "confirmed" || got.Session.Parts[0].SHA256 != sum || got.Session.Parts[0].ETag != "listed" {
 					t.Fatalf("valid bound recovery: %+v %v", got, err)
 				}
@@ -267,7 +267,7 @@ func TestCompleteClosesAdmissionDrainsKnownWriterAndQueuesOnlyVerifiedSource(t *
 			w.Header().Set("ETag", "part-etag")
 			w.Header().Set("X-Amz-Checksum-Sha256", sum)
 		case r.Method == "GET" && r.URL.Query().Has("uploadId"):
-			io.WriteString(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>part-etag</ETag><Size>7</Size></Part></ListPartsResult>`)
+			fmt.Fprintf(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>part-etag</ETag><Size>7</Size><ChecksumSHA256>%s</ChecksumSHA256></Part></ListPartsResult>`, sum)
 		case r.Method == "POST":
 			completes.Add(1)
 			var state, manifest string
@@ -357,7 +357,7 @@ func TestLostCompleteRecoversFromFrozenManifestAndFullReadWithoutReplacingOrRepl
 				switch {
 				case r.Method == "GET" && r.URL.Query().Has("uploadId"):
 					lists.Add(1)
-					io.WriteString(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>frozen-etag</ETag><Size>7</Size></Part></ListPartsResult>`)
+					fmt.Fprintf(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>frozen-etag</ETag><Size>7</Size><ChecksumSHA256>%s</ChecksumSHA256></Part></ListPartsResult>`, sum)
 				case r.Method == "POST":
 					completes.Add(1)
 					if mode == "invalid-part" {
@@ -485,7 +485,7 @@ func TestCompleteSourceAndJobCommitAreAtomicAndGenerationFenced(t *testing.T) {
 			c := coordinator(t, db, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch {
 				case r.Method == "GET" && r.URL.Query().Has("uploadId"):
-					io.WriteString(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>part</ETag><Size>7</Size></Part></ListPartsResult>`)
+					fmt.Fprintf(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>part</ETag><Size>7</Size><ChecksumSHA256>%s</ChecksumSHA256></Part></ListPartsResult>`, sum)
 				case r.Method == "POST":
 					completes.Add(1)
 					io.WriteString(w, `<CompleteMultipartUploadResult><ETag>source</ETag></CompleteMultipartUploadResult>`)

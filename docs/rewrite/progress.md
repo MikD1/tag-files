@@ -15,9 +15,10 @@ No release, migration of real data, or production-readiness claim has been made.
   immutable streaming uploads, asynchronous verified Complete, primary/poster
   jobs, independent cleanup/deletion, same-origin media, bounded scratch,
   physical admission and joined startup/recovery/shutdown.
-  **One explicit storage contract discrepancy is being corrected:** backend
-  ListParts omits SHA256; inferred binding hashes are insufficient for the
-  pre-Complete checksum requirement, even with full post-Complete verification.
+  The explicit ListParts checksum discrepancy is corrected by an authenticated
+  durable actual-byte gateway proof journal; strict app consumers reject missing
+  SHA. Unit/fault/native pagination and independent P1 re-review now pass. Full
+  latest-image regression and cold-proof restore are running.
 - Task 6 is implemented: actual React v27 UI, library/organization/atomic
   editors, uploads and canonical viewer. Latest local evidence:83 web unit
   tests,14 Chromium/WebKit API-browser cases, two actual-image browser uploads
@@ -1086,3 +1087,39 @@ all now reject it. The full ingestion race suite passed2.217s after updating
 older storage-peer fixtures to supply independently expected checksums. The
 owned gateway proof journal is still being implemented and must pass native
 restart/restore/fault tests before this contract discrepancy is closed.
+
+
+## Durable multipart checksum contract correction
+
+The preceding verified UI/offline/deployment slice is committed locally on main
+as573428e. No push or publication occurred. The checksum correction is separate
+from that checkpoint. Its accepted technical plan is
+[durable multipart proof](../superpowers/plans/2026-11-15-multipart-proof.md).
+
+Owned storage now authenticates original SDK SigV4 requests and keeps bounded
+immutable binding/validated-proof records under `/data/.tag-files-mpu-proofs`.
+It independently hashes/counts streaming bytes, verifies native ACK, and fsyncs
+files plus the complete directory chain before acknowledging or listing SHA.
+The native backend remains SeaweedFS4.53; application request hashes and ETags
+never manufacture ListParts proof. Full per-part and whole-object GET verification
+still precedes queued/publication. Old native parts without proof remain intact
+and fail closed. Terminal admission closes durably before draining; cleanup uses
+quiescence/native absence and an epoch barrier for uncertain requests.
+
+Independent review reproduced two P1 defects in the initial journal: stale proof
+after an unverified replacement, and omitted parent fsync on mkdir retry. Both
+original reproductions now pass independently. Pending/uncertain replacements
+block historical SHA; later ACK cannot clear earlier uncertainty; epoch recovery
+requires actual resend. Every retry/listing reestablishes directory durability.
+Exact native400 BadDigest alone supplies the known no-write settlement.
+
+Corrected profile vet/race passed1.147s; dedicated native race passed50.10s
+(package51.138s) on storage
+`sha256:c7061aaa1d9fb08d7143346c6ba0997dd1f7ee7defa8bd821a258410ac8fe1e5`: lostACK,
+bad-body/changed-binding rejection, restart,1,001 parts with explicit two-page
+listing, verified Complete/fullSHA and zero terminal journal directories.
+Fresh common scripts/check also passed with83 web tests,18 deployment tests
+(one Docker case skipped by default) and17 release-artifact tests. The release
+config seal P2 was independently closed after real export/config/rootfs checks.
+Full native runtime, maximum browser, refreshed amd64 QEMU and cold native restore
+are running against the corrected source; those outcomes are not inferred yet.

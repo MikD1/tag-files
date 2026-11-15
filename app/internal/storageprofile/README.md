@@ -47,3 +47,31 @@ ordinary unbound S3 calls remain available for isolated conformance/offline work
 Application bootstrap details and the required cold-restore fingerprint rebase
 are documented in [librarybinding](../librarybinding/README.md). The restore tooling and
 actual application admission wiring remain open.
+## Durable multipart checksums
+
+The owned gateway compensates for SeaweedFS4.53's missing ListParts SHA256 with
+an independent proof journal at `/data/.tag-files-mpu-proofs`. It authenticates
+the original pinned SDK SigV4 request before binding a part, durably records its
+immutable tuple/size/SHA, then hashes and counts the actual streamed body. Only
+matching actual bytes and native checksum/ETag acknowledgement can publish a
+validated proof. No part payload is buffered in a file or retained in memory.
+
+ListParts preserves authoritative native selectors/paging and supplies SHA only
+for an exact proven match. Pending or uncertain replacement writes block old
+proofs even when ETags remain equal. A later ACK does not settle an earlier
+unknown writer; the new-backend barrier invalidates uncertain historical proofs
+and requires a fresh actual-byte resend. Exact native `400 BadDigest` is the
+explicit no-write response; generic errors remain uncertain.
+
+Bindings/proofs and their directory ancestry are synced before forwarding,
+acknowledgement or listing, including retry after a failed parent-directory
+sync. Per-MPU terminal admission closes durably before draining writers.
+Cleanup requires quiescence and authoritative native absence; uncertain state
+waits for the next backend epoch. It has no age-based deletion. Full external
+cold backup must retain this journal with the rest of `/data`.
+
+Missing, corrupt, foreign or unversioned proof metadata is rejected without
+inventing a checksum or deleting native parts. Application bindings and opaque
+ETags are not substitutes. The direct raw-backend conformance suite intentionally
+observes missing SHA; production ingestion requires the owned gateway's proof.
+

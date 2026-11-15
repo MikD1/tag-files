@@ -232,7 +232,7 @@ func TestCancelDuringKnownCompleteWaitsForWriterAndCannotQueueLateResult(t *test
 	c := coordinator(t, db, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == "GET" && r.URL.Query().Has("uploadId"):
-			io.WriteString(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>part</ETag><Size>7</Size></Part></ListPartsResult>`)
+			io.WriteString(w, `<ListPartsResult><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><ETag>part</ETag><Size>7</Size><ChecksumSHA256>`+base64.StdEncoding.EncodeToString(sum[:])+`</ChecksumSHA256></Part></ListPartsResult>`)
 		case r.Method == "POST":
 			close(started)
 			<-release

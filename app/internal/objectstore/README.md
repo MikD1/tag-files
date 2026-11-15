@@ -39,9 +39,12 @@ ETag or user metadata hash never satisfies either check.
 
 Observed SeaweedFS 4.53 behavior is part of the tested profile:
 
-- ListParts omits SHA256, including after restart. Its missing value stays
-  absent in the adapter. The caller must use immutable durable part bindings;
-  Complete refuses a manifest without those digests.
+- Raw backend ListParts omits SHA256, including after restart. Its missing value
+  stays absent in the low-level adapter. Production ingestion rejects a missing
+  checksum; immutable expected request bindings cannot fill that evidence gap.
+  The owned storage gateway must supply independently durable actual-byte proof
+  on ListParts. The direct-backend suite characterizes the backend and does not
+  by itself satisfy the owned-image checksum acceptance gate.
 - Identical part resends can leave duplicate records of the same part number.
   ListParts merges records only when all returned size/ETag/checksum fields
   match. Conflicting records fail integrity validation. This normalization does

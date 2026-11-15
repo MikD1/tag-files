@@ -170,9 +170,9 @@ func confirmPart(ctx context.Context, tx *sql.Tx, id string, generation int64, a
 }
 
 // Refresh restores acknowledgements only for already bound part numbers and
-// bytes. The pinned Seaweed profile omits SHA256 in ListParts, so an absent
-// checksum is resolved from that binding; a present mismatch is never trusted.
-// Full source verification remains mandatory at Complete.
+// bytes with an independently verified storage checksum. A request binding is
+// not evidence of the bytes currently stored by the backend. Full source
+// verification remains mandatory at Complete.
 func (c *Coordinator) Refresh(ctx context.Context, id string) (Outcome, error) {
 	id, err := canonicalID(id)
 	if err != nil {
@@ -226,10 +226,9 @@ func (c *Coordinator) reconcileListedParts(ctx context.Context, session Session,
 		listed := make(map[int]objectstore.Part, len(parts))
 		for _, part := range parts {
 			bound, ok := bindings[part.Number]
-			if !ok || part.Size != bound.Size || (part.SHA256 != "" && part.SHA256 != bound.SHA256) {
+			if !ok || part.Size != bound.Size || part.SHA256 != bound.SHA256 {
 				return objectstore.ErrIntegrity
 			}
-			part.SHA256 = bound.SHA256
 			listed[part.Number] = part
 		}
 		for _, bound := range current.Parts {
