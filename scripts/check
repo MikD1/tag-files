@@ -3,7 +3,6 @@ set -euo pipefail
 project_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 check_tmp=$(mktemp -d)
 trap 'rm -rf -- "$check_tmp"' EXIT
-cmp "$project_root/compose.yml" "$project_root/deploy/compose.yml"
 
 # Compare to the working tree so a dirty generated file cannot hide behind a
 # committed baseline. Generators are pinned in their own module.

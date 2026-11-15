@@ -28,8 +28,10 @@ Compose project for a fresh installation. The installer generates private
 credentials and pins both images. The images must match the Docker host's native
 architecture.
 
-The deployment directory contains `compose.yml`, `.env`, secrets, and installation
-receipts. Named volumes retain metadata, object storage, and processing scratch.
+The root `compose.yml` is the shared deployment template used by the scripts.
+The deployment directory contains a copy of this file, `.env`, secrets, and
+installation receipts. Named volumes retain metadata, object storage, and
+processing scratch.
 Only the application port is published, on loopback. Keep the metadata and storage
 volumes together; `docker compose down --volumes` deletes library data.
 

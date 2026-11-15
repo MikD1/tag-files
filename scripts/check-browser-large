@@ -194,7 +194,7 @@ def main():
         if os.environ.get("TAG_FILES_BROWSER_VALIDATE_ONLY") == "1":
             print("Fixture metadata validated; no services or browser uploads started", flush=True)
             return
-        shutil.copyfile(ROOT / "deploy/compose.yml", work / "compose.yml")
+        shutil.copyfile(ROOT / "compose.yml", work / "compose.yml")
         (work / "secrets").mkdir(mode=0o700)
         for name in ("s3_access_key", "s3_secret_key"):
             path = work / "secrets" / name

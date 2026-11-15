@@ -93,7 +93,7 @@ def main():
             path = work / "secrets" / name
             path.write_text(secrets.token_hex(32) + "\n")
             path.chmod(0o444)
-        shutil.copyfile(ROOT / "deploy/compose.yml", work / "production.yml")
+        shutil.copyfile(ROOT / "compose.yml", work / "production.yml")
         config = json.loads(capture(["docker", "compose", "-f", str(work / "production.yml"), "config", "--format", "json"], env=env))
         config["networks"]["frontend"]["internal"] = True
         for name, network in config["networks"].items():

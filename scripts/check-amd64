@@ -66,7 +66,7 @@ def main():
                 'startedUTC': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                 'inputHashes': {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest()
                                 for p in ('deploy/app/Dockerfile', 'deploy/storage/Dockerfile',
-                                          'deploy/compose.yml', 'web/e2e/release/uploads.spec.ts')}}
+                                          'compose.yml', 'web/e2e/release/uploads.spec.ts')}}
     if not args.skip_build:
         run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--load',
              '-f', 'deploy/app/Dockerfile', '--target', 'app', '--build-arg',
@@ -80,7 +80,7 @@ def main():
     app_id, storage_id = evidence['app']['Id'], evidence['storage']['Id']
     fixture = Path(tempfile.mkdtemp(prefix='tag-files-amd64-fixture-'))
     project = 'tag-files-amd64-' + secrets.token_hex(6)
-    (fixture / 'compose.yml').write_bytes((ROOT / 'deploy/compose.yml').read_bytes())
+    (fixture / 'compose.yml').write_bytes((ROOT / 'compose.yml').read_bytes())
     (fixture / 'amd64.yml').write_text('services:\n  app:\n    platform: linux/amd64\n  storage:\n    platform: linux/amd64\n')
     secret_dir = fixture / 'secrets'
     secret_dir.mkdir(mode=0o700)

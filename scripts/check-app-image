@@ -26,7 +26,7 @@ cleanup() {
   exit "$status"
 }
 trap cleanup EXIT
-cp "$project_root/deploy/compose.yml" "$check_root/compose.yml"
+cp "$project_root/compose.yml" "$check_root/compose.yml"
 mkdir -m 700 "$check_root/secrets"
 openssl rand -hex 24 > "$check_root/secrets/s3_access_key"
 openssl rand -hex 32 > "$check_root/secrets/s3_secret_key"

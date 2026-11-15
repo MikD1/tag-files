@@ -13,7 +13,8 @@ SeaweedFS object storage, and FFmpeg processing. Read [README.md](README.md) and
 - `api/openapi.yaml`: HTTP contract; generated Go and TypeScript types.
 - `tools/migrate/`, `tools/backup/`: separate offline data tools.
 - `tools/codegen/`: pinned Go/TypeScript generators.
-- `deploy/`: container builds, Compose configuration, and distribution notices.
+- `compose.yml`: deployment template used by installation and runtime checks.
+- `deploy/`: container builds and distribution notices.
 - `scripts/`: generation, checks, installation, updates, and release tooling.
 
 ## Engineering boundaries

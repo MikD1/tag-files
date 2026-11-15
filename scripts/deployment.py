@@ -209,7 +209,7 @@ def _install_locked(args, root):
         (stage / "secrets").mkdir(mode=0o700)
         atomic_write(stage / "secrets/s3_access_key", (secrets.token_hex(16) + "\n").encode(), 0o444)
         atomic_write(stage / "secrets/s3_secret_key", (secrets.token_hex(32) + "\n").encode(), 0o444)
-        atomic_write(stage / "compose.yml", (REPO / "deploy/compose.yml").read_bytes())
+        atomic_write(stage / "compose.yml", (REPO / "compose.yml").read_bytes())
         atomic_write(stage / ".env", env_bytes(args.project, args.port, images))
         record = {"format": 1, "version": args.version, "project": args.project, "port": args.port,
                   "created": datetime.datetime.now(datetime.timezone.utc).isoformat(), "images": images,
@@ -296,7 +296,7 @@ def _update_locked(args, root):
     next_env = op / "next.env"
     atomic_write(next_env, env_bytes(old["project"], int(env["TAG_FILES_PORT"]), images))
     next_compose = op / "next-compose.yml"
-    atomic_write(next_compose, (REPO / "deploy/compose.yml").read_bytes())
+    atomic_write(next_compose, (REPO / "compose.yml").read_bytes())
     record = {"state": "prepared", "phase": "images-resolved", "fromVersion": old["version"], "toVersion": args.version,
               "images": images, "created": datetime.datetime.now(datetime.timezone.utc).isoformat()}
     save_json(op / "operation.json", record)

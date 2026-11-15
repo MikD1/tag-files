@@ -40,7 +40,7 @@ def main():
     work = pathlib.Path(tempfile.mkdtemp(prefix=".performance.browser-", dir=ROOT))
     project = "tag-files-browser-performance-" + secrets.token_hex(6)
     compose = ["docker", "compose", "-p", project, "-f", str(work / "compose.yml")]
-    shutil.copyfile(ROOT / "deploy/compose.yml", work / "compose.yml")
+    shutil.copyfile(ROOT / "compose.yml", work / "compose.yml")
     # The fixture writer alone uses loopback S3 during offline preparation.
     override = work / "fixture-ports.yml"
     s3_port = port()

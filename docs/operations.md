@@ -5,6 +5,8 @@
 Follow [the quick start](../README.md) to build and install. Host scripts require
 Python 3 and native Linux Docker images. The application image includes all web
 assets and media tools; runtime browser assets do not use a CDN.
+Installation and update scripts copy the repository's root `compose.yml` into
+the external deployment directory. Integration checks use the same template.
 
 Use the external deployment directory for every Compose command:
 
