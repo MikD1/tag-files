@@ -47,6 +47,9 @@ No release, migration of real data, or production-readiness claim has been made.
   work and bounds queue timing across clock rollback without expiring input.
   Guarded scratch now provides producer-lifetime locks and bounded reclamation
   after proven quiescence; executable startup wiring and the full media matrix remain open.
+  The media module now generates and validates bounded JPEG posters with
+  orientation/whole HEIF/alpha handling; durable poster execution/publication
+  remains open.
 - Next: startup wiring and full disk admission, poster execution,
   media HTTP streaming and application runtime wiring.
   No executable application/SPA image exists yet.
@@ -681,6 +684,25 @@ The executable startup must still invoke reclaim before admitting jobs/HTTP.
 The supported pinned tool profile retains inherited descriptors; arbitrary
 commands closing their guards are outside this protocol. Full disk admission,
 poster execution, wider media acceptance and Tasks 6–9 remain open.
+
+## Poster byte-profile verification
+
+`PreparePoster` now generates the internal `poster-v1` JPEG profile: 640px
+maximum edge without enlargement, preserved display aspect/orientation, white
+alpha compositing and a representative video frame at 10% of probed duration.
+The first animation frame supplies a static preview. Output is exclusively
+created, time/byte bounded, probed/full-decoded and SHA-256 hashed; error/cancel
+does not change the primary or overwrite an existing output.
+
+Fresh `scripts/check`, `scripts/check-media` and `scripts/check-media-image`
+passed. Actual fixtures cover portrait/landscape/odd/small dimensions, full and
+partial alpha, distinct video/animation frames, rotated video, all eight JPEG
+EXIF transforms, complete HEIC/AVIF grids and primary transforms, byte exhaustion
+and cancellation. The final tested native arm64 image is
+`sha256:b05f85c4f7555d7edf13c345630ad77236cbc73f6dfa9fecdabf3ed85fbf22db`.
+This is local media-generation evidence. Durable poster candidate allocation,
+PUT/full GET/hash, leased publication, independent cleanup and worker registration
+still need implementation and their own fault/restart tests.
 
 ## Completion boundary
 

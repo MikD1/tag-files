@@ -37,6 +37,23 @@ Selected default/first non-cover video and default/first audio are the working
 tracks. Other auxiliary video tracks are not copied by this single-version profile.
 A format/codec being enabled is not evidence that every variant is accepted.
 
+`PreparePoster` implements the `poster-v1` byte profile for independent work:
+one JPEG, longest edge at most 640px, no upscaling, Lanczos resize, square pixels,
+quality 3 and 4:4:4 chroma. Transparency composites onto white, including partial
+alpha. Display transforms and whole HEIF tile groups are applied before resize.
+Images use the first frame; videos seek to 10% of probed duration using integer
+100ns ticks, or begin at the start when duration is unknown. The output is
+exclusively created, bounded to the lesser of 8 MiB/configured output cap and
+five minutes/configured conversion timeout, probed/full-decoded and hashed.
+Failures remove only this new output; source/previous output remain intact.
+These are internal defaults, not user options or a promise to improve quality.
+
+Native tests check landscape/portrait/odd/small images, white/partial-alpha
+compositing, representative video frame and rotation, all JPEG EXIF transforms,
+HEIC/AVIF whole grids/transforms and first animation frame without changing the
+primary. The separate durable poster job/publication/cleanup runner is still
+unimplemented; this method does not claim its S3/SQLite recovery acceptance.
+
 HEIF primary selection also considers default tile groups, excluding dependent
 tile streams from independent-image selection. The bounded profile admits up to
 256 streams/tiles. It validates the whole coded/visible canvas, group-relative
