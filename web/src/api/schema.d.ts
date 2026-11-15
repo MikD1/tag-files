@@ -423,6 +423,8 @@ export interface paths {
             query?: never;
             header?: {
                 Range?: string;
+                "If-Match"?: string;
+                "If-Unmodified-Since"?: string;
                 "If-None-Match"?: string;
                 "If-Modified-Since"?: string;
                 "If-Range"?: string;
@@ -437,6 +439,7 @@ export interface paths {
         post?: never;
         delete?: never;
         options?: never;
+        /** @description Range is ignored for HEAD; precondition headers are evaluated without a body. */
         head: operations["headMedia"];
         patch?: never;
         trace?: never;
@@ -1768,6 +1771,8 @@ export interface operations {
             query?: never;
             header?: {
                 Range?: string;
+                "If-Match"?: string;
+                "If-Unmodified-Since"?: string;
                 "If-None-Match"?: string;
                 "If-Modified-Since"?: string;
                 "If-Range"?: string;
@@ -1819,6 +1824,8 @@ export interface operations {
             query?: never;
             header?: {
                 Range?: string;
+                "If-Match"?: string;
+                "If-Unmodified-Since"?: string;
                 "If-None-Match"?: string;
                 "If-Modified-Since"?: string;
                 "If-Range"?: string;
@@ -1837,22 +1844,8 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Partial content headers without body */
-            206: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
             /** @description Not modified */
             304: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Unsatisfiable range; Content-Range bytes *\/size is required */
-            416: {
                 headers: {
                     [name: string]: unknown;
                 };

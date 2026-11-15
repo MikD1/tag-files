@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/mikd1/tag-files/app/internal/domain"
 	"github.com/mikd1/tag-files/app/internal/httpapi/api"
+	"github.com/mikd1/tag-files/app/internal/mediaserve"
 	"github.com/mikd1/tag-files/app/internal/operations"
 	"github.com/mikd1/tag-files/app/internal/search"
 	"github.com/mikd1/tag-files/app/internal/store"
@@ -27,7 +28,10 @@ import (
 
 const MaxJSONBytes = 1024 * 1024
 
-type Options struct{ Clock func() time.Time }
+type Options struct {
+	Clock func() time.Time
+	Media *mediaserve.Service
+}
 type server struct {
 	s   *store.Store
 	now func() time.Time
@@ -89,6 +93,21 @@ func New(s *store.Store, options Options) (http.Handler, error) {
 		info := scope{method: r.Method, path: r.URL.Path, trace: uuid.MustParse(domain.NewUUID())}
 		r = r.WithContext(context.WithValue(r.Context(), scopeKey{}, info))
 		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if options.Media != nil && strings.HasPrefix(r.URL.Path, "/media/") {
+			if err := options.Media.Serve(w, r); err != nil {
+				var mediaError *mediaserve.Error
+				if errors.As(err, &mediaError) {
+					if mediaError.Started {
+						panic(http.ErrAbortHandler)
+					}
+					err = &protocolError{mediaError.Status, mediaError.Code, mediaError.Message}
+				}
+				if r.Context().Err() == nil {
+					writeProblem(w, r.Context(), err)
+				}
+			}
+			return
+		}
 		r.Body = http.MaxBytesReader(w, r.Body, MaxJSONBytes)
 		// The validator's streaming decoder accepts the first JSON value. Check
 		// the bounded original document before validation can apply defaults or
@@ -159,6 +178,12 @@ func problem(ctx context.Context, err error) api.Problem {
 func writeProblem(w http.ResponseWriter, ctx context.Context, err error) {
 	p := problem(ctx, err)
 	w.Header().Set("Content-Type", "application/problem+json")
+	if info, ok := ctx.Value(scopeKey{}).(scope); ok && info.method == http.MethodHead {
+		body, _ := json.Marshal(p)
+		w.Header().Set("Content-Length", strconv.Itoa(len(body)+1))
+		w.WriteHeader(p.Status)
+		return
+	}
 	w.WriteHeader(p.Status)
 	_ = json.NewEncoder(w).Encode(p)
 }

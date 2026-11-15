@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/mikd1/tag-files/app/internal/ingestion"
 	"github.com/mikd1/tag-files/app/internal/librarybinding"
 	"github.com/mikd1/tag-files/app/internal/media"
+	"github.com/mikd1/tag-files/app/internal/mediaserve"
 	"github.com/mikd1/tag-files/app/internal/objectio"
 	"github.com/mikd1/tag-files/app/internal/objectstore"
 	"github.com/mikd1/tag-files/app/internal/poster"
@@ -180,13 +182,88 @@ func TestIngestionWorkerOwnedImageProcessesPhotoAndRetainsFailedInput(t *testing
 	}
 	// Delete the ready primary/poster through the actual JSON route, retain
 	// exact keys after metadata removal, then verify them after storage restart.
-	h, err := httpapi.New(db, httpapi.Options{})
+	manager, err = objectio.New(db, client, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	streamer, err := mediaserve.New(db, manager, mediaserve.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := httpapi.New(db, httpapi.Options{Media: streamer})
 	if err != nil {
 		t.Fatal(err)
 	}
 	item, err := dbgen.New(db.Reader()).GetItem(ctx, ready.ItemID)
 	if err != nil {
 		t.Fatal(err)
+	}
+	mediaRequest := func(method, path string, headers ...string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, nil)
+		for i := 0; i < len(headers); i += 2 {
+			req.Header.Set(headers[i], headers[i+1])
+		}
+		out := httptest.NewRecorder()
+		h.ServeHTTP(out, req)
+		return out
+	}
+	mediaURL := "/media/" + item.PrimaryAssetID.String
+	whole := mediaRequest("GET", mediaURL)
+	if whole.Code != 200 || !bytes.Equal(whole.Body.Bytes(), inputs[0]) {
+		t.Fatalf("native media bytes: %d %s", whole.Code, whole.Body.String())
+	}
+	partial := mediaRequest("GET", mediaURL, "Range", "bytes=0-7")
+	if partial.Code != 206 || !bytes.Equal(partial.Body.Bytes(), inputs[0][:8]) || partial.Header().Get("Content-Range") != fmt.Sprintf("bytes 0-7/%d", len(inputs[0])) {
+		t.Fatalf("native Range: %d %v", partial.Code, partial.Header())
+	}
+	if head := mediaRequest("HEAD", mediaURL, "Range", "bytes=0-7"); head.Code != 200 || head.Body.Len() != 0 || head.Header().Get("Content-Length") != fmt.Sprint(len(inputs[0])) {
+		t.Fatalf("native HEAD: %d %v", head.Code, head.Header())
+	}
+	if cached := mediaRequest("GET", mediaURL, "If-None-Match", whole.Header().Get("ETag")); cached.Code != 304 || cached.Body.Len() != 0 {
+		t.Fatalf("native conditional: %d %s", cached.Code, cached.Body.String())
+	}
+	if multi := mediaRequest("GET", mediaURL, "Range", "bytes=0-1,8-11"); multi.Code != 206 || !strings.HasPrefix(multi.Header().Get("Content-Type"), "multipart/byteranges") {
+		t.Fatalf("native multipart: %d %v", multi.Code, multi.Header())
+	}
+	oldPoster, err := dbgen.New(db.Reader()).GetPublishedPoster(ctx, dbgen.GetPublishedPosterParams{ItemID: sql.NullInt64{Int64: ready.ItemID, Valid: true}, ProfileVersion: sql.NullString{String: poster.Profile, Valid: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.Delete(ctx, oldPoster.ObjectKey); err != nil {
+		t.Fatal(err)
+	}
+	if missing := mediaRequest("GET", "/media/"+oldPoster.ID); missing.Code != 404 {
+		t.Fatalf("native missing poster: %d %s", missing.Code, missing.Body.String())
+	}
+	posters, err = poster.New(db, manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rebuildScratch, err := scratch.Open(scratch.Config{Root: t.TempDir(), MaxBytes: 8 * 1024 * 1024})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rebuild, err := worker.New(db, map[domain.JobKind]worker.Handler{domain.JobPoster: worker.Poster(posters, db, p, rebuildScratch)}, worker.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ran, err := rebuild.RunOne(ctx); err != nil || !ran {
+		t.Fatalf("native missing poster rebuild: %v %v", ran, err)
+	}
+	if err := rebuildScratch.Close(); err != nil {
+		t.Fatal(err)
+	}
+	newPoster, err := dbgen.New(db.Reader()).GetPublishedPoster(ctx, dbgen.GetPublishedPosterParams{ItemID: sql.NullInt64{Int64: ready.ItemID, Valid: true}, ProfileVersion: sql.NullString{String: poster.Profile, Valid: true}})
+	if err != nil || newPoster.ID == oldPoster.ID {
+		t.Fatal("poster bytes were overwritten instead of rebuilt", err)
+	}
+	deletedKeys = append(deletedKeys, newPoster.ObjectKey)
+	if _, err := client.Verify(ctx, newPoster.ObjectKey, newPoster.SizeBytes, newPoster.Sha256); err != nil {
+		t.Fatal("rebuilt poster not verified", err)
+	}
+	item, err = dbgen.New(db.Reader()).GetItem(ctx, ready.ItemID)
+	if err != nil || item.State != domain.ItemReady || item.ViewCount != 0 {
+		t.Fatal("media availability changed views or primary", err)
 	}
 	deleteRequest := func(handler http.Handler) *httptest.ResponseRecorder {
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/api/v1/items/%d", ready.ItemID), nil)
@@ -202,6 +279,9 @@ func TestIngestionWorkerOwnedImageProcessesPhotoAndRetainsFailedInput(t *testing
 	var receipt api.JobReceipt
 	if err := json.Unmarshal(out.Body.Bytes(), &receipt); err != nil {
 		t.Fatal(err)
+	}
+	if hidden := mediaRequest("GET", mediaURL); hidden.Code != 404 {
+		t.Fatalf("deleted URL stayed public: %d", hidden.Code)
 	}
 	manager, err = objectio.New(db, client, 2)
 	if err != nil {

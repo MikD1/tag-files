@@ -163,6 +163,31 @@ func (q *Queries) FindPosterCandidateReceipt(ctx context.Context, payloadJson st
 	return i, err
 }
 
+const findPosterJob = `-- name: FindPosterJob :one
+SELECT id, type, subject_id, dedupe_key, payload_json, state, attempt, next_attempt_at, lease_until, lease_generation, progress_json, error_code, created_at FROM jobs WHERE type='poster' AND dedupe_key=?
+`
+
+func (q *Queries) FindPosterJob(ctx context.Context, dedupeKey string) (Job, error) {
+	row := q.db.QueryRowContext(ctx, findPosterJob, dedupeKey)
+	var i Job
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.SubjectID,
+		&i.DedupeKey,
+		&i.PayloadJson,
+		&i.State,
+		&i.Attempt,
+		&i.NextAttemptAt,
+		&i.LeaseUntil,
+		&i.LeaseGeneration,
+		&i.ProgressJson,
+		&i.ErrorCode,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getPublishedPoster = `-- name: GetPublishedPoster :one
 SELECT id, item_id, upload_id, job_id, lease_generation, role, bucket, object_key, size_bytes, sha256, content_type, width, height, rotation, provenance, profile_version, state, media_kind, duration_ticks FROM assets WHERE item_id=? AND role='poster' AND state='published' AND profile_version=? ORDER BY id LIMIT 1
 `

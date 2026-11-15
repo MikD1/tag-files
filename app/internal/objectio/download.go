@@ -16,8 +16,8 @@ func (m *Manager) CopyVerified(ctx context.Context, key string, size int64, hash
 	if !keyValid(key) || size < 1 || size > domain.MaxSafeInteger || !hexSHA(hash) {
 		return domain.Invalid("source", "Invalid immutable source descriptor")
 	}
-	return m.Read(ctx, func(reader Reader) error {
-		download, err := reader.Get(ctx, key, objectstore.GetOptions{})
+	return m.ReadKey(ctx, key, func(reader KeyReader) error {
+		download, err := reader.Get(ctx, objectstore.GetOptions{})
 		if err != nil {
 			return err
 		}

@@ -25,3 +25,6 @@ SELECT * FROM assets WHERE item_id=? AND role='poster' AND state='published' AND
 
 -- name: DeleteOrphanPoster :execrows
 DELETE FROM assets WHERE id=? AND role='poster' AND item_id IS NULL AND state IN ('candidate','verified');
+
+-- name: FindPosterJob :one
+SELECT * FROM jobs WHERE type='poster' AND dedupe_key=?;

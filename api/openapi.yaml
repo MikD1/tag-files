@@ -311,6 +311,8 @@ paths:
     parameters:
       - {name: assetId, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}
       - {name: Range, in: header, schema: {type: string}}
+      - {name: If-Match, in: header, schema: {type: string}}
+      - {name: If-Unmodified-Since, in: header, schema: {type: string}}
       - {name: If-None-Match, in: header, schema: {type: string}}
       - {name: If-Modified-Since, in: header, schema: {type: string}}
       - {name: If-Range, in: header, schema: {type: string}}
@@ -326,11 +328,10 @@ paths:
     head:
       tags: [binary]
       operationId: headMedia
+      description: Range is ignored for HEAD; precondition headers are evaluated without a body.
       responses:
         '200': {description: Content headers without body}
-        '206': {description: Partial content headers without body}
         '304': {description: Not modified}
-        '416': {description: Unsatisfiable range; Content-Range bytes */size is required}
         default: {$ref: '#/components/responses/Problem'}
   /api/v1/system/status:
     get:

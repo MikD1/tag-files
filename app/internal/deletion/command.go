@@ -179,35 +179,7 @@ func Request(ctx context.Context, tx *sql.Tx, id, version int64, now time.Time) 
 }
 
 func ownedKey(library string, a dbgen.DeletionAsset) bool {
-	if domain.ValidateUUID(a.AssetID) != nil || a.Bucket != "tag-files" || strings.ContainsAny(a.ObjectKey, "\\\x00\r\n") || len(a.ObjectKey) > 1024 {
-		return false
-	}
-	for _, part := range strings.Split(a.ObjectKey, "/") {
-		if part == "" || part == "." || part == ".." {
-			return false
-		}
-		for _, r := range part {
-			if r < 33 || r > 126 {
-				return false
-			}
-		}
-	}
-	if a.Role == "incoming" {
-		return a.ObjectKey == "incoming/"+library+"/"+a.AssetID+"/source"
-	}
-	if a.Role == "primary" {
-		prefix := "primary/" + library + "/" + a.AssetID + "/media."
-		return strings.HasPrefix(a.ObjectKey, prefix) && len(a.ObjectKey) > len(prefix) && !strings.Contains(strings.TrimPrefix(a.ObjectKey, prefix), "/")
-	}
-	if a.Role == "poster" {
-		prefix := "previews/" + library + "/" + a.AssetID + "/"
-		if !strings.HasPrefix(a.ObjectKey, prefix) {
-			return false
-		}
-		rest := strings.Split(strings.TrimPrefix(a.ObjectKey, prefix), "/")
-		return len(rest) == 2 && rest[1] == "poster.jpg"
-	}
-	return false
+	return a.Bucket == "tag-files" && domain.OwnedObjectKey(library, a.AssetID, a.Role, a.ObjectKey)
 }
 
 // Validate preflights all immutable inventory pages. It accepts metadata

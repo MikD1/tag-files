@@ -67,6 +67,7 @@ type Querier interface {
 	FindDuplicateMultipartReceipt(ctx context.Context, arg FindDuplicateMultipartReceiptParams) (CleanupReceipt, error)
 	FindItemDeletion(ctx context.Context, itemID sql.NullInt64) (CleanupReceipt, error)
 	FindPosterCandidateReceipt(ctx context.Context, payloadJson string) (CleanupReceipt, error)
+	FindPosterJob(ctx context.Context, dedupeKey string) (Job, error)
 	FindReadyItemByUpload(ctx context.Context, uploadID sql.NullString) (Item, error)
 	FreezeUploadManifest(ctx context.Context, arg FreezeUploadManifestParams) error
 	GetCleanupAsset(ctx context.Context, id string) (Asset, error)
@@ -84,6 +85,7 @@ type Querier interface {
 	GetJob(ctx context.Context, id string) (Job, error)
 	GetLeasedJob(ctx context.Context, arg GetLeasedJobParams) (Job, error)
 	GetLibraryMeta(ctx context.Context) (LibraryMetum, error)
+	GetMediaAsset(ctx context.Context, id string) (GetMediaAssetRow, error)
 	GetNavigationContext(ctx context.Context, id string) (NavigationContext, error)
 	GetObjectWriteIntent(ctx context.Context, id string) (ObjectWriteIntent, error)
 	GetOperation(ctx context.Context, operationID string) (OperationResult, error)
@@ -110,8 +112,10 @@ type Querier interface {
 	ListUploadSessions(ctx context.Context) ([]UploadSession, error)
 	MakeQueuedJobAvailable(ctx context.Context, arg MakeQueuedJobAvailableParams) (int64, error)
 	MarkItemReady(ctx context.Context, arg MarkItemReadyParams) error
+	MarkMediaAssetMissing(ctx context.Context, arg MarkMediaAssetMissingParams) (int64, error)
 	MarkObjectWriteUncertain(ctx context.Context, arg MarkObjectWriteUncertainParams) (int64, error)
 	MarkPosterVerified(ctx context.Context, id string) (int64, error)
+	MarkPrimaryMissing(ctx context.Context, arg MarkPrimaryMissingParams) (int64, error)
 	MarkPrimaryVerified(ctx context.Context, id string) error
 	MarkUploadProcessing(ctx context.Context, id string) error
 	PruneNavigationContexts(ctx context.Context, expiresAt string) (int64, error)

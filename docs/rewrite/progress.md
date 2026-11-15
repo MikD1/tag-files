@@ -15,7 +15,7 @@ No release, migration of real data, or production-readiness claim has been made.
   catalog retrieval and atomic metadata/favorite/view commands.
 - Task 3 core implemented: full OpenAPI source, generated Go/TypeScript,
   strict JSON adapters for catalog/organization, durable operation results
-  and navigation contexts. Upload/media/system handlers and the full API-only
+  and navigation contexts. Upload/system handlers and the full API-only
   acceptance matrix remain open alongside Tasks 4–9.
 - Task 4 started: the S3 adapter and read-only checker pass real pinned
   SeaweedFS/SDK conformance. The owned storage image now has resumable bootstrap,
@@ -53,8 +53,11 @@ No release, migration of real data, or production-readiness claim has been made.
   cleanup independently of upload sessions, including legacy items without uploadID.
   Item deletion now has its versioned HTTP command, tombstone, paged resource
   inventory, independent source/orphan dependencies and post-restart key verification.
+  Same-origin media now streams owned GET/HEAD, single/multipart ranges and
+  conditional responses, with safe legacy downloads and cancellation. Deletion
+  waits admitted key-specific reads; actual poster 404 queues a durable rebuild.
 - Next: startup wiring and full disk admission,
-  media HTTP streaming and application runtime wiring, then UI/tools/releases.
+  upload/system HTTP and application runtime wiring, then UI/tools/releases.
   No executable application/SPA image exists yet.
 
 ## Decisions
@@ -798,6 +801,41 @@ media check
 `sha256:4c93102f9f0805efad59579b877a266be8bfea8f93966acf1fb4e30faf32775d`.
 Disposable containers were removed. These tests prove the named Linux process
 restart scenarios, not whole-VM/Mac power-loss durability or final release readiness.
+
+## Media HTTP delivery (2026-11-15)
+
+Owned media now bypasses JSON binding and streams bounded GET/HEAD responses,
+single/multipart byte ranges and RFC conditional requests. HEAD ignores Range.
+Each GET pins the selected opaque ETag and validates size/range. Candidate,
+foreign and deleting resources cannot be read; deletion waits admitted reads
+of that exact key. Legacy Unknown/Text/Audio and active/unsupported MIME types
+use safe attachment responses without changing their stored bytes or metadata.
+Missing primary becomes unavailable; missing poster keeps primary ready and
+queues independent regeneration. Reads do not count views. A later upstream
+failure aborts the binary response, rather than appending Problem JSON.
+
+Fresh `scripts/check`, expanded `scripts/check-media`,
+`scripts/check-media-image`, and
+`TAG_FILES_MEDIA_INTEGRATION=1 scripts/check-storage-image` all passed. The full
+owned native arm64/race suite took 334.896 s; its worker case exercises actual
+SeaweedFS media requests, missing-poster regeneration, HTTP deletion and storage
+restart verification. A separate focused run passed in 33.261 s. Controlled SDK
+peer tests cover multipart bytes/length, conditions, missing/wrong/truncated
+upstream, actual TCP cancellation and concurrent deletion. Range fuzzing passed
+73,985 executions in 5 s, including integer overflow seeds.
+
+An 8/64 MiB real HTTP/SDK-peer allocation benchmark used 320,208/316,336 B/op
+respectively; this is bounded-allocation evidence for that fixture, not measured
+production throughput or process RSS. Logs:
+`/tmp/tag-files-media-http-{check,media,media-image,storage-image,fuzz,bench}.log`.
+Final tested native images: storage
+`sha256:81115aaf5695563b4635db9838d44492ec829cfe7bd176af014856610a2a221b`,
+media check
+`sha256:cdd48a2916ba955496166415233c288372724ff09bf0b063ced2fd5aa6f9423f`.
+All check sessions exited 0 and disposable containers were removed.
+Application startup/admission, full disk 507, upload/system HTTP, the remaining
+media/browser/Mac matrix, React v27, offline tools and runnable release containers
+remain open. Task 5 and the full goal are not complete.
 
 ## Completion boundary
 

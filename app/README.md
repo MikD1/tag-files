@@ -17,9 +17,10 @@ scripts/check
 ```
 
 `api/openapi.yaml` owns the full HTTP contract. Go JSON adapters currently expose
-the catalog, organization, operations and navigation tags; the remaining upload,
-media and system routes are described for subsequent implementation. Binary
-handlers will bypass JSON binding. Generated Go and TypeScript files are checked
+the catalog, organization, operations and navigation tags. A separately wired
+media handler now streams GET/HEAD, byte ranges and conditional responses;
+upload and system adapters still require implementation. Binary handlers bypass
+JSON binding. Generated Go and TypeScript files are checked
 in and must be regenerated together through `scripts/generate`.
 
 `scripts/check` verifies generation reproducibility, formatting, vet, ordinary

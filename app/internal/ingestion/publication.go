@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"strconv"
 	"strings"
 	"time"
 
@@ -246,12 +245,7 @@ func (c *Coordinator) PublishPrimary(ctx context.Context, job dbgen.Job, assetID
 		if _, _, err := enqueueCleanup(ctx, q, "ready", session.ID, session.Generation, string(payload), now.Add(time.Since(started))); err != nil {
 			return err
 		}
-		poster, err := json.Marshal(posterspec.Payload{Version: 1, ItemID: item.ID, PrimaryAssetID: asset.ID, Profile: posterspec.Profile})
-		if err != nil {
-			return err
-		}
-		timestamp := store.Timestamp(now.Add(time.Since(started)))
-		if _, err := q.CreateJob(ctx, dbgen.CreateJobParams{ID: domain.NewUUID(), Type: domain.JobPoster, SubjectID: strconv.FormatInt(item.ID, 10), DedupeKey: "poster/" + asset.ID + "/poster-v1", PayloadJson: string(poster), NextAttemptAt: timestamp, CreatedAt: timestamp}); err != nil {
+		if _, err := posterspec.Enqueue(ctx, tx, item.ID, asset.ID, now.Add(time.Since(started))); err != nil {
 			return err
 		}
 		if err := q.DeleteUploadSession(ctx, session.ID); err != nil {
