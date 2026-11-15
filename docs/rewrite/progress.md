@@ -1163,3 +1163,39 @@ pre-editor image pair; WebKit is still running. Upload/hash/XHR and Go runtime
 sources have not changed with this isolated catalog fix. Final images will
 be rebuilt and receive focused image/browser checks; the maximum upload need
 not be repeated for a catalog editor that the probe never opens.
+
+## Maximum browser completion and final image-editor gate
+
+Both maximum-file browser scenarios passed on the exact frozen pair in
+[browser evidence](BROWSER-MEMORY.md): Chromium818.30s and WebKit592.63s, each
+transferring648 native32MiB parts /21,743,271,936 bytes. Both full fingerprints
+matched independent Python SHA; each padded20GiB video became ready after actual
+verification/processing, and the256MiB unsupported source stayed failed until
+explicit UI Cancel emptied the queue. Browser-tree growth was95.6/389.7MiB;
+all682/458 actual focus/navigation/control roundtrips stayed under2s. WebKit's
+846ms upload-phase timer spike is retained without inventing a product timer
+budget. The MP4 contains sparse `free` padding, not20GiB of useful video.
+
+An ordinary Playwright run deleted Chromium's original per-tick telemetry in the
+previous shared output root; exact stdout summaries, timestamps, controls and
+asserted outcomes remain. WebKit retains complete raw samples. Large output
+now lives outside ordinary `web/test-results`; no missing ticks were fabricated
+and no maximum run was repeated solely for that telemetry. Source files and
+owned containers/volumes/networks were removed. Independent harness/evidence
+review found no concrete code issues in the executed scenario.
+
+The actual container image rebuilt frombdcff1a passed both expanded release
+browser cases in9.3s, followed by simultaneous pair restart and retained media/
+SPA checks. The cases exercise search Enter, native option selection, every
+pending editor control and the exact metadata persisted by a delayed real PATCH.
+Harness preparation was corrected to reveal hover-only actions, refresh SPA
+cache after external fixture writes and unwrap typed command resources. These
+preparation failures were not hidden as production failures or acceptance.
+
+Artifact review independently matched all29 app Go module versions/notices,
+38 production npm packages/full texts/integrity and278 installed OS package
+versions. It found missing distribution notices in the storage and external
+backup images. A separate packaging-only correction is in progress: preserve
+the pinned Go SeaweedFS executable and include actual dependency/license texts
+without distributing its unused Rust executables. New image/runtime checks are
+required before that finding closes. No publication occurred.

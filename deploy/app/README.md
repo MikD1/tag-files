@@ -35,6 +35,8 @@ The FFmpeg package enables GPL components including libx264. The final image
 keeps Ubuntu notices at `/usr/share/doc` and records exact installed versions in
 `/usr/share/tag-files/notices/runtime-packages.tsv`. That directory also contains
 actual Go runtime module licenses/build metadata, the Go license and production
-npm dependency integrity/license texts. Publication requests BuildKit SBOM and
-provenance. Distribution/source-offer review and both architecture execution
+npm dependency integrity/license texts. Release Docker archives preserve the
+tested config and filesystem layers; this transport explicitly disables OCI
+SBOM/provenance attestations, as described in the [release handoff](../INSTALL.md).
+Distribution/source-offer review and both architecture execution
 remain release gates; local arm64 tests do not establish amd64 or Mac durability.

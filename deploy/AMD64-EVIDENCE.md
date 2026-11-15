@@ -67,7 +67,103 @@ builds retain `app-build.json`/`storage-build.json`, build logs, `browser.log`,
   volumes and exact images. The complete catalog and all three full-byte hashes
   must match; readiness and SPA deep links must work again.
 
-## Recorded run
+## Latest run after the final multipart-proof corrections
+
+Passed again on **2026-11-15**, using the final corrected multipart-proof runtime
+sources and the same digest-pinned QEMU installer above. The app and storage
+images were rebuilt for `linux/amd64`; the exact resulting IDs were used for
+all checks. This remains QEMU execution on Linux arm64, with native arm64 host
+browser processes. It is separate from native arm64 or native amd64 evidence.
+
+```sh
+scripts/check-amd64 --artifacts /tmp/tag-files-amd64-proof-final-20261115
+# exit 0; runtime fixture 59.424 s, excluding builds/cleanup
+# Chromium 4.5 s; WebKit 2.8 s; Playwright: 2 passed in 8.0 s
+```
+
+The latest exact image identities are:
+
+| Image | Identity | Digest |
+| --- | --- | --- |
+| App | Tested OCI index | `sha256:fca33d70aecae48dd08bf9cf9aea6409ff9d53c6a95c739302fdfda7e0452013` |
+| App | Runtime manifest | `sha256:73ed2746307e309e829b23e3fe6c75a2497572739e9190170126efb4bef87344` |
+| App | Runtime config | `sha256:48f41ebddafdc2405b1ebcf7fd4fea7da9999dc7536b9398131cf21bfcf20cab` |
+| Storage | Tested OCI index | `sha256:1a688f8722c053f9bcc0b2b5f2f90395da2004367002a77bddf2901a8a928929` |
+| Storage | Runtime manifest | `sha256:7c5b64edc1974e95336f6c2c08bc1508b025f68ef52ad10b7b4a278f158c9394` |
+| Storage | Runtime config | `sha256:948a6a23029ed684be489b2415b56be156a65dc5a1ed292d5cc883b010064182` |
+
+App CGO/build-info/notices compilation took 217.5 s under QEMU. Build metadata
+retains the pinned bases and resolved Dockerfile frontend. The container reported
+`x86_64`, application UID 10001 and FFmpeg 8.0.1-3ubuntu2. The image version argument
+was `amd64-check`; these locally built check images are not published releases.
+
+This run confirmed both browser upload cases, including Chromium's accepted
+part response loss and reconciliation, then converted the real 57,908-byte
+MPEG4/PCM MOV to H264/AAC 80×48 with duration 0.6 s, MP4 faststart and full decoded
+primary. The 12,409-byte primary SHA256 was
+`51b013e178cf5eba43cd754696a2c7741a30fd9d63812d4b81630607b121a5a8`;
+the 265-byte JPEG poster SHA256 was
+`5656504cebcdee08a3018d083469d02be55fada0e6a7fbe9b09e0c0eed87791d`.
+Both photo primaries matched their full original PNG bytes, SHA256
+`060a2853ddd984094ed5ee791d8c4633b10a0933f07be02313d3e48097fe8269`.
+All three complete primary hashes and the whole catalog matched after both
+services restarted on their existing disposable volumes. Readiness, media HEAD,
+exact 32-byte Range, empty ready-upload batches and SPA deep links passed.
+
+Source identity is recorded for the actual dirty working tree rather than
+inferred from a commit label. Before the build, HEAD was
+`573428e638c5e96f09b516d2b1ac636393c130d7` with the multipart-proof changes still
+uncommitted. `source-manifest.json` hashes 359 selected app/web/build-and-run input files,
+including untracked proof sources, with their paths, sizes and modes:
+
+- Before-build selected-input manifest SHA256:
+  `e294f89e5dd645c29f4c42b2858b422b998aa5360a9fe4cd3e7c6c37039e28a2`.
+- Post-run selected-input manifest SHA256:
+  `d45258fc83b14f2c1f72a08dd993e6e898a47f5e7724767d54e9d4a25d86aef2`.
+- The 210 runtime-source inputs were identical before and after, SHA256:
+  `68d74eb90ea9837672279d8fa25e281a99ff0cc2c855643135ac28578f3fa0f5`.
+
+The runtime subset covers production Go/module/embedded SQL, SPA build
+source/assets/config/notices, runtime Dockerfiles/filer config/Compose, LICENSE
+and the Go notice collector. Its definition and all per-file hashes are retained
+in `runtime-source-comparison.json` and `runtime-source-manifest.json`.
+Among those selected inputs, changes occurred only in `.dockerignore`,
+`app/internal/storageprofile/README.md` and
+`web/e2e/large/upload-memory.spec.ts` during the parallel work. Those files do not
+change compiled Go/SPA or runtime inputs; all final multipart-proof source hashes
+remained identical. `multipart-proof-source-hashes.json` retains the individual
+proof/gateway/coordinator/recovery hashes. No repeat build was needed solely
+for these documentation/ignore/browser-harness edits.
+
+Commits advanced during that parallel work: app build provenance records
+`573428e638c5e96f09b516d2b1ac636393c130d7`, storage build provenance records
+`4b1e320212b46abb6a83c2bb7abfa4ea4d383423`, and the post-run working HEAD was
+`55411fbd15a653b33b97aca5331495fdd760f44c`. The runtime content hash above, source
+snapshots and exact image identities provide the evidence for tested bytes.
+
+Evidence is retained under `/tmp/tag-files-amd64-proof-final-20261115/`: build
+metadata/logs, browser/runtime logs, `report.json`, initial status/tracked diff,
+selected/runtime source manifests and `cleanup.json`. Fixture project
+`tag-files-amd64-97061e0af962` and its three named volumes, both networks and
+secret files were removed. Only this run's newly registered `qemu-x86_64`
+handler was unregistered after completion. The pre-existing `python3.14`
+handler stayed byte-identical. Shared/native image tags and parallel native
+browser resources were not changed. The dedicated amd64 check image tags remain
+for inspection. No source code, test harness, Dockerfile, Compose, release or
+registry was changed by this rerun; only this evidence document was updated.
+
+This scope verifies the latest amd64 image workflow with small real media and
+restart. It does not repeat the full multipart-proof fault matrix, 20GiB gate,
+whole-library restore, native amd64 CI or physical durability acceptance.
+
+The later catalog-only fix in `bdcff1a` disables pending metadata controls and
+prevents implicit search-Enter saves. It is outside this tested amd64 SPA's
+source scope and receives separate focused real-container/browser evidence.
+The later distribution-notice packaging work also changes image layers/base;
+this report must not be read as execution of those newer image identities.
+Native amd64 CI remains required for the final artifacts.
+
+## Earlier run before the final multipart-proof corrections
 
 Passed on **2026-11-15**. Host: Linux aarch64, Docker Engine 29.9.3,
 BuildKit 0.34.2. The added handler used flags `POCF`; emulator reports

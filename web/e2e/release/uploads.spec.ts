@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import {resolve} from 'node:path';
 import type {Schema} from '../../src/api/client';
 
-test('built app uploads through real worker/XHR and S3 while navigating away',async({page,request,browserName})=>{
+test('built app uploads through worker/XHR/S3 and freezes metadata while saving',async({page,request,browserName})=>{
  const before=await (await request.get('/api/v1/items')).json() as Schema<'ItemPage'>;
  const consoleErrors:string[]=[];page.on('pageerror',e=>consoleErrors.push(e.message));
  let workers=0,parts=0;page.on('worker',()=>workers++);page.on('request',r=>{if(r.method()==='PUT'&&r.url().includes('/parts/'))parts++;});
@@ -31,4 +31,39 @@ test('built app uploads through real worker/XHR and S3 while navigating away',as
  await page.getByRole('link',{name:'Uploads',exact:true}).click();
  await expect(page.getByTestId('upload-total')).toHaveText('0');await expect(page.getByTestId('upload-empty')).toHaveText('Queue is empty');
  expect(await (await request.get('/api/v1/upload-batches')).json()).toEqual([]);
+
+ const tagName=`release-${crypto.randomUUID()}`;
+ const createdTag=await request.post('/api/v1/tags',{headers:{'Idempotency-Key':crypto.randomUUID()},data:{name:tagName}});
+ expect(createdTag.status()).toBe(201);const {resource:tag}=await createdTag.json() as Schema<'TagCommand'>;
+ const createdCollection=await request.post('/api/v1/collections',{headers:{'Idempotency-Key':crypto.randomUUID()},data:{name:tagName}});
+ expect(createdCollection.status()).toBe(201);const {resource:collection}=await createdCollection.json() as Schema<'CollectionCommand'>;
+ // External fixture writes precede a fresh SPA cache, as normal UI writes would invalidate it.
+ await page.goto('/library');
+ await page.getByRole('button',{name:'List view'}).click();
+ const row=page.locator('tbody tr').first();await row.hover();
+ await row.getByRole('button',{name:'Edit media'}).click();
+ let writes=0;let release!:()=>void;const pending=new Promise<void>(resolve=>{release=resolve;});
+ await page.route(`**/api/v1/items/${item.id}`,async route=>{
+  if(route.request().method()!=='PATCH')return route.continue();
+  writes++;const response=await route.fetch();await pending;await route.fulfill({response});
+ });
+ try{
+  const tags=page.getByRole('combobox',{name:'Add tags'});
+  await tags.fill('unknown-name');await tags.press('Enter');await expect(tags).toBeFocused();expect(writes).toBe(0);
+  await tags.fill(tagName);await tags.press('Enter');await expect(page.getByRole('button',{name:`Remove ${tagName}`})).toBeVisible();
+  const select=page.getByRole('combobox',{name:'Collection'});
+  await select.fill('unknown-name');await select.press('Enter');await expect(select).toBeFocused();expect(writes).toBe(0);
+  await select.fill(tagName);await expect(page.getByRole('option',{name:tagName,exact:true})).toBeVisible();
+  await select.press('ArrowDown');await select.press('Enter');await expect(select).toHaveValue(tagName);
+  await expect(page.getByRole('button',{name:'Clear collection',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Saving…'})).toBeDisabled();
+  await expect(tags).toBeDisabled();await expect(select).toBeDisabled();
+  for(const name of ['Clear collection',`Remove ${tagName}`,'Cancel','Close editor'])await expect(page.getByRole('button',{name,exact:true})).toBeDisabled();
+  expect(writes).toBe(1);
+ }finally{release();}
+ await expect(page.getByRole('dialog')).toHaveCount(0);
+ const updated=await (await request.get(`/api/v1/items/${item.id}`)).json() as Schema<'Item'>;
+ expect(updated.tags.map(t=>t.id)).toEqual([tag.id]);expect(updated.collectionId).toBe(collection.id);
+ expect(consoleErrors).toEqual([]);
 });
