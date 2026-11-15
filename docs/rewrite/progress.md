@@ -1235,3 +1235,19 @@ SUMDB and embedded-h1 checks; no checksum was waived. Subsequent cached collecto
 execution took6.3s. This was packaging/network work, not repeated maximum uploads.
 The final release-version archive bundle is rebuilt from this committed slice
 and receives the focused final image/seal checks separately.
+
+## Final local archive handoff
+
+The release-version Linux arm64 bundle built from60f35ca is now sealed after
+actual archive-loaded image checks: both browser upload/editor cases passed9.9s,
+simultaneous pair restart preserved both primaries and the SPA deep link, and
+the actual storage image audit passed343 files plus all-layer Rust exclusion.
+Re-exported tested image config/rootfs matched both original archives.
+[LOCAL-EVIDENCE](../../deploy/LOCAL-EVIDENCE.md) records complete IDs, receipt,
+local archive path and an exact command for a separate empty installation.
+
+All concrete scoped code/artifact findings are closed. Local commits remain on
+main, with no push, publication or real-data migration. The goal is not declared
+fully accepted: actual Mac/browser/accessibility/power-loss, native amd64 CI,
+hosted publication, real legacy MinIO/SQLite100GB rehearsal and the remaining
+reference performance measurements require their stated environments/data.

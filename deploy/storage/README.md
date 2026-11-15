@@ -30,10 +30,10 @@ filer metadata, data/index files, multipart state and owned configuration.
 The container requires two regular secret files, `/run/secrets/s3_access_key`
 and `/run/secrets/s3_secret_key`. Supply independent random static values of
 20–256 bytes; a trailing newline is accepted. Never publish port 8333 or the
-backend control ports on the host. The eventual application Compose setup will
-mount only its app credentials, use the private S3 network, and depend on storage
-health. Root Compose still runs the legacy system until that replacement is
-complete. Only the disposable integration harness publishes an ephemeral
+backend control ports on the host. The application Compose setup mounts only
+its app credentials, uses the private S3 network and depends on storage health.
+Root Compose runs the new app/storage pair; explicit legacy Compose copies
+remain available until final acceptance. Only the disposable integration harness publishes an ephemeral
 loopback S3 port.
 
 On first startup, `storage-run` takes an OS lock and saves an `initializing`
