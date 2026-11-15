@@ -28,13 +28,16 @@ flowchart LR
     App <-->|Private S3 API| Gateway[Owned storage gateway]
     Worker <-->|Private S3 API| Gateway
     Gateway <--> Seaweed[SeaweedFS mini]
-    Seaweed <--> Objects[(Persistent storage volume)]
+    Seaweed <--> Objects[(Host data/media directory)]
 ```
 
 The application image includes the SPA and FFmpeg/FFprobe. The storage image
 runs an owned gateway and SeaweedFS with LevelDB2 metadata. Compose exposes
 only the application on loopback and keeps storage on an internal network.
-Separate volumes hold application data, complete storage state, and scratch.
+Compose bind-mounts `data/metadata/`, `data/media/`, and `scratch/` beneath the
+installation directory (`$HOME/tag-files` by default). The installer records the
+host owner's UID/GID so both services write user-owned files. Database and media
+bytes occupy the disk containing that directory.
 
 The gateway checks the private storage profile and library/volume identity.
 Its boot epoch fences writes from a stopped storage instance. A durable proof

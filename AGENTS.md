@@ -14,6 +14,8 @@ SeaweedFS object storage, and FFmpeg processing. Read [README.md](README.md) and
 - `tools/migrate/`, `tools/backup/`: separate offline data tools.
 - `tools/codegen/`: pinned Go/TypeScript generators.
 - `compose.yml`: deployment template used by installation and runtime checks.
+  Runtime data is bind-mounted from deployment `data/metadata`, `data/media`,
+  and `scratch`; both services use the recorded host owner's UID/GID.
 - `scripts/setup.sh`: Docker-only installer template, stamped for stable release
   downloads; `storage-run setup` creates its configuration inside a container.
 - `deploy/`: container builds and distribution notices.
@@ -38,7 +40,7 @@ SeaweedFS object storage, and FFmpeg processing. Read [README.md](README.md) and
 - Preserve integer IDs, duplicate/case-sensitive Unicode tag names, and nullable
   integer 100 ns durations. Do not silently merge or discard data.
 - Backup and migration remain external tools, without app endpoints or UI.
-- Treat a deployment's SQLite and storage volumes as one paired library. Never
+- Treat a deployment's SQLite and storage directories as one paired library. Never
   run tests against an existing library or remove unrelated Docker resources.
 
 ## Validation and documentation

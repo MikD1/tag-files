@@ -3,6 +3,7 @@ name: tag-files
 services:
   app:
     image: ${TAG_FILES_APP_IMAGE:?Set the versioned application image}
+    user: "${TAG_FILES_UID:-10001}:${TAG_FILES_GID:-10001}"
     ports:
       - "127.0.0.1:${TAG_FILES_PORT:-8080}:8080"
     environment:
@@ -10,8 +11,16 @@ services:
       TAG_FILES_WEB_DIR: /usr/share/tag-files/web
       TAG_FILES_MIN_FREE_BYTES: ${TAG_FILES_MIN_FREE_BYTES:-1073741824}
     volumes:
-      - app_data:/data
-      - scratch:/scratch
+      - type: bind
+        source: ./data/metadata
+        target: /data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./scratch
+        target: /scratch
+        bind:
+          create_host_path: false
     secrets:
       - s3_access_key
       - s3_secret_key
@@ -25,8 +34,13 @@ services:
 
   storage:
     image: ${TAG_FILES_STORAGE_IMAGE:?Set the versioned storage image}
+    user: "${TAG_FILES_UID:-10001}:${TAG_FILES_GID:-10001}"
     volumes:
-      - storage_data:/data
+      - type: bind
+        source: ./data/media
+        target: /data
+        bind:
+          create_host_path: false
     secrets:
       - s3_access_key
       - s3_secret_key
@@ -41,11 +55,6 @@ networks:
   frontend:
   library:
     internal: true
-
-volumes:
-  app_data:
-  storage_data:
-  scratch:
 
 secrets:
   s3_access_key:

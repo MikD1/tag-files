@@ -82,6 +82,8 @@ def main():
     project = 'tag-files-amd64-' + secrets.token_hex(6)
     (fixture / 'compose.yml').write_bytes((ROOT / 'compose.yml').read_bytes())
     (fixture / 'amd64.yml').write_text('services:\n  app:\n    platform: linux/amd64\n  storage:\n    platform: linux/amd64\n')
+    for relative in ('data', 'data/metadata', 'data/media', 'scratch'):
+        (fixture / relative).mkdir(mode=0o700)
     secret_dir = fixture / 'secrets'
     secret_dir.mkdir(mode=0o700)
     for filename, n in [('s3_access_key', 24), ('s3_secret_key', 32)]:
@@ -95,6 +97,7 @@ def main():
         bound.bind(('127.0.0.1', 0))
         port = bound.getsockname()[1]
     env = dict(os.environ, TAG_FILES_APP_IMAGE=app_id, TAG_FILES_STORAGE_IMAGE=storage_id,
+               TAG_FILES_UID='10001', TAG_FILES_GID='10001',
                TAG_FILES_PORT=str(port), TAG_FILES_RELEASE_ORIGIN=f'http://127.0.0.1:{port}')
     origin = env['TAG_FILES_RELEASE_ORIGIN']
     compose = ['docker', 'compose', '-p', project, '-f', str(fixture / 'compose.yml'),
@@ -120,15 +123,26 @@ def main():
                    '--entrypoint', program, app_id, *arguments]
         return capture(command)
 
+    def own_data(uid, gid):
+        # Keep the exact-image runtime UID while limiting root access to this
+        # fixture's private bind directories. Restore host ownership at cleanup.
+        run(['docker', 'run', '--rm', '--platform', 'linux/amd64', '--network', 'none',
+             '--read-only', '--user', '0', '--entrypoint', '/bin/sh',
+             '--mount', f'type=bind,src={fixture / "data"},dst=/data',
+             '--mount', f'type=bind,src={fixture / "scratch"},dst=/scratch', app_id,
+             '-ec', 'chown -R "$1:$2" /data /scratch', 'sh', str(uid), str(gid)])
+
     start = time.monotonic()
     success = False
     try:
+        own_data(10001, 10001)
         run(compose + ['up', '-d', '--pull', 'never', '--wait', '--wait-timeout', '600'], env=env)
         ids = capture(compose + ['ps', '-q'], env=env).splitlines()
         # Inspect the actual started image architecture, not just the tag.
         for container in ids:
             meta = json.loads(capture(['docker', 'inspect', container]))[0]
             assert meta['Image'] in (app_id, storage_id), meta['Image']
+            assert meta['Config']['User'] == '10001:10001', meta['Config']['User']
             image(meta['Image'])
         assert request('/health/ready')[0] == 200
         assert b'id="root"' in request('/content/1')[2]
@@ -247,6 +261,7 @@ def main():
             run(compose + ['logs', '--no-color'], env=env, output=artifacts / 'runtime.log', timeout=30)
         finally:
             run(compose + ['down', '--volumes', '--remove-orphans', '--timeout', '120'], env=env, timeout=300)
+            own_data(os.getuid(), os.getgid())
             shutil.rmtree(fixture)
         if not success:
             print(f'Failure evidence retained at {artifacts}', flush=True)

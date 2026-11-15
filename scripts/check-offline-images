@@ -87,7 +87,10 @@ def main():
             meta = json.loads(capture(["docker", "image", "inspect", ref]))[0]
             identities[role] = meta["Id"]
             report[role] = {key: meta.get(key) for key in ("Id", "Architecture", "Os", "Config")}
-        env = {**os.environ, "TAG_FILES_APP_IMAGE": identities["app"], "TAG_FILES_STORAGE_IMAGE": identities["storage"]}
+        env = {**os.environ, "TAG_FILES_APP_IMAGE": identities["app"], "TAG_FILES_STORAGE_IMAGE": identities["storage"],
+               "TAG_FILES_UID": str(os.getuid()), "TAG_FILES_GID": str(os.getgid())}
+        for relative in ("data", "data/metadata", "data/media", "scratch"):
+            (work / relative).mkdir(mode=0o700)
         (work / "secrets").mkdir(mode=0o700)
         for name in ("s3_access_key", "s3_secret_key"):
             path = work / "secrets" / name
@@ -98,8 +101,6 @@ def main():
         config["networks"]["frontend"]["internal"] = True
         for name, network in config["networks"].items():
             network["name"] = f"{project}_{name}"
-        for name, volume in config["volumes"].items():
-            volume["name"] = f"{project}_{name}"
         config["services"]["app"]["ports"] = []
         (work / "compose.json").write_text(json.dumps(config, indent=2) + "\n")
 
@@ -180,10 +181,14 @@ def main():
                     subprocess.run(compose + ["down", "--volumes", "--remove-orphans", "--timeout", "120"], env=env, check=True, timeout=300)
         finally:
             shutil.rmtree(work / "secrets", ignore_errors=True)
+            for relative in ("data", "scratch"):
+                if (work / relative).exists():
+                    shutil.rmtree(work / relative)
         remaining = {kind: capture(["docker", kind, "ls", "--filter", f"label=com.docker.compose.project={project}", "-q"]).splitlines()
                      for kind in ("container", "network", "volume")}
         assert not any(remaining.values()), remaining
-        (work / "cleanup.json").write_text(json.dumps({"project": project, "remaining": remaining}) + "\n")
+        (work / "cleanup.json").write_text(json.dumps({"project": project, "remaining": remaining,
+                                                       "bindDataRemoved": True}) + "\n")
 
 
 if __name__ == "__main__":

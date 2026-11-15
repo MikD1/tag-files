@@ -195,6 +195,8 @@ def main():
             print("Fixture metadata validated; no services or browser uploads started", flush=True)
             return
         shutil.copyfile(ROOT / "compose.yml", work / "compose.yml")
+        for relative in ("data", "data/metadata", "data/media", "scratch"):
+            (work / relative).mkdir(mode=0o700)
         (work / "secrets").mkdir(mode=0o700)
         for name in ("s3_access_key", "s3_secret_key"):
             path = work / "secrets" / name
@@ -202,7 +204,7 @@ def main():
             path.chmod(0o444)
         app_port = port()
         env = {**os.environ, "TAG_FILES_APP_IMAGE": app_image, "TAG_FILES_STORAGE_IMAGE": storage_image,
-               "TAG_FILES_PORT": str(app_port)}
+               "TAG_FILES_PORT": str(app_port), "TAG_FILES_UID": str(os.getuid()), "TAG_FILES_GID": str(os.getgid())}
         project = "tag-files-browser-large-" + secrets.token_hex(6)
         compose = ["docker", "compose", "-p", project, "-f", str(work / "compose.yml")]
         proxy = None

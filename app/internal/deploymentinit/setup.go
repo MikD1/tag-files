@@ -119,19 +119,23 @@ func prepare(root *os.Root, dir *os.File, write func(string, []byte, os.FileMode
 	if err := dir.Chmod(0700); err != nil {
 		return err
 	}
-	if err := root.Mkdir("secrets", 0700); err != nil {
-		return err
-	}
-	secrets, err := root.Open("secrets")
-	if err != nil {
-		return err
-	}
-	defer secrets.Close()
-	if err := secrets.Chown(uid, gid); err != nil {
-		return err
-	}
-	if err := secrets.Chmod(0700); err != nil {
-		return err
+	var privateDirs []*os.File
+	for _, name := range []string{"data", "data/metadata", "data/media", "scratch", "secrets"} {
+		if err := root.Mkdir(name, 0700); err != nil {
+			return err
+		}
+		created, err := root.Open(name)
+		if err != nil {
+			return err
+		}
+		defer created.Close()
+		if err := created.Chown(uid, gid); err != nil {
+			return err
+		}
+		if err := created.Chmod(0700); err != nil {
+			return err
+		}
+		privateDirs = append(privateDirs, created)
 	}
 	for name, size := range map[string]int{"s3_access_key": 16, "s3_secret_key": 32} {
 		key := make([]byte, size)
@@ -142,10 +146,12 @@ func prepare(root *os.Root, dir *os.File, write func(string, []byte, os.FileMode
 			return err
 		}
 	}
-	if err := secrets.Sync(); err != nil {
-		return err
+	for _, created := range privateDirs {
+		if err := created.Sync(); err != nil {
+			return err
+		}
 	}
-	env := []byte(fmt.Sprintf("COMPOSE_PROJECT_NAME=%s\nTAG_FILES_APP_IMAGE=%s\nTAG_FILES_STORAGE_IMAGE=%s\nTAG_FILES_PORT=%d\nTAG_FILES_MIN_FREE_BYTES=1073741824\n", project, app, storage, port))
+	env := []byte(fmt.Sprintf("COMPOSE_PROJECT_NAME=%s\nTAG_FILES_APP_IMAGE=%s\nTAG_FILES_STORAGE_IMAGE=%s\nTAG_FILES_PORT=%d\nTAG_FILES_MIN_FREE_BYTES=1073741824\nTAG_FILES_UID=%d\nTAG_FILES_GID=%d\n", project, app, storage, port, uid, gid))
 	files := map[string]string{}
 	for name, data := range map[string][]byte{".env": env, "compose.yml": template} {
 		if err := write(name, data, 0600); err != nil {

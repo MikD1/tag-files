@@ -9,6 +9,8 @@ if [[ ${TAG_FILES_SKIP_IMAGE_BUILD:-0} != 1 ]]; then
 fi
 export TAG_FILES_APP_IMAGE=$(docker image inspect --format '{{.Id}}' "$check_app_image")
 export TAG_FILES_STORAGE_IMAGE=$(docker image inspect --format '{{.Id}}' "$check_storage_image")
+export TAG_FILES_UID=$(id -u)
+export TAG_FILES_GID=$(id -g)
 check_root=$(mktemp -d)
 check_project="tag-files-check-$(openssl rand -hex 6)"
 export TAG_FILES_PORT=$(python3 - <<'PY'
@@ -27,6 +29,7 @@ cleanup() {
 }
 trap cleanup EXIT
 cp "$project_root/compose.yml" "$check_root/compose.yml"
+mkdir -m 700 "$check_root/data" "$check_root/data/metadata" "$check_root/data/media" "$check_root/scratch"
 mkdir -m 700 "$check_root/secrets"
 openssl rand -hex 24 > "$check_root/secrets/s3_access_key"
 openssl rand -hex 32 > "$check_root/secrets/s3_secret_key"
@@ -36,7 +39,7 @@ export TAG_FILES_RELEASE_ORIGIN="http://127.0.0.1:$TAG_FILES_PORT"
 printf 'Testing app=%s storage=%s origin=%s\n' "$TAG_FILES_APP_IMAGE" "$TAG_FILES_STORAGE_IMAGE" "$TAG_FILES_RELEASE_ORIGIN"
 cd "$project_root/web"
 npm exec playwright test -- --config playwright.release.config.ts
-# Restart both exact images on their existing disposable volumes. No pulls or
+# Restart both exact images on their existing disposable data. No pulls or
 # external network are used by these services after the build.
 docker compose -p "$check_project" -f "$check_root/compose.yml" restart --timeout 120
 docker compose -p "$check_project" -f "$check_root/compose.yml" up -d --pull never --wait --wait-timeout 180

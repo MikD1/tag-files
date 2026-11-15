@@ -2,12 +2,52 @@ package main
 
 import (
 	"os"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
 )
+
+func TestBackendOwnerMatchesUnprivilegedSupervisor(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("requires an unprivileged supervisor")
+	}
+	uid, gid, err := backendOwner()
+	if err != nil {
+		t.Fatalf("resolve owner without requiring a seaweed account: %v", err)
+	}
+	if uid != os.Geteuid() || gid != os.Getegid() {
+		t.Fatalf("backend owner = %d:%d, want %d:%d", uid, gid, os.Geteuid(), os.Getegid())
+	}
+}
+
+func TestRootBackendOwnerUsesSeaweedAccount(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("requires a root supervisor")
+	}
+	owner, err := user.Lookup("seaweed")
+	if err != nil {
+		t.Skip("requires the storage image's seaweed account")
+	}
+	wantUID, err := strconv.Atoi(owner.Uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantGID, err := strconv.Atoi(owner.Gid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	uid, gid, err := backendOwner()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if uid != wantUID || gid != wantGID {
+		t.Fatalf("backend owner = %d:%d, want seaweed %d:%d", uid, gid, wantUID, wantGID)
+	}
+}
 
 func TestSecretFilesAreBoundedAndCannotBlockOnFIFO(t *testing.T) {
 	dir := t.TempDir()

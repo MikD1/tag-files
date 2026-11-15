@@ -38,26 +38,37 @@ directory or port, pass `--directory PATH` or `--port PORT` to the installer;
 
 ## Where your data lives
 
-With the default installation:
+All library files live under **`$HOME/tag-files` on your host machine**, including
+when using Docker Desktop:
 
-| Location | Contents |
+| Host path | Contents |
 | --- | --- |
-| Docker volume `tag-files_app_data` | SQLite database `/data/library.sqlite`: media metadata, tags, collections, saved searches, and jobs |
-| Docker volume `tag-files_storage_data` | Media originals, processed media, and previews, together with SeaweedFS storage metadata |
-| Docker volume `tag-files_scratch` | Disposable media-processing workspace |
-| `$HOME/tag-files` | `compose.yml`, `.env`, private `secrets/`, and the installation receipt; database and media bytes are in the volumes above |
+| `$HOME/tag-files/data/metadata/` | SQLite database `library.sqlite`, its journal files, metadata, tags, collections, saved searches, and jobs |
+| `$HOME/tag-files/data/media/` | Media originals, processed media, previews, and SeaweedFS storage metadata; this directory holds most of the library's bytes |
+| `$HOME/tag-files/scratch/` | Disposable media-processing workspace |
+| `$HOME/tag-files/secrets/` | Private storage credentials |
+| `$HOME/tag-files/` | `compose.yml`, `.env`, and installation/update receipts |
 
-Docker manages these volumes. On Linux, inspect their host paths with
-`docker volume inspect tag-files_app_data tag-files_storage_data`. With Docker
-Desktop, they live inside Docker's virtual machine disk and appear in its
-**Volumes** view. Media is stored in SeaweedFS's native format, rather than as a
-folder of individual photos and videos.
+The installer creates these private directories and configures both services to
+write as their owner. Compose mounts them directly into the containers. The
+database and media consume space on the disk containing this directory. To check
+usage and available space:
 
-Stopping containers or running `docker compose down` preserves the volumes.
-**`docker compose down --volumes` deletes the library.** Keep the database volume,
-storage volume, and credentials together; use the documented
-[cold backup procedure](docs/operations.md#cold-backup-and-restore) to back up a
-library.
+```sh
+du -sh "$HOME/tag-files/data" "$HOME/tag-files/scratch"
+df -h "$HOME/tag-files"
+```
+
+To put everything on another disk, run the installer once with, for example,
+`--directory /mnt/photos/tag-files`. All paths above then use that directory.
+On Docker Desktop, allow that directory in its file-sharing settings if needed.
+Media uses SeaweedFS's native storage format inside `data/media/`.
+
+Back up **`data/`, `secrets/`, `compose.yml`, `.env`, and installation/update
+receipts together**, using the documented
+[cold backup and restore procedure](docs/operations.md#cold-backup-and-restore).
+Both services must be stopped for a consistent backup. `scratch/` can be excluded.
+Stopping or removing containers preserves these host directories.
 
 ## Documentation
 

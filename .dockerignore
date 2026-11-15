@@ -4,6 +4,7 @@
 web/test-results
 web/playwright-report
 data
+scratch
 **/__pycache__
 .large-upload.*
 .performance.*

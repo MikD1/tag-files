@@ -6,16 +6,29 @@ import json
 import os
 from pathlib import Path
 import re
-import shutil
 import stat
 import subprocess
 import sys
 import tempfile
 
 
+def overlaps(first, second):
+    first, second = Path(first).resolve(), Path(second).resolve()
+    return first == second or first in second.parents or second in first.parents
+
+
+def real_directory(value):
+    path = Path(os.path.abspath(Path(value).expanduser()))
+    if path.resolve(strict=True) != path or not path.is_dir() or path == Path(path.anchor):
+        raise ValueError("native directory must be an existing bounded directory without symlink aliases")
+    return path
+
+
 def check_containers(rows, app_name, storage_name, metadata, storage, require_layout=True, protected_paths=()):
-    if metadata == storage:
-        raise ValueError("metadata and storage must be different named volumes")
+    # Strings retain the original named-volume API; Path values select binds.
+    targets = [real_directory(v) if isinstance(v, Path) else v for v in (metadata, storage)]
+    if targets[0] == targets[1] or all(isinstance(v, Path) for v in targets) and overlaps(*targets):
+        raise ValueError("metadata and storage must be separate nonoverlapping native targets")
     selected = []
     for name in (app_name, storage_name):
         match = [r for r in rows if r.get("Name", "").lstrip("/") == name or r.get("Id") == name]
@@ -24,42 +37,66 @@ def check_containers(rows, app_name, storage_name, metadata, storage, require_la
         selected.append(match[0])
     if selected[0]["Id"] == selected[1]["Id"]:
         raise ValueError("app and storage must be separate stopped containers")
-    protected = {metadata, storage}
-    for row, expected, role in zip(selected, (metadata, storage), ("app", "storage")):
+    protected = {v for v in targets if isinstance(v, str)}
+    protected_paths = {Path(p).resolve() for p in protected_paths} | {v for v in targets if isinstance(v, Path)}
+    current_paths, scratch_mounts = [], []
+    for row, expected, role in zip(selected, targets, ("app", "storage")):
         state = row.get("State", {})
         if any(state.get(k) for k in ("Running", "Paused", "Restarting")):
-            raise ValueError(role + " must be fully stopped before native volume access")
+            raise ValueError(role + " must be fully stopped before native data access")
         data_mounts = [m for m in row.get("Mounts", []) if m.get("Destination") == "/data"]
-        if len(data_mounts) != 1 or data_mounts[0].get("Type") != "volume":
-            raise ValueError(role + " must have exactly one named /data volume")
+        if len(data_mounts) != 1 or data_mounts[0].get("Type") not in ("volume", "bind"):
+            raise ValueError(role + " must have exactly one native /data mount")
         data = data_mounts[0]
-        if require_layout and data.get("Name") != expected:
-            raise ValueError(role + " /data does not match the specified named volume")
-        protected.add(data.get("Name"))
+        if data["Type"] == "bind":
+            actual = real_directory(data.get("Source", ""))
+            protected_paths.add(actual)
+        else:
+            actual = data.get("Name")
+            if not actual:
+                raise ValueError("a named /data volume must have a name")
+            protected.add(actual)
+        current_paths.append(Path(data["Source"]).resolve() if data.get("Source") else None)
+        if require_layout and actual != expected:
+            raise ValueError(role + " /data does not match the specified native target")
         for m in row.get("Mounts", []):
             dest = m.get("Destination", "")
-            if dest == "/data" or role == "app" and dest == "/scratch" and m.get("Type") == "volume":
+            if dest == "/data":
+                continue
+            if role == "app" and dest == "/scratch" and m.get("Type") in ("volume", "bind"):
+                if m["Type"] == "bind":
+                    scratch_mounts.append(real_directory(m.get("Source", "")))
+                else:
+                    scratch_mounts.append(m.get("Name"))
                 continue
             if m.get("Type") == "bind" and not m.get("RW", True) and dest.startswith("/run/secrets/"):
                 if Path(dest).name not in ("s3_access_key", "s3_secret_key"):
                     raise ValueError("unknown secret mount; this tool profile must be extended explicitly")
                 continue
             raise ValueError("unsupported additional persistent mount: " + dest)
-    protected_paths = set(protected_paths)
+    if all(current_paths) and overlaps(*current_paths):
+        raise ValueError("the current metadata and storage mounts overlap")
+    current_names = [m.get("Name") for row in selected for m in row.get("Mounts", [])
+                     if m.get("Destination") == "/data" and m.get("Type") == "volume"]
+    if len(current_names) == 2 and current_names[0] == current_names[1]:
+        raise ValueError("the current metadata and storage mounts must be separate")
     for row in rows:
         for m in row.get("Mounts", []):
             if m.get("Type") == "volume" and m.get("Name") in protected and m.get("Source"):
-                protected_paths.add(m["Source"])
+                protected_paths.add(Path(m["Source"]).resolve())
+    for scratch in scratch_mounts:
+        if ((isinstance(scratch, Path) and any(overlaps(scratch, p) for p in protected_paths))
+                or (isinstance(scratch, str) and scratch in protected)):
+            raise ValueError("scratch must not overlap native library data")
     for row in rows:
         state = row.get("State", {})
         if any(state.get(k) for k in ("Running", "Paused", "Restarting")):
             if any(m.get("Type") == "volume" and m.get("Name") in protected for m in row.get("Mounts", [])):
                 raise ValueError("a running container still holds one of the protected volumes")
             for m in row.get("Mounts", []):
-                if m.get("Type") == "bind" and m.get("Source"):
-                    alias = Path(m["Source"])
-                    if any(alias == Path(p) or alias in Path(p).parents or Path(p) in alias.parents for p in protected_paths):
-                        raise ValueError("a running container holds a bind alias of a protected volume")
+                if m.get("Type") in ("bind", "volume") and m.get("Source"):
+                    if any(overlaps(m["Source"], p) for p in protected_paths):
+                        raise ValueError("a running container holds an alias of protected native data")
     return selected
 
 
@@ -103,20 +140,120 @@ def regular_tree(root):
                 raise ValueError("deployment contains a symlink or nonregular entry")
 
 
+def copy_deployment(source, target):
+    """Copy only bounded configuration, never enumerate live data or scratch."""
+    source = real_directory(source)
+    target.mkdir(mode=0o700)
+    total, count = 0, 0
+
+    def copy_file(relative):
+        nonlocal total, count
+        path = source / relative
+        if not path.exists() and not path.is_symlink():
+            return
+        info = path.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_size > 4 * 1024 * 1024:
+            raise ValueError("configuration requires bounded regular files without symlinks")
+        count += 1
+        total += info.st_size
+        if count > 4096 or total > 64 * 1024 * 1024:
+            raise ValueError("configuration snapshot exceeds its bounded size")
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, "rb") as stream:
+            current = os.fstat(stream.fileno())
+            if not stat.S_ISREG(current.st_mode) or current.st_size != info.st_size:
+                raise ValueError("configuration changed during snapshot")
+            data = stream.read(info.st_size + 1)
+        if len(data) != info.st_size:
+            raise ValueError("configuration changed during snapshot")
+        output = target / relative
+        output.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        output.write_bytes(data)
+        output.chmod(stat.S_IMODE(info.st_mode) & 0o777)
+
+    for name in (".env", "compose.yml", "installation.json"):
+        copy_file(Path(name))
+    secrets = source / "secrets"
+    if secrets.exists() or secrets.is_symlink():
+        real_directory(secrets)
+        for name in ("s3_access_key", "s3_secret_key"):
+            copy_file(Path("secrets") / name)
+    updates = source / "updates"
+    if updates.exists() or updates.is_symlink():
+        real_directory(updates)
+        with os.scandir(updates) as entries:
+            for index, entry in enumerate(entries):
+                if index >= 4096:
+                    raise ValueError("too many update receipts")
+                if entry.is_symlink():
+                    raise ValueError("update receipts must not contain symlink aliases")
+                if not entry.is_dir(follow_symlinks=False):
+                    continue
+                relative = Path("updates") / entry.name
+                for name in ("operation.json", "next.env", "next-compose.yml"):
+                    copy_file(relative / name)
+                before = source / relative / "before"
+                if before.exists() or before.is_symlink():
+                    real_directory(before)
+                    for name in (".env", "compose.yml", "installation.json"):
+                        copy_file(relative / "before" / name)
+
+
 def mount(kind, source, destination, readonly=True):
     if "," in str(source):
         raise ValueError("Docker mount source cannot contain a comma")
     return ["--mount", f"type={kind},src={source},dst={destination}" + (",readonly" if readonly else "")]
 
 
+def native_mount(source, destination, readonly=True):
+    return mount("bind" if isinstance(source, Path) else "volume", source, destination, readonly)
+
+
+def native_targets(args):
+    targets, paths = [], []
+    for role in ("metadata", "storage"):
+        directory = getattr(args, role + "_directory", None)
+        if directory is not None:
+            target = real_directory(directory)
+            paths.append(target)
+        else:
+            target = getattr(args, role + "_volume")
+            paths.append(Path(named_volume(target)["Mountpoint"]).resolve())
+        targets.append(target)
+    if overlaps(*paths):
+        raise ValueError("metadata and storage targets must not overlap")
+    return targets, paths
+
+
 def safe_destination(p, volumes):
     # Named volumes are accessed only through Docker, never through these paths.
     p = p.resolve()
     docker_root = Path(docker("info", "--format", "{{.DockerRootDir}}")).resolve()
-    for forbidden in [docker_root] + [Path(v["Mountpoint"]).resolve() for v in volumes]:
-        if p == forbidden or forbidden in p.parents or p in forbidden.parents:
-            raise ValueError("backup destination must be outside Docker's data root and active volumes")
+    for forbidden in [docker_root] + [Path(v["Mountpoint"]) if isinstance(v, dict) else Path(v) for v in volumes]:
+        if overlaps(p, forbidden):
+            raise ValueError("backup paths must be outside Docker's data root and native library directories")
     return p
+
+
+def restore_output(path, targets, protected_paths):
+    output = safe_destination(path, [])
+    nested = {v for v in targets if isinstance(v, Path) and output in v.parents}
+    for protected in protected_paths:
+        if overlaps(output, protected) and Path(protected) not in nested:
+            raise ValueError("deployment output must not overlap native library data")
+    allowed = {output}
+    for target in nested:
+        allowed.add(target)
+        allowed.update(p for p in target.parents if p == output or output in p.parents)
+    output.mkdir(mode=0o700, parents=True, exist_ok=True)
+    # Only the explicitly requested empty bind roots and their parent directories
+    # may already exist. Never walk through a native root or unrelated tree.
+    for directory in allowed:
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                if Path(entry.path) not in allowed or entry.is_symlink() or not entry.is_dir(follow_symlinks=False):
+                    raise ValueError("deployment output must be empty except for requested empty bind target directories")
+    return output
 
 
 def execute(args):
@@ -130,25 +267,35 @@ def execute(args):
             result = docker(*(base + mount("bind", archive, "/archive/" + archive.name) + [image["Id"], "verify", "--archive", "/archive/" + archive.name]))
         print(result)
         return
-    volumes = [named_volume(args.metadata_volume), named_volume(args.storage_volume)]
+    targets, protected_paths = native_targets(args)
     selected = check_containers(all_containers(), args.app_container, args.storage_container,
-                                args.metadata_volume, args.storage_volume, args.command == "backup", [v["Mountpoint"] for v in volumes])
+                                *targets, args.command == "backup", protected_paths)
+    # Restore targets can differ from today's mounts. Protect and validate both
+    # complete pairs, including native paths of unmounted named-volume targets.
+    current_paths = []
+    for row in selected:
+        data = next(m for m in row["Mounts"] if m.get("Destination") == "/data")
+        current_paths.append(real_directory(data["Source"]) if data["Type"] == "bind"
+                             else Path(named_volume(data["Name"])["Mountpoint"]).resolve())
+    if overlaps(*current_paths):
+        raise ValueError("the current metadata and storage mounts overlap")
+    protected_paths += current_paths
+    check_containers(all_containers(), args.app_container, args.storage_container,
+                     *targets, args.command == "backup", protected_paths)
     if args.command == "backup":
-        dest = safe_destination(Path(args.destination), volumes)
+        dest = safe_destination(Path(args.destination), protected_paths)
         dest.mkdir(mode=0o700, parents=True, exist_ok=True)
         generation = args.generation or datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S")
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", generation) or generation.endswith(".part"):
             raise ValueError("invalid generation name")
-        source_deployment = Path(args.deployment).resolve(strict=True)
-        regular_tree(source_deployment)
+        source_deployment = real_directory(args.deployment)
         if dest == source_deployment or dest in source_deployment.parents or source_deployment in dest.parents:
             raise ValueError("deployment source and archive destination must not overlap")
         images = {"app": image_info(selected[0]["Image"]), "storage": image_info(selected[1]["Image"]), "tool": image}
         with tempfile.TemporaryDirectory(prefix=".cold-backup-work-", dir=dest) as td:
             base += mount("bind", td, "/work", False) + ["--env", "TMPDIR=/work"]
             deployment = Path(td) / "deployment"
-            shutil.copytree(source_deployment, deployment)
-            deployment.chmod(0o700)
+            copy_deployment(source_deployment, deployment)
             (deployment / "secrets").mkdir(mode=0o700, exist_ok=True)
             # Capture the effective image filer config, rather than trusting a
             # similarly named host file. Extra overrides were refused above.
@@ -165,49 +312,58 @@ def execute(args):
             # Repeat immediately before mounting; volume-level flocks fence a
             # later app/storage start until the cold operation has returned.
             check_containers(all_containers(), args.app_container, args.storage_container,
-                             args.metadata_volume, args.storage_volume)
-            cmd = base + mount("volume", args.metadata_volume, "/metadata") + mount("volume", args.storage_volume, "/storage")
+                             *targets, protected_paths=protected_paths)
+            cmd = base + native_mount(targets[0], "/metadata") + native_mount(targets[1], "/storage")
             cmd += mount("bind", deployment, "/deployment") + mount("bind", dest, "/archive", False)
             cmd += [image["Id"], "backup", "--generation", generation, "--owner-uid", str(os.getuid()), "--owner-gid", str(os.getgid()), "--images", json.dumps({k: v["Id"] for k, v in images.items()})]
             result = docker(*cmd)
             check_containers(all_containers(), args.app_container, args.storage_container,
-                             args.metadata_volume, args.storage_volume)
+                             *targets, protected_paths=protected_paths)
             print(result)
     else:
-        archive = safe_destination(Path(args.archive), volumes)
+        archive = safe_destination(Path(args.archive), protected_paths)
         if not archive.is_dir():
             raise ValueError("archive generation must exist")
         output = Path(args.deployment_output).resolve()
         if output == archive or output in archive.parents or archive in output.parents:
             raise ValueError("deployment output must not overlap the immutable archive")
-        output.mkdir(mode=0o700, parents=True, exist_ok=True)
-        if list(output.iterdir()):
-            raise ValueError("deployment output must be empty")
+        output = restore_output(output, targets, protected_paths)
         # Verify independently before granting any destination-volume writes.
         with tempfile.TemporaryDirectory(prefix=".cold-backup-work-", dir=archive.parent) as workspace:
             base += mount("bind", workspace, "/work", False) + ["--env", "TMPDIR=/work"]
             docker(*(base + mount("bind", archive, "/archive/" + archive.name) + [image["Id"], "verify", "--archive", "/archive/" + archive.name]))
-            return execute_restore(args, base, archive, output, image)
+            return execute_restore(args, base, archive, output, image, targets, protected_paths)
 
 
-def execute_restore(args, base, archive, output, image):
+def execute_restore(args, base, archive, output, image, targets, protected_paths):
     saved = json.loads((archive / "backup.json").read_text())
     for ref in saved["images"].values():
         image_info(ref)  # Same exact local images must remain available.
     check_containers(all_containers(), args.app_container, args.storage_container,
-                     args.metadata_volume, args.storage_volume, False,
-                     [named_volume(args.metadata_volume)["Mountpoint"], named_volume(args.storage_volume)["Mountpoint"]])
-    cmd = base + mount("bind", archive, "/archive/" + archive.name) + mount("volume", args.metadata_volume, "/metadata", False)
-    cmd += mount("volume", args.storage_volume, "/storage", False) + mount("bind", output, "/deployment", False)
-    result = docker(*(cmd + [image["Id"], "restore", "--archive", "/archive/" + archive.name]))
-    check_containers(all_containers(), args.app_container, args.storage_container,
-                     args.metadata_volume, args.storage_volume, False,
-                     [named_volume(args.metadata_volume)["Mountpoint"], named_volume(args.storage_volume)["Mountpoint"]])
+                     *targets, False, protected_paths)
+    # Keep configuration separate from nested native targets: the Go tool needs
+    # three empty independent roots. Retain this sibling directory on any failure
+    # so partial restore evidence survives workspace cleanup.
+    staged = Path(tempfile.mkdtemp(prefix="." + output.name + ".restore-", dir=output.parent))
+    try:
+        cmd = base + mount("bind", archive, "/archive/" + archive.name) + native_mount(targets[0], "/metadata", False)
+        cmd += native_mount(targets[1], "/storage", False) + mount("bind", staged, "/deployment", False)
+        result = docker(*(cmd + [image["Id"], "restore", "--archive", "/archive/" + archive.name]))
+        check_containers(all_containers(), args.app_container, args.storage_container,
+                         *targets, False, protected_paths)
+        entries = list(staged.iterdir())
+        if any((output / p.name).exists() or (output / p.name).is_symlink() for p in entries):
+            raise ValueError("restored configuration conflicts with deployment output")
+        for entry in entries:
+            entry.rename(output / entry.name)
+        staged.rmdir()
+    except (ValueError, OSError) as error:
+        raise ValueError("restore failed; deployment evidence retained at " + str(staged) + ": " + str(error)) from error
     print(result)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="External stopped-volume backup/restore; never starts or stops services")
+    parser = argparse.ArgumentParser(description="External stopped-library backup/restore; never starts or stops services")
     sub = parser.add_subparsers(dest="command", required=True)
     for command in ("backup", "verify", "restore"):
         p = sub.add_parser(command)
@@ -217,15 +373,18 @@ def main():
             continue
         p.add_argument("--app-container", required=True)
         p.add_argument("--storage-container", required=True)
-        p.add_argument("--metadata-volume", required=True)
-        p.add_argument("--storage-volume", required=True)
+        for role in ("metadata", "storage"):
+            target = p.add_mutually_exclusive_group(required=True)
+            target.add_argument("--" + role + "-volume", help="existing plain local Docker named volume")
+            target.add_argument("--" + role + "-directory", help="existing real host directory mounted at /data")
         if command == "backup":
             p.add_argument("--deployment", required=True, help="directory containing compose/config files")
             p.add_argument("--destination", required=True, help="external host directory outside Docker data root")
             p.add_argument("--generation")
         else:
             p.add_argument("--archive", required=True)
-            p.add_argument("--deployment-output", required=True, help="new empty host config/secrets directory")
+            p.add_argument("--deployment-output", required=True,
+                           help="new host config directory, empty except for requested empty bind target directories")
     args = parser.parse_args()
     try:
         execute(args)

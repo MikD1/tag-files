@@ -70,7 +70,7 @@ command -v docker >/dev/null 2>&1 || fail 'install Docker with Compose v2 before
 docker compose version >/dev/null 2>&1 || fail 'Docker Compose v2 is required'
 # Explicit deployment files must control Compose even in a customized shell.
 unset COMPOSE_FILE COMPOSE_PROJECT_NAME COMPOSE_PROFILES COMPOSE_ENV_FILES COMPOSE_PATH_SEPARATOR
-unset TAG_FILES_APP_IMAGE TAG_FILES_STORAGE_IMAGE TAG_FILES_PORT TAG_FILES_MIN_FREE_BYTES
+unset TAG_FILES_APP_IMAGE TAG_FILES_STORAGE_IMAGE TAG_FILES_PORT TAG_FILES_MIN_FREE_BYTES TAG_FILES_UID TAG_FILES_GID
 platform() {
     case "$1" in
         'linux amd64'|'linux x86_64') printf '%s' 'linux amd64' ;;
@@ -124,4 +124,5 @@ unused_project
 docker compose --project-directory "$directory" --env-file "$directory/.env" \
     -f "$directory/compose.yml" up -d --wait --wait-timeout 180 || fail 'startup failed; configuration is retained for inspection and restart'
 printf '\nTag Files is ready at http://localhost:%s\n' "$port"
-printf 'Deployment directory: %s\nTo start again, open that directory and run: docker compose up -d\n' "$directory"
+printf 'Deployment directory: %s\nLibrary data: %s/data\nTemporary workspace: %s/scratch\n' "$directory" "$directory" "$directory"
+printf 'To start again, open the deployment directory and run: docker compose up -d\n'

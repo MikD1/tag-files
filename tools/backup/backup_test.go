@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -236,6 +237,139 @@ func TestPermissionMetadataSurvivesRestore(t *testing.T) {
 	}
 	if info.Mode()&os.ModeSticky == 0 || info.Mode().Perm() != 0770 {
 		t.Fatalf("filesystem permissions lost: %s", info.Mode())
+	}
+}
+
+func TestRootRestorePreservesNonrootOwnershipAndPermissions(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("requires root to archive and restore another user's ownership")
+	}
+	o := fixture(t)
+	const uid, gid = 12345, 23456
+	for _, root := range []string{o.Metadata, o.Storage, o.Deployment} {
+		if err := filepath.WalkDir(root, func(path string, _ fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			return os.Chown(path, uid, gid)
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	state := filepath.Join(o.Storage, storageprofile.StateFilename)
+	if err := os.Chmod(state, 0640); err != nil {
+		t.Fatal(err)
+	}
+	// Preserve individual archived owners, rather than assigning every file the
+	// root directory's owner or making private state readable to other users.
+	if err := os.Chown(filepath.Join(o.Metadata, ".hidden"), uid+1, gid+1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Backup(o); err != nil {
+		t.Fatal(err)
+	}
+	generation := filepath.Join(o.Destination, o.Generation)
+	entries, err := readEntries(filepath.Join(generation, "manifest.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The root backup process must leave the nonroot source tree untouched.
+	for _, role := range []string{"metadata", "storage", "deployment"} {
+		root := map[string]string{"metadata": o.Metadata, "storage": o.Storage, "deployment": o.Deployment}[role]
+		if err := verifySource(root, role, byRole(entries, role)); err != nil {
+			t.Fatalf("backup changed %s source: %v", role, err)
+		}
+	}
+	root := t.TempDir()
+	target := Paths{filepath.Join(root, "metadata"), filepath.Join(root, "storage"), filepath.Join(root, "deployment")}
+	for _, path := range []string{target.Metadata, target.Storage, target.Deployment} {
+		if err := os.Mkdir(path, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := Restore(generation, target); err != nil {
+		t.Fatal(err)
+	}
+	roots := map[string]string{"metadata": target.Metadata, "storage": target.Storage, "deployment": target.Deployment}
+	for _, entry := range entries {
+		path := filepath.Join(roots[entry.Role], filepath.FromSlash(entry.Path))
+		info, err := os.Stat(path)
+		if os.IsNotExist(err) && entry.Role == "metadata" && (entry.Path == "library.sqlite-wal" || entry.Path == "library.sqlite-shm") {
+			continue // A closed SQLite connection may remove its checkpointed sidecars.
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		owner := info.Sys().(*syscall.Stat_t)
+		if owner.Uid != uint32(entry.UID) || owner.Gid != uint32(entry.GID) || info.Mode()&(os.ModePerm|os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != preservedMode(entry.Mode) {
+			t.Errorf("restored %s/%s has owner %d:%d, mode %s; want %d:%d, %s", entry.Role, entry.Path, owner.Uid, owner.Gid, info.Mode(), entry.UID, entry.GID, preservedMode(entry.Mode))
+		}
+	}
+	for _, root := range []string{target.Metadata, target.Storage} {
+		if err := filepath.WalkDir(root, func(path string, _ fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			info, err := os.Lstat(path)
+			if err != nil {
+				return err
+			}
+			if info.Sys().(*syscall.Stat_t).Uid == 0 {
+				t.Errorf("root restore left root-owned native entry: %s", path)
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestRootRestoredSQLiteSidecarsPreservePrivatePermissionsAndOwners(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("requires root to repair another user's ownership")
+	}
+	for _, archived := range []bool{false, true} {
+		t.Run(map[bool]string{false: "generated", true: "archived"}[archived], func(t *testing.T) {
+			root := t.TempDir()
+			write(t, filepath.Join(root, "library.sqlite"), []byte("database"))
+			write(t, filepath.Join(root, "library.sqlite-wal"), []byte("WAL"))
+			entries := []Entry{{Role: "metadata", Path: ".", Type: "directory", UID: 12345, GID: 23456, Mode: 0700},
+				{Role: "metadata", Path: "library.sqlite", Type: "file", UID: 12345, GID: 23456, Mode: 0640}}
+			wantUID, wantGID, wantMode := uint32(12345), uint32(23456), fs.FileMode(0600)
+			if archived {
+				entries = append(entries,
+					Entry{Role: "metadata", Path: "library.sqlite-wal", Type: "file", UID: 12346, GID: 23457, Mode: 0640},
+					Entry{Role: "metadata", Path: "library.sqlite-shm", Type: "file", UID: 12346, GID: 23457, Mode: 0600})
+				wantUID, wantGID, wantMode = 12346, 23457, 0640
+			} else {
+				write(t, filepath.Join(root, "library.sqlite-shm"), []byte("SHM"))
+			}
+			if err := restoreNativePermissions(map[string]string{"metadata": root}, entries); err != nil {
+				t.Fatal(err)
+			}
+			info, err := os.Stat(filepath.Join(root, "library.sqlite-wal"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			owner := info.Sys().(*syscall.Stat_t)
+			if owner.Uid != wantUID || owner.Gid != wantGID || info.Mode().Perm() != wantMode {
+				t.Fatalf("restored WAL owner/mode = %d:%d %s; want %d:%d %s", owner.Uid, owner.Gid, info.Mode(), wantUID, wantGID, wantMode)
+			}
+			info, err = os.Stat(filepath.Join(root, "library.sqlite-shm"))
+			if archived {
+				if !os.IsNotExist(err) {
+					t.Fatalf("checkpointed sidecar should remain absent: %v", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatal(err)
+				}
+				owner = info.Sys().(*syscall.Stat_t)
+				if owner.Uid != 12345 || owner.Gid != 23456 || info.Mode().Perm() != 0600 {
+					t.Fatalf("generated SHM owner/mode = %d:%d %s; want 12345:23456 0600", owner.Uid, owner.Gid, info.Mode())
+				}
+			}
+		})
 	}
 }
 

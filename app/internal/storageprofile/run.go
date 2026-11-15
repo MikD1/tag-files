@@ -60,7 +60,10 @@ func startBackend(options Options, s3 bool, uid, gid int) (*backend, error) {
 	// fsync is persisted. mini receives only the owned, explicit arguments.
 	cmd.Env = []string{"PATH=" + os.Getenv("PATH")}
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Credential: &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}}
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if uid != os.Geteuid() || gid != os.Getegid() {
+		cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}
+	}
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}

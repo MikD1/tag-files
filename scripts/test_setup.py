@@ -115,6 +115,8 @@ class SetupTests(unittest.TestCase):
         self.assertLess(max(i for i, row in enumerate(calls) if row[:2] == ["image", "inspect"]), calls.index(bootstrap))
         self.assertIn(APP, (root / ".env").read_text())
         self.assertIn("http://localhost:8080", result.stdout)
+        self.assertIn("Library data: " + str(root / "data"), result.stdout)
+        self.assertIn("Temporary workspace: " + str(root / "scratch"), result.stdout)
         self.assertIn("docker compose up -d", result.stdout)
         self.assert_safe()
 
@@ -125,7 +127,7 @@ class SetupTests(unittest.TestCase):
         self.assertIn("type=bind,src=" + str(self.root / "-library") + ",dst=/install", next(row for row in self.calls() if row[0] == "run"))
 
     def test_inherited_compose_settings_cannot_override_generated_deployment(self):
-        inherited = {"COMPOSE_FILE": "/unrelated/compose.yml", "COMPOSE_PROJECT_NAME": "existing-library", "COMPOSE_PROFILES": "custom", "COMPOSE_ENV_FILES": "/unrelated/.env", "TAG_FILES_APP_IMAGE": "app:foreign", "TAG_FILES_PORT": "7777"}
+        inherited = {"COMPOSE_FILE": "/unrelated/compose.yml", "COMPOSE_PROJECT_NAME": "existing-library", "COMPOSE_PROFILES": "custom", "COMPOSE_ENV_FILES": "/unrelated/.env", "TAG_FILES_APP_IMAGE": "app:foreign", "TAG_FILES_PORT": "7777", "TAG_FILES_UID": "99999", "TAG_FILES_GID": "99999"}
         result = self.run_setup(config={"forbid_env": list(inherited)}, env=inherited)
         self.assertEqual(result.returncode, 0, result.stderr)
 

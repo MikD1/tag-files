@@ -15,12 +15,16 @@ deployment template, also bundled in the storage image and attached to stable
 releases. The installer prepares it with `.env` and credentials; a downloaded
 Compose file alone needs those settings before startup.
 
-Installation configuration lives in `$HOME/tag-files` by default. Persistent
-data lives in the paired Docker volumes `tag-files_app_data` and
-`tag-files_storage_data`; `tag-files_scratch` is disposable workspace. A custom
-`--project NAME` uses `NAME_` in volume names. Docker Desktop stores volumes in
-its VM disk; native Docker Engine exposes mount paths through
-`docker volume inspect`.
+Installation configuration and all library data live in `$HOME/tag-files` by
+default. `data/metadata/library.sqlite` holds SQLite; `data/media/` holds complete
+SeaweedFS native state and media; `scratch/` is disposable processing workspace.
+Compose bind-mounts these host directories on Linux and Docker Desktop. The
+installer creates them with private permissions and records their owner's
+`TAG_FILES_UID`/`TAG_FILES_GID` for both container processes.
+`--directory PATH` selects the root for configuration and all data, including when
+the chosen path is on another disk. `--project NAME` selects container/network
+names. See [host storage paths](../README.md#where-your-data-lives) for disk usage
+commands and the backup set.
 
 Use the external deployment directory for every Compose command:
 
@@ -44,17 +48,18 @@ docker compose up -d
 
 Compose starts storage before the application and waits for its health check.
 
-`app_data` contains SQLite; `storage_data` contains the complete SeaweedFS native
-state and write-proof journal; `scratch` contains disposable processing attempts.
-The metadata and storage volumes share persistent library identities. Keep the
+The metadata and media directories share persistent library identities. Keep the
 pair and credentials together. Do not edit native storage files or copy an active
-SQLite/storage volume as a backup.
+SQLite/storage directory as a backup. Removing containers preserves these host
+directories.
 
 ## Configuration
 
-The installer writes exact image IDs and `TAG_FILES_PORT` to the deployment's
-`.env`. Secrets are individual files in its private `secrets/` directory. Storage
-is reachable only on the internal Compose network.
+The installer writes exact image IDs, `TAG_FILES_PORT`, and the runtime UID/GID to
+the deployment's `.env`. Secrets are individual files in its private `secrets/`
+directory. Storage is reachable only on the internal Compose network. Compose
+requires the bind directories to exist and does not silently create empty data
+directories at a mistaken path.
 
 The application accepts these environment variables:
 
@@ -103,7 +108,8 @@ Replace the uppercase values with the intended version/image references.
 The script validates images, stops the pair, creates and verifies a full cold
 backup, starts storage with its profile check, and starts the app. Receipts live
 under `updates/`. An incomplete operation blocks another automated update;
-inspect its receipt and container logs before recovery. No volumes are deleted.
+inspect its receipt and container logs before recovery. Updates retain the
+installation's Compose mounts and runtime owner. No data directories are deleted.
 
 ## Cold backup and restore
 
@@ -115,7 +121,8 @@ compose stop app
 compose stop storage
 tools/backup/cold-backup backup --image tag-files-cold-backup:local \
   --app-container tag-files-app-1 --storage-container tag-files-storage-1 \
-  --metadata-volume tag-files_app_data --storage-volume tag-files_storage_data \
+  --metadata-directory "$deployment/data/metadata" \
+  --storage-directory "$deployment/data/media" \
   --deployment "$deployment" --destination "$HOME/tag-files-backups" \
   --generation library-001
 
@@ -128,26 +135,29 @@ configuration and secrets, a checked SQLite snapshot, and per-file hashes. It is
 private and must be protected. A `.part` directory is incomplete. Retain the exact
 recorded app/storage/tool images as well as the generation.
 
-Restore into fresh volumes and an empty configuration directory, with both
-services stopped:
+Restore into fresh host directories, with both services stopped. The output
+directory may contain only the empty data directories created below:
 
 ```sh
-docker volume create tag-files-restored-app
-docker volume create tag-files-restored-storage
-mkdir -m 700 "$HOME/tag-files-restored"
+restored="$HOME/tag-files-restored"
+mkdir -m 700 "$restored" "$restored/data" \
+  "$restored/data/metadata" "$restored/data/media"
 tools/backup/cold-backup restore --image tag-files-cold-backup:local \
   --app-container tag-files-app-1 --storage-container tag-files-storage-1 \
-  --metadata-volume tag-files-restored-app \
-  --storage-volume tag-files-restored-storage \
+  --metadata-directory "$restored/data/metadata" \
+  --storage-directory "$restored/data/media" \
   --archive "$HOME/tag-files-backups/library-001" \
-  --deployment-output "$HOME/tag-files-restored"
+  --deployment-output "$restored"
+mkdir -m 700 "$restored/scratch"
 ```
 
-The tool checks the archive and adjusts physical volume pairing on the restored
-copies. Before startup, configure Compose to mount these exact restored volumes,
-use the recorded images and restored secrets, and allocate fresh scratch. The
-archived Compose file retains its original volume names. Start storage first,
-run `storage-run check`, and validate object hashes/metadata and unfinished parts.
+The tool checks the archive and adjusts physical directory pairing on the
+restored copies. Configuration is published after native restore succeeds;
+incomplete operations retain their markers and staging directory for inspection.
+The restored Compose file's relative paths select these exact data directories.
+Use the recorded images, runtime owner, and restored secrets. Run Compose from
+the restored directory after selecting it as the library to start. Start storage
+first, run `storage-run check`, and validate object hashes/metadata and unfinished parts.
 Exercise application recovery and browser workflows on a second restored copy
 before selecting the verified pair for use. Never remove incomplete-restore
 markers or manually rebind a mismatched pair. `tools/backup/check-drill` runs the

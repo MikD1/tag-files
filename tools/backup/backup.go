@@ -1376,6 +1376,90 @@ func rebase(p Paths, r Report) (Report, error) {
 	r.RestoredVolumeID = newID
 	return r, nil
 }
+
+// Restore's identity update replaces the storage marker, and SQLite may create
+// sidecars while validating the restored database. Repair their ownership only
+// after all database handles have closed and before publishing a complete pair.
+// Every archived entry retains its individual owner and permission bits.
+func restoreNativePermissions(target map[string]string, entries []Entry) error {
+	apply := func(root string, v Entry, optional bool) error {
+		p := filepath.Join(root, filepath.FromSlash(v.Path))
+		info, e := os.Lstat(p)
+		if optional && errors.Is(e, os.ErrNotExist) {
+			return nil
+		}
+		if e != nil {
+			return e
+		}
+		if !info.Mode().IsRegular() && !info.IsDir() || info.IsDir() != (v.Type == "directory") {
+			return fmt.Errorf("restored permission target changed: %s", p)
+		}
+		st, ok := info.Sys().(*syscall.Stat_t)
+		if !ok {
+			return fmt.Errorf("missing native permission metadata: %s", p)
+		}
+		mode := preservedMode(v.Mode)
+		if int(st.Uid) == v.UID && int(st.Gid) == v.GID && info.Mode()&(fs.ModePerm|fs.ModeSetuid|fs.ModeSetgid|fs.ModeSticky) == mode {
+			return nil
+		}
+		f, e := os.OpenFile(p, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+		if e != nil {
+			return e
+		}
+		defer f.Close()
+		current, e := f.Stat()
+		if e != nil {
+			return e
+		}
+		if !os.SameFile(info, current) {
+			return fmt.Errorf("restored permission target changed: %s", p)
+		}
+		if e = f.Chown(v.UID, v.GID); e != nil {
+			return e
+		}
+		if e = f.Chmod(mode); e != nil {
+			return e
+		}
+		return f.Sync()
+	}
+	var database Entry
+	sidecars := map[string]bool{}
+	for _, v := range entries {
+		if v.Role != "metadata" && v.Role != "storage" {
+			continue
+		}
+		isSidecar := v.Role == "metadata" && (v.Path == "library.sqlite-wal" || v.Path == "library.sqlite-shm")
+		if isSidecar {
+			sidecars[v.Path] = true
+		}
+		if v.Role == "metadata" && v.Path == "library.sqlite" {
+			database = v
+		}
+		if e := apply(target[v.Role], v, isSidecar); e != nil {
+			return e
+		}
+	}
+	for _, name := range []string{"library.sqlite-wal", "library.sqlite-shm"} {
+		if sidecars[name] {
+			continue
+		}
+		info, e := os.Lstat(filepath.Join(target["metadata"], name))
+		if errors.Is(e, os.ErrNotExist) {
+			continue
+		}
+		if e != nil {
+			return e
+		}
+		v := database
+		v.Path, v.Type = name, "file"
+		v.Mode = int64(info.Mode().Perm())
+		if e = apply(target["metadata"], v, false); e != nil {
+			return e
+		}
+	}
+	return nil
+}
+
 func Restore(generation string, p Paths) (Report, error) {
 	r, e := Verify(generation)
 	if e != nil {
@@ -1451,6 +1535,9 @@ func Restore(generation string, p Paths) (Report, error) {
 	}
 	db.Close()
 	if e != nil {
+		return r, e
+	}
+	if e = restoreNativePermissions(target, entries); e != nil {
 		return r, e
 	}
 	for _, role := range []string{"metadata", "storage"} {

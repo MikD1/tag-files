@@ -55,15 +55,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	u, err := user.Lookup("seaweed")
-	if err != nil {
-		return err
-	}
-	uid, err := strconv.Atoi(u.Uid)
-	if err != nil {
-		return err
-	}
-	gid, err := strconv.Atoi(u.Gid)
+	uid, gid, err := backendOwner()
 	if err != nil {
 		return err
 	}
@@ -75,6 +67,23 @@ func run() error {
 	}
 	return err
 }
+
+func backendOwner() (int, int, error) {
+	if uid := os.Geteuid(); uid != 0 {
+		return uid, os.Getegid(), nil
+	}
+	u, err := user.Lookup("seaweed")
+	if err != nil {
+		return 0, 0, err
+	}
+	uid, err := strconv.Atoi(u.Uid)
+	if err != nil {
+		return 0, 0, err
+	}
+	gid, err := strconv.Atoi(u.Gid)
+	return uid, gid, err
+}
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

@@ -70,9 +70,10 @@ func TestSetupPreparesPrivatePinnedDeployment(t *testing.T) {
 	if len(files) != 5 {
 		t.Fatalf("deployment contains %d files, want 5", len(files))
 	}
-	wantEnv := fmt.Sprintf("COMPOSE_PROJECT_NAME=my-library\nTAG_FILES_APP_IMAGE=%s\nTAG_FILES_STORAGE_IMAGE=%s\nTAG_FILES_PORT=8091\nTAG_FILES_MIN_FREE_BYTES=1073741824\n", appID, storageID)
+	ownerIDs := owner.Sys().(*syscall.Stat_t)
+	wantEnv := fmt.Sprintf("COMPOSE_PROJECT_NAME=my-library\nTAG_FILES_APP_IMAGE=%s\nTAG_FILES_STORAGE_IMAGE=%s\nTAG_FILES_PORT=8091\nTAG_FILES_MIN_FREE_BYTES=1073741824\nTAG_FILES_UID=%d\nTAG_FILES_GID=%d\n", appID, storageID, ownerIDs.Uid, ownerIDs.Gid)
 	if files[".env"] != wantEnv {
-		t.Fatalf("unexpected environment: %q", files[".env"])
+		t.Errorf("unexpected environment: %q", files[".env"])
 	}
 	template, err := os.ReadFile(args[len(args)-1])
 	if err != nil || files["compose.yml"] != string(template) {
@@ -83,11 +84,13 @@ func TestSetupPreparesPrivatePinnedDeployment(t *testing.T) {
 			t.Fatalf("%s is not a generated hexadecimal credential", name)
 		}
 	}
-	for name, mode := range map[string]os.FileMode{".": 0700, "secrets": 0700, ".env": 0600,
+	for name, mode := range map[string]os.FileMode{".": 0700, "secrets": 0700, "data": 0700,
+		"data/metadata": 0700, "data/media": 0700, "scratch": 0700, ".env": 0600,
 		"compose.yml": 0600, "installation.json": 0600, "secrets/s3_access_key": 0444, "secrets/s3_secret_key": 0444} {
 		info, err := os.Stat(filepath.Join(directory, name))
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			continue
 		}
 		if info.Mode().Perm() != mode {
 			t.Errorf("%s mode = %o, want %o", name, info.Mode().Perm(), mode)
@@ -316,7 +319,14 @@ func TestSetupPreservesBindMountOwnerWhenRunningAsRoot(t *testing.T) {
 	if err := Run(setupArgs(t, directory)); err != nil {
 		t.Fatal(err)
 	}
-	err := filepath.WalkDir(directory, func(path string, entry os.DirEntry, err error) error {
+	env, err := os.ReadFile(filepath.Join(directory, ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(env), "\nTAG_FILES_UID=12345\nTAG_FILES_GID=12346\n") {
+		t.Fatalf("runtime identity does not match bind mount owner: %q", env)
+	}
+	err = filepath.WalkDir(directory, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

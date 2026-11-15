@@ -10,7 +10,7 @@ and exact duration ticks, and copies media without converting it.
    objects through MinIO and keep the source unchanged throughout migration.
 2. Build both local images using [source builds](operations.md#development-and-checks), then prepare the
    deployment below. **Do not start the target application** before migration.
-   Use a fresh target with empty `app_data` and `storage_data` volumes.
+   Use a fresh target with empty `data/metadata` and `data/media` directories.
 3. Give the tool read-only source credentials able to list buckets, versions,
    metadata and tags and read all objects. Include every visible source bucket.
    Credential files must be private regular files (`chmod 600`), each containing
@@ -33,7 +33,6 @@ install -m 600 "$deployment/secrets/s3_access_key" /srv/migration-target-secrets
 install -m 600 "$deployment/secrets/s3_secret_key" /srv/migration-target-secrets/s3_secret_key
 docker build --build-arg APP_IMAGE=tag-files-app:local -f tools/migrate/Dockerfile -t tag-files-migrate:local .
 compose up -d --wait storage
-docker volume create tag-files_app_data
 docker network connect --alias frozen-minio tag-files_library SOURCE_MINIO_CONTAINER
 ```
 
@@ -77,12 +76,12 @@ Set `RollbackVerified` only after checking the backup. Zero target reserve selec
 max(10 GB, 10% of planned target bytes); the archive keeps 10 GB by default.
 Check physical disks and Docker disk limits separately.
 
-Define this shell helper for the stopped target's named volume and private network:
+Define this shell helper for the stopped target's metadata directory and private network:
 
 ```sh
 migration() {
   docker run --rm --network tag-files_library \
-    --mount type=volume,src=tag-files_app_data,dst=/target \
+    --mount "type=bind,src=$deployment/data/metadata,dst=/target" \
     --mount type=bind,src=/srv/source,dst=/source,readonly \
     --mount type=bind,src=/srv/migration,dst=/work \
     --mount type=bind,src=/srv/migration-secrets,dst=/source-secrets,readonly \
@@ -122,14 +121,14 @@ The tool writes as root. Give the imported metadata to the application user:
 
 ```sh
 docker run --rm --network none --user 0:0 --entrypoint chown \
-  --mount type=volume,src=tag-files_app_data,dst=/target \
-  tag-files-app:local -R 10001:10001 /target
+  --mount "type=bind,src=$deployment/data/metadata,dst=/target" \
+  tag-files-app:local -R "$(id -u):$(id -g)" /target
 ```
 
 Stop target storage with `compose stop storage`. Keep this verified pair
 frozen while testing startup, browsing, search, favorites and video seeking on a
 disposable copy; see [backup and restore](operations.md). When switching to the
-verified original pair, run `compose up -d --wait`. Keep its named volumes
+verified original pair, run `compose up -d --wait`. Keep its data directories
 and credentials together.
 
 Keep the source backup, archive, journal, configuration and secrets for rollback.

@@ -60,6 +60,58 @@ class InstallUpdateTests(unittest.TestCase):
         target=self.root/"backups"/"before-update";target.mkdir(parents=True);(target/"complete").write_text("fixture\n");return {"generation":"before-update","libraryId":"library","storageId":"storage"}
     def test_install_prepares_private_distinct_secrets_and_exact_images_without_start(self):
         root=self.prepare();env=(root/".env").read_text();self.assertIn("TAG_FILES_APP_IMAGE="+APP,env);self.assertIn("TAG_FILES_STORAGE_IMAGE="+STORE,env);self.assertFalse(self.docker.running);self.assertEqual(root.stat().st_mode&0o777,0o700);a=(root/"secrets/s3_access_key").read_bytes();s=(root/"secrets/s3_secret_key").read_bytes();self.assertNotEqual(a,s);self.assertGreaterEqual(len(a.strip()),20);self.assertGreaterEqual(len(s.strip()),20);self.assertEqual((root/"secrets/s3_access_key").stat().st_mode&0o777,0o444);self.assertNotIn(a.decode().strip(),(root/"installation.json").read_text())
+
+    def test_install_creates_private_host_data_and_persists_runtime_owner(self):
+        root = self.prepare()
+        env = deployment.load_env(root / '.env')
+        self.assertEqual(env.get('TAG_FILES_UID'), str(os.getuid()))
+        self.assertEqual(env.get('TAG_FILES_GID'), str(os.getgid()))
+        for name in ('data', 'data/metadata', 'data/media', 'scratch'):
+            with self.subTest(name=name):
+                info = (root / name).stat()
+                self.assertEqual(info.st_mode & 0o777, 0o700)
+                self.assertEqual((info.st_uid, info.st_gid), (os.getuid(), os.getgid()))
+                if name != 'data':
+                    self.assertEqual(list((root / name).iterdir()), [])
+
+    def test_update_retains_installed_mount_configuration_and_runtime_owner(self):
+        root = self.prepare()
+        original = (root / 'compose.yml').read_bytes() + b'\n# installation-specific mount configuration\n'
+        (root / 'compose.yml').write_bytes(original)
+        receipt = json.loads((root / 'installation.json').read_text())
+        receipt['files'] = deployment.hashes(root)
+        deployment.save_json(root / 'installation.json', receipt)
+        with patch.object(deployment, 'cold_backup', self.backup):
+            deployment.update(self.args(version='v1.1.0', app_image='app:v1.1.0', storage_image='storage:v1.1.0'))
+        self.assertEqual((root / 'compose.yml').read_bytes(), original)
+        env = deployment.load_env(root / '.env')
+        self.assertEqual(env.get('TAG_FILES_UID'), str(os.getuid()))
+        self.assertEqual(env.get('TAG_FILES_GID'), str(os.getgid()))
+
+    def test_cold_backup_passes_exact_inspected_bind_directories(self):
+        root = self.prepare()
+        self.docker.rows = [
+            {'Id':'app-id','Mounts':[{'Type':'bind','Source':str(root / 'data/metadata'),'Destination':'/data'}]},
+            {'Id':'storage-id','Mounts':[{'Type':'bind','Source':str(root / 'data/media'),'Destination':'/data'}]},
+        ]
+        with patch.object(deployment.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, '{"generation":"native-pair"}', '')) as run:
+            self.assertEqual(deployment.cold_backup(root, self.args(), {}), {'generation':'native-pair'})
+        command = run.call_args.args[0]
+        self.assertEqual(command[command.index('--metadata-directory') + 1], str(root / 'data/metadata'))
+        self.assertEqual(command[command.index('--storage-directory') + 1], str(root / 'data/media'))
+        self.assertNotIn('--metadata-volume', command)
+
+    def test_env_rejects_incomplete_or_invalid_runtime_identity(self):
+        root = self.prepare()
+        original = (root / '.env').read_text()
+        base = '\n'.join(line for line in original.splitlines() if not line.startswith(('TAG_FILES_UID=', 'TAG_FILES_GID='))) + '\n'
+        for suffix in ('TAG_FILES_UID=501\n', 'TAG_FILES_UID=-1\nTAG_FILES_GID=20\n', 'TAG_FILES_UID=abc\nTAG_FILES_GID=20\n'):
+            with self.subTest(suffix=suffix):
+                (root / '.env').write_text(base + suffix)
+                with self.assertRaises(ValueError):
+                    deployment.load_env(root / '.env')
+        (root / '.env').write_text(base)
+        self.assertNotIn('TAG_FILES_UID', deployment.load_env(root / '.env'))
     def test_install_refuses_existing_data_and_mutable_remote_latest(self):
         args=self.args();root=Path(args.directory);root.mkdir();(root/"sentinel").write_text("keep");with_error=False
         with self.assertRaises(ValueError):deployment.install(args)

@@ -147,10 +147,13 @@ def compose(root, *args, env_file=None, compose_file=None):
                   "-f", str(compose_file or root / "compose.yml"), "-p", load_env(env_file or root / ".env")["COMPOSE_PROJECT_NAME"], *args)
 
 
-def env_bytes(project, port, images):
-    return (f"COMPOSE_PROJECT_NAME={project}\nTAG_FILES_APP_IMAGE={images['app']['Id']}\n"
+def env_bytes(project, port, images, owner=None):
+    value = (f"COMPOSE_PROJECT_NAME={project}\nTAG_FILES_APP_IMAGE={images['app']['Id']}\n"
             f"TAG_FILES_STORAGE_IMAGE={images['storage']['Id']}\nTAG_FILES_PORT={port}\n"
-            "TAG_FILES_MIN_FREE_BYTES=1073741824\n").encode()
+            "TAG_FILES_MIN_FREE_BYTES=1073741824\n")
+    if owner is not None:
+        value += f"TAG_FILES_UID={owner[0]}\nTAG_FILES_GID={owner[1]}\n"
+    return value.encode()
 
 
 def load_env(path):
@@ -159,8 +162,12 @@ def load_env(path):
         key, sep, value = line.partition("=")
         if not sep or key in out: raise ValueError("invalid deployment env")
         out[key] = value
-    if set(out) != {"COMPOSE_PROJECT_NAME", "TAG_FILES_APP_IMAGE", "TAG_FILES_STORAGE_IMAGE", "TAG_FILES_PORT", "TAG_FILES_MIN_FREE_BYTES"}:
+    required = {"COMPOSE_PROJECT_NAME", "TAG_FILES_APP_IMAGE", "TAG_FILES_STORAGE_IMAGE", "TAG_FILES_PORT", "TAG_FILES_MIN_FREE_BYTES"}
+    identity = {"TAG_FILES_UID", "TAG_FILES_GID"}
+    if set(out) not in (required, required | identity):
         raise ValueError("unknown or missing deployment env keys")
+    if identity <= set(out) and any(not re.fullmatch(r"0|[1-9][0-9]{0,9}", out[key]) or int(out[key]) >= 2**32 - 1 for key in identity):
+        raise ValueError("invalid deployment runtime identity")
     return out
 
 
@@ -206,11 +213,13 @@ def _install_locked(args, root):
     stage = Path(tempfile.mkdtemp(prefix="." + root.name + ".install-", dir=root.parent))
     try:
         stage.chmod(0o700)
+        for name in ("data", "data/metadata", "data/media", "scratch"):
+            (stage / name).mkdir(mode=0o700)
         (stage / "secrets").mkdir(mode=0o700)
         atomic_write(stage / "secrets/s3_access_key", (secrets.token_hex(16) + "\n").encode(), 0o444)
         atomic_write(stage / "secrets/s3_secret_key", (secrets.token_hex(32) + "\n").encode(), 0o444)
         atomic_write(stage / "compose.yml", (REPO / "compose.yml").read_bytes())
-        atomic_write(stage / ".env", env_bytes(args.project, args.port, images))
+        atomic_write(stage / ".env", env_bytes(args.project, args.port, images, (os.getuid(), os.getgid())))
         record = {"format": 1, "version": args.version, "project": args.project, "port": args.port,
                   "created": datetime.datetime.now(datetime.timezone.utc).isoformat(), "images": images,
                   "files": hashes(stage), "state": "prepared"}
@@ -246,16 +255,20 @@ def cold_backup(root, args, old):
     if not app or not storage or "\n" in app + storage:
         raise ValueError("update requires one existing stopped app and storage container")
     rows = json.loads(docker("inspect", app, storage))
-    volumes = {}
+    mounts_by_role = {}
     for role, container in (("metadata", app), ("storage", storage)):
         row = next((r for r in rows if r.get("Id") == container), None)
-        mounts = [] if row is None else [m for m in row.get("Mounts", []) if m.get("Destination") == "/data" and m.get("Type") == "volume"]
-        if len(mounts) != 1: raise ValueError("cannot establish native volume pair")
-        volumes[role] = mounts[0]["Name"]
+        mounts = [] if row is None else [m for m in row.get("Mounts", []) if m.get("Destination") == "/data" and m.get("Type") in ("volume", "bind")]
+        if len(mounts) != 1: raise ValueError("cannot establish native data pair")
+        mount = mounts[0]
+        flag = "--" + role + ("-directory" if mount["Type"] == "bind" else "-volume")
+        source = mount.get("Source") if mount["Type"] == "bind" else mount.get("Name")
+        if not source: raise ValueError("cannot establish native data source")
+        mounts_by_role[role] = [flag, source]
     generation = args.backup_generation or datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S") + "-before-" + args.version
     cmd = [str(REPO / "tools/backup/cold-backup"), "backup", "--image", args.backup_tool_image,
-           "--app-container", app, "--storage-container", storage, "--metadata-volume", volumes["metadata"],
-           "--storage-volume", volumes["storage"], "--deployment", str(root), "--destination", args.backup_destination,
+           "--app-container", app, "--storage-container", storage, *mounts_by_role["metadata"],
+           *mounts_by_role["storage"], "--deployment", str(root), "--destination", args.backup_destination,
            "--generation", generation]
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if result.returncode: raise ValueError("cold backup failed; services remain stopped: " + result.stderr.strip())
@@ -294,9 +307,11 @@ def _update_locked(args, root):
     for name in (".env", "compose.yml", "installation.json"):
         atomic_write(op / "before" / name, read_regular(root / name))
     next_env = op / "next.env"
-    atomic_write(next_env, env_bytes(old["project"], int(env["TAG_FILES_PORT"]), images))
+    owner = (int(env["TAG_FILES_UID"]), int(env["TAG_FILES_GID"])) if "TAG_FILES_UID" in env else None
+    atomic_write(next_env, env_bytes(old["project"], int(env["TAG_FILES_PORT"]), images, owner))
     next_compose = op / "next-compose.yml"
-    atomic_write(next_compose, (REPO / "compose.yml").read_bytes())
+    # Image updates retain this installation's data sources and ownership.
+    atomic_write(next_compose, read_regular(root / "compose.yml"))
     record = {"state": "prepared", "phase": "images-resolved", "fromVersion": old["version"], "toVersion": args.version,
               "images": images, "created": datetime.datetime.now(datetime.timezone.utc).isoformat()}
     save_json(op / "operation.json", record)

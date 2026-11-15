@@ -41,6 +41,8 @@ def main():
     project = "tag-files-browser-performance-" + secrets.token_hex(6)
     compose = ["docker", "compose", "-p", project, "-f", str(work / "compose.yml")]
     shutil.copyfile(ROOT / "compose.yml", work / "compose.yml")
+    for relative in ("data", "data/metadata", "data/media", "scratch"):
+        (work / relative).mkdir(mode=0o700)
     # The fixture writer alone uses loopback S3 during offline preparation.
     override = work / "fixture-ports.yml"
     s3_port = port()
@@ -55,6 +57,7 @@ def main():
         path.chmod(0o444)
     origin = f"http://127.0.0.1:{port()}"
     env = {**os.environ, "TAG_FILES_APP_IMAGE": app, "TAG_FILES_STORAGE_IMAGE": storage,
+           "TAG_FILES_UID": str(os.getuid()), "TAG_FILES_GID": str(os.getgid()),
            "TAG_FILES_PORT": origin.rsplit(":", 1)[1], "TAG_FILES_BROWSER_PERFORMANCE_WORK": str(work),
            "TAG_FILES_BROWSER_PERFORMANCE_ORIGIN": origin,
            "TAG_FILES_BROWSER_PERFORMANCE_S3": f"http://127.0.0.1:{s3_port}"}
@@ -72,11 +75,8 @@ def main():
         subprocess.run(["go", "run", "."], cwd=ROOT / "web/e2e/performance/backend", env=env, check=True)
         storage_container = command(*compose, "ps", "-q", "storage", env=env)
         (work / "storage-allocation.txt").write_text(command("docker", "exec", storage_container, "du", "-sk", "/data") + "\n")
-        # Create the normal app volume before copying offline seeded metadata.
-        subprocess.run([*compose, "create", "app", "--no-recreate", "--pull", "never"], env=env, check=True)
-        subprocess.run(["docker", "run", "--rm", "--user", "0", "--entrypoint", "/bin/sh",
-                        "-v", f"{project}_app_data:/data", "-v", f"{work / 'metadata'}:/fixture:ro", app,
-                        "-ec", "cp -a /fixture/. /data/; chown -R 10001:10001 /data"], check=True)
+        # Seed the normal metadata bind directory before the app opens SQLite.
+        shutil.copytree(work / "metadata", work / "data/metadata", dirs_exist_ok=True)
         subprocess.run([*compose, "up", "-d", "app", "--no-deps", "--pull", "never", "--wait", "--wait-timeout", "180"], env=env, check=True)
         # Detach only after Compose has finished all dependency reconciliation.
         subprocess.run(["docker", "network", "disconnect", f"{project}_fixture_preparation", storage_container], check=True)
@@ -133,7 +133,10 @@ def main():
         # Keep only evidence; never retain credentials or the disposable DB.
         shutil.rmtree(work / "secrets")
         shutil.rmtree(work / "metadata", ignore_errors=True)
-        (work / "cleanup.json").write_text(json.dumps({"project": project, "containersNetworksVolumesRemoved": True}) + "\n")
+        shutil.rmtree(work / "data")
+        shutil.rmtree(work / "scratch")
+        (work / "cleanup.json").write_text(json.dumps({"project": project, "containersNetworksVolumesRemoved": True,
+                                                       "bindDataRemoved": True}) + "\n")
         print(f"Owned Docker resources removed; evidence retained at {work}", flush=True)
 
 
