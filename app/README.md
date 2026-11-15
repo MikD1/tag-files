@@ -29,7 +29,7 @@ not access existing media, MinIO or user databases. `scripts/check-storage`
 runs the optional isolated Docker S3 conformance suite; see the
 [wire profile](internal/objectstore/README.md) and the separate
 [storage preflight](internal/storageprofile/README.md). Final paired release
-images, complete upload/disk admission, browser/tool and Mac acceptance
+images, upload HTTP/batch/retry admission, full capacity/browser/tool and Mac acceptance
 gates remain open. The development server is `go run ./cmd/tag-files`; its
 startup/configuration and current scope are documented in
 [application lifecycle](internal/application/README.md). It is not the completed

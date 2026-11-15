@@ -18,6 +18,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/mikd1/tag-files/app/internal/application"
+	"github.com/mikd1/tag-files/app/internal/diskspace"
 	"github.com/mikd1/tag-files/app/internal/domain"
 	"github.com/mikd1/tag-files/app/internal/media"
 	"github.com/mikd1/tag-files/app/internal/objectstore"
@@ -39,7 +40,8 @@ type remote struct {
 func setup(t *testing.T) (application.Config, *remote) {
 	t.Helper()
 	const access, secret = "test-app-private-access", "test-app-private-secret"
-	installation, err := storageprofile.Prepare(t.TempDir(), aws.Credentials{AccessKeyID: access, SecretAccessKey: secret}, os.Getuid(), os.Getgid())
+	storageRoot := t.TempDir()
+	installation, err := storageprofile.Prepare(storageRoot, aws.Credentials{AccessKeyID: access, SecretAccessKey: secret}, os.Getuid(), os.Getgid())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +53,7 @@ func setup(t *testing.T) (application.Config, *remote) {
 	r := &remote{}
 	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		body, err := io.ReadAll(io.LimitReader(req.Body, storageprotocol.MaxControlBytes+1))
-		if err != nil || req.URL.Path != storageprotocol.ControlPath || !storageprotocol.Authenticate(req, body, access, secret) {
+		if err != nil || req.URL.Path != storageprotocol.ControlPath && req.URL.Path != storageprotocol.CapacityPath || !storageprotocol.Authenticate(req, body, access, secret) {
 			t.Error("unbound or unauthenticated storage request")
 			w.WriteHeader(401)
 			return
@@ -60,7 +62,7 @@ func setup(t *testing.T) (application.Config, *remote) {
 			w.WriteHeader(503)
 			return
 		}
-		if req.Method == "POST" {
+		if req.Method == "POST" && req.URL.Path == storageprotocol.ControlPath {
 			var b storageprotocol.Binding
 			if err := json.Unmarshal(body, &b); err != nil {
 				t.Error(err)
@@ -76,7 +78,21 @@ func setup(t *testing.T) (application.Config, *remote) {
 			t.Error(err)
 			return
 		}
-		data, _ := json.Marshal(storageprotocol.Identity{Version: 1, StorageID: s.ID, VolumeID: s.VolumeID, LibraryID: s.LibraryID, Epoch: epoch})
+		identity := storageprotocol.Identity{Version: 1, StorageID: s.ID, VolumeID: s.VolumeID, LibraryID: s.LibraryID, Epoch: epoch}
+		data, _ := json.Marshal(identity)
+		if req.URL.Path == storageprotocol.CapacityPath {
+			var expected storageprotocol.Binding
+			if err := json.Unmarshal(body, &expected); err != nil || expected.LibraryID != s.LibraryID || expected.StorageID != s.ID || expected.VolumeID != s.VolumeID {
+				t.Error("capacity did not pin the persistent pair", err)
+				return
+			}
+			space, err := diskspace.Measure(storageRoot)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			data, _ = json.Marshal(storageprotocol.Capacity{Identity: identity, Snapshot: space})
+		}
 		storageprotocol.Reply(w, req, secret, 200, data)
 	}))
 	t.Cleanup(peer.Close)

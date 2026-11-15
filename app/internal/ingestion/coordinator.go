@@ -18,15 +18,29 @@ import (
 // Coordinator joins short durable state transitions with the owned S3 write
 // dispatcher. It never keeps a SQL transaction while doing storage I/O.
 type Coordinator struct {
-	db *store.Store
-	io *objectio.Manager
+	db        *store.Store
+	io        *objectio.Manager
+	admission Admission
 }
 
-func NewCoordinator(db *store.Store, manager *objectio.Manager) (*Coordinator, error) {
-	if db == nil || manager == nil {
+type Admission interface{ Check(context.Context) error }
+
+func NewCoordinator(db *store.Store, manager *objectio.Manager, admission ...Admission) (*Coordinator, error) {
+	if db == nil || manager == nil || len(admission) > 1 || len(admission) == 1 && admission[0] == nil {
 		return nil, domain.Invalid("storage", "A library and owned write manager are required")
 	}
-	return &Coordinator{db: db, io: manager}, nil
+	c := &Coordinator{db: db, io: manager}
+	if len(admission) == 1 {
+		c.admission = admission[0]
+	}
+	return c, nil
+}
+
+func (c *Coordinator) checkCapacity(ctx context.Context) error {
+	if c.admission != nil {
+		return c.admission.Check(ctx)
+	}
+	return nil
 }
 
 func (c *Coordinator) session(ctx context.Context, id string) (Session, error) {
@@ -62,6 +76,9 @@ func (c *Coordinator) EnsureMultipart(ctx context.Context, id string) (Session, 
 	if session.MultipartUploadID.Valid {
 		return session, nil
 	}
+	if err := c.checkCapacity(ctx); err != nil {
+		return Session{}, err
+	}
 	_, err = c.io.CreateMultipart(ctx, func(tx *sql.Tx) (objectio.Request, error) {
 		q := dbgen.New(tx)
 		current, err := q.GetUploadSession(ctx, id)
@@ -96,6 +113,9 @@ func (c *Coordinator) EnsureMultipart(ctx context.Context, id string) (Session, 
 func (c *Coordinator) UploadPart(ctx context.Context, id string, generation int64, binding PartBinding, body io.Reader) (Part, error) {
 	id, err := canonicalID(id)
 	if err != nil {
+		return Part{}, err
+	}
+	if err := c.checkCapacity(ctx); err != nil {
 		return Part{}, err
 	}
 	var confirmed Part

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mikd1/tag-files/app/internal/capacity"
 	"github.com/mikd1/tag-files/app/internal/deletion"
 	"github.com/mikd1/tag-files/app/internal/domain"
 	"github.com/mikd1/tag-files/app/internal/httpapi"
@@ -22,9 +23,11 @@ import (
 	"github.com/mikd1/tag-files/app/internal/objectio"
 	"github.com/mikd1/tag-files/app/internal/objectstore"
 	"github.com/mikd1/tag-files/app/internal/poster"
+	"github.com/mikd1/tag-files/app/internal/resourceerr"
 	"github.com/mikd1/tag-files/app/internal/scratch"
 	"github.com/mikd1/tag-files/app/internal/storageprotocol"
 	"github.com/mikd1/tag-files/app/internal/store"
+	"github.com/mikd1/tag-files/app/internal/store/dbgen"
 	"github.com/mikd1/tag-files/app/internal/worker"
 )
 
@@ -32,15 +35,16 @@ var ErrNotReady = errors.New("application is not running or its dependencies are
 var ErrLifecycle = errors.New("application cannot be served more than once or after close")
 
 type Config struct {
-	DataDir         string
-	Scratch         scratch.Config
-	Storage         objectstore.Config
-	Media           media.Config
-	Worker          worker.Config
-	MaxObjectWrites int
-	MaxMediaStreams int
-	Version         string
-	ShutdownTimeout time.Duration
+	DataDir                             string
+	Scratch                             scratch.Config
+	Storage                             objectstore.Config
+	Media                               media.Config
+	Worker                              worker.Config
+	MaxObjectWrites                     int
+	MaxMediaStreams                     int
+	Version                             string
+	ShutdownTimeout                     time.Duration
+	MinimumFreeBytes, MinimumFreeInodes int64
 }
 
 type App struct {
@@ -48,6 +52,7 @@ type App struct {
 	scratch  *scratch.Manager
 	storage  *objectstore.Client
 	worker   *worker.Runner
+	capacity *capacity.Manager
 	handler  http.Handler
 	timeout  time.Duration
 	mu       sync.Mutex
@@ -88,6 +93,12 @@ func Open(ctx context.Context, c Config) (_ *App, err error) {
 	}
 	if c.Media == (media.Config{}) {
 		c.Media = media.DefaultConfig()
+	}
+	if c.MinimumFreeBytes == 0 {
+		c.MinimumFreeBytes = 1024 * 1024 * 1024
+	}
+	if c.MinimumFreeInodes == 0 {
+		c.MinimumFreeInodes = 1024
 	}
 	if c.DataDir == "" || c.Storage.Bucket != "tag-files" || c.MaxObjectWrites < 1 || c.MaxObjectWrites > 32 || c.ShutdownTimeout <= 0 || c.ShutdownTimeout > 5*time.Minute {
 		return nil, domain.Invalid("runtime", "Invalid application configuration")
@@ -137,6 +148,9 @@ func Open(ctx context.Context, c Config) (_ *App, err error) {
 	if err != nil {
 		return nil, err
 	}
+	if _, err := a.storage.Capacity(ctx); err != nil {
+		return nil, err
+	}
 	if _, err := ingestion.RecoverInterrupted(ctx, a.db, time.Now()); err != nil {
 		return nil, err
 	}
@@ -147,7 +161,11 @@ func Open(ctx context.Context, c Config) (_ *App, err error) {
 	if err != nil {
 		return nil, err
 	}
-	uploads, err := ingestion.NewCoordinator(a.db, manager)
+	a.capacity, err = capacity.New(a.db, a.scratch, a.storage, capacity.Config{DataDir: dataPath, OutputLimit: processor.OutputLimit(), PosterLimit: processor.PosterOutputLimit(), PartSize: ingestion.DefaultLimits().PartSize, Parallel: c.MaxObjectWrites, MinFreeBytes: c.MinimumFreeBytes, MinFreeInodes: c.MinimumFreeInodes})
+	if err != nil {
+		return nil, err
+	}
+	uploads, err := ingestion.NewCoordinator(a.db, manager, a.capacity)
 	if err != nil {
 		return nil, err
 	}
@@ -164,19 +182,37 @@ func Open(ctx context.Context, c Config) (_ *App, err error) {
 		return nil, err
 	}
 	a.worker, err = worker.New(a.db, map[domain.JobKind]worker.Handler{
-		domain.JobIngest:  worker.Ingestion(uploads, processor, a.scratch),
-		domain.JobPoster:  worker.Poster(posters, a.db, processor, a.scratch),
+		domain.JobIngest:  a.withCapacity(worker.Ingestion(uploads, processor, a.scratch)),
+		domain.JobPoster:  a.withCapacity(worker.Poster(posters, a.db, processor, a.scratch)),
 		domain.JobCleanup: worker.Cleanup(uploads, a.db, posters),
 		domain.JobDelete:  worker.Deletion(deletions, a.db),
 	}, c.Worker)
 	if err != nil {
 		return nil, err
 	}
-	a.handler, err = httpapi.New(a.db, httpapi.Options{Media: streams, Version: c.Version, Readiness: a.Ready, Admit: a.admit})
+	a.handler, err = httpapi.New(a.db, httpapi.Options{Media: streams, Version: c.Version, Readiness: a.Ready, Admit: a.admit, BeforeMutation: a.capacity.Metadata, Disk: a.capacity.Diagnostics})
 	if err != nil {
 		return nil, err
 	}
 	return a, nil
+}
+
+func (a *App) withCapacity(h worker.Handler) worker.Handler {
+	execute := h.Execute
+	h.Execute = func(ctx context.Context, job dbgen.Job, now time.Time) error {
+		if err := a.capacity.Check(ctx); err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			code := "storage_unavailable"
+			if resourceerr.Insufficient(err) {
+				code = "insufficient_storage"
+			}
+			return &worker.Failure{Code: code, Temporary: true, Err: err}
+		}
+		return execute(ctx, job, now)
+	}
+	return h
 }
 
 func (a *App) admit() (func(), bool) {
@@ -201,7 +237,7 @@ func (a *App) Ready(ctx context.Context) error {
 	if err := a.db.Reader().PingContext(check); err != nil {
 		return err
 	}
-	_, err := a.storage.StorageEpoch(check)
+	_, err := a.storage.Capacity(check)
 	return err
 }
 

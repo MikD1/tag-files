@@ -100,6 +100,10 @@ func validate(request Request) error {
 	}
 	return nil
 }
+
+// DecodeIntent shares the authoritative journal codec with read-only planners.
+func DecodeIntent(row dbgen.ObjectWriteIntent) (Intent, error) { return decode(row) }
+
 func decode(row dbgen.ObjectWriteIntent) (Intent, error) {
 	bad := func() (Intent, error) { return Intent{}, fmt.Errorf("%w: %s", ErrIncompatibleIntent, row.ID) }
 	if row.PayloadVersion != 1 || len(row.PayloadJson) > 65536 || !json.Valid([]byte(row.PayloadJson)) || domain.ValidateUUID(row.ID) != nil || domain.ValidateUUID(row.OwnerID) != nil || domain.ValidateUUID(row.StorageEpoch) != nil {

@@ -23,7 +23,9 @@ Application startup must use this sequence:
 ownership, preflights SQL before reclaim, and exposes HTTP/worker execution only
 after success. Failed startup releases owners and keeps unsupported work/caches.
 `application.Serve` closes admission and joins HTTP/worker before releasing them.
-Full capacity/HTTP507 and upload HTTP wiring remain open. Direct unbound S3 clients are reserved for isolated fixtures
+Authenticated capacity and runtime 507 are now wired through `capacity`; upload
+HTTP/batch/retry integration and full deployment capacity acceptance remain open.
+Direct unbound S3 clients are reserved for isolated fixtures
 and standalone offline operations; runtime must not infer pairing from a bucket
 name, an empty listing, elapsed lease, or a boot epoch alone.
 

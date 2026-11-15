@@ -73,6 +73,9 @@ func (c *Coordinator) Complete(ctx context.Context, id string) (Outcome, error) 
 	if completedSource(result) {
 		return result, nil
 	}
+	if err := c.checkCapacity(ctx); err != nil {
+		return c.completedOrError(ctx, id, err)
+	}
 	var session Session
 	err = c.db.Write(ctx, func(tx *sql.Tx) error {
 		current, err := readSession(ctx, dbgen.New(tx), id)

@@ -8,6 +8,7 @@ import (
 	"github.com/mikd1/tag-files/app/internal/ingestion"
 	"github.com/mikd1/tag-files/app/internal/media"
 	"github.com/mikd1/tag-files/app/internal/objectstore"
+	"github.com/mikd1/tag-files/app/internal/resourceerr"
 	"github.com/mikd1/tag-files/app/internal/scratch"
 	"github.com/mikd1/tag-files/app/internal/store/dbgen"
 )
@@ -24,6 +25,8 @@ func mediaFailure(err error) error {
 	}
 	failure := &Failure{Code: "storage_unavailable", Temporary: true, Err: err}
 	switch {
+	case resourceerr.Insufficient(err):
+		failure.Code = "insufficient_storage"
 	case errors.Is(err, media.ErrUnsupportedMedia):
 		failure.Code, failure.Temporary = "unsupported_media_type", false
 	case errors.Is(err, media.ErrUnsupportedCodec):
@@ -34,8 +37,6 @@ func mediaFailure(err error) error {
 		failure.Code, failure.Temporary = "media_limit_exceeded", false
 	case errors.Is(err, objectstore.ErrIntegrity):
 		failure.Code, failure.Temporary = "object_integrity", false
-	case errors.Is(err, scratch.ErrInsufficientStorage):
-		failure.Code = "insufficient_storage"
 	}
 	return failure
 }

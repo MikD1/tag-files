@@ -13,6 +13,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/mikd1/tag-files/app/internal/diskspace"
 	"github.com/mikd1/tag-files/app/internal/domain"
 	"github.com/mikd1/tag-files/app/internal/process"
 )
@@ -98,9 +99,26 @@ func (m *Manager) Begin(jobID string, generation, sourceLimit, outputLimit int64
 // check counts retained caches plus reservations not yet materialized in files.
 // statfs already excludes written bytes; charge only the outstanding portion
 // against physical free space. Unknown/stale files are retained and budgeted.
-func (m *Manager) check(extra int64) error {
+type Usage struct {
+	UsedBytes, ActiveBytes, ReservedBytes int64
+	AllocatedActiveBytes                  int64
+	QuotaBytes, MinFreeBytes              int64
+	Space                                 diskspace.Snapshot
+}
+
+func (m *Manager) Stats() (Usage, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.closed {
+		return Usage{}, os.ErrClosed
+	}
+	return m.stats(0)
+}
+
+func (m *Manager) stats(extra int64) (Usage, error) {
 	var used int64
 	liveUsage := make(map[string]int64, len(m.active))
+	liveAllocated := make(map[string]int64, len(m.active))
 	entries := 0
 	err := filepath.WalkDir(m.config.Root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -130,46 +148,60 @@ func (m *Manager) check(extra int64) error {
 			return ErrInsufficientStorage
 		}
 		used += info.Size()
-		for directory := range m.active {
-			if strings.HasPrefix(path, directory+string(filepath.Separator)) {
+		for directory, attempt := range m.active {
+			if path == attempt.Source || path == attempt.Output {
 				liveUsage[directory] += info.Size()
+				liveAllocated[directory] += allocatedBytes(info)
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		return err
+		return Usage{}, err
 	}
 	outstanding := extra
+	var activeBytes int64
+	var activeAllocated int64
 	for directory, a := range m.active {
+		activeBytes += liveUsage[directory]
+		activeAllocated += liveAllocated[directory]
 		for _, file := range []struct {
 			path  string
 			limit int64
 		}{{a.Source, a.sourceLimit}, {a.Output, a.outputLimit}} {
 			info, err := os.Lstat(file.path)
 			if err != nil && !errors.Is(err, os.ErrNotExist) {
-				return err
+				return Usage{}, err
 			}
 			if err == nil && (!info.Mode().IsRegular() || info.Size() > file.limit) {
-				return ErrInsufficientStorage
+				return Usage{}, ErrInsufficientStorage
 			}
 		}
 		remaining := a.sourceLimit + a.outputLimit - liveUsage[directory]
 		if remaining > 0 {
 			if remaining > m.config.MaxBytes-outstanding {
-				return ErrInsufficientStorage
+				return Usage{}, ErrInsufficientStorage
 			}
 			outstanding += remaining
 		}
 	}
 	if outstanding > m.config.MaxBytes-used {
-		return ErrInsufficientStorage
+		return Usage{}, ErrInsufficientStorage
 	}
-	free, err := available(m.config.Root)
+	space, err := diskspace.Measure(m.config.Root)
+	if err != nil {
+		return Usage{}, err
+	}
+	return Usage{UsedBytes: used, ActiveBytes: activeBytes, AllocatedActiveBytes: activeAllocated, ReservedBytes: outstanding, QuotaBytes: m.config.MaxBytes, MinFreeBytes: m.config.MinFreeBytes, Space: space}, nil
+}
+
+func (m *Manager) check(extra int64) error {
+	s, err := m.stats(extra)
 	if err != nil {
 		return err
 	}
-	if free < m.config.MinFreeBytes || outstanding > free-m.config.MinFreeBytes {
+	physical := s.ReservedBytes + s.ActiveBytes - s.AllocatedActiveBytes
+	if s.Space.AvailableBytes < s.MinFreeBytes || physical > s.Space.AvailableBytes-s.MinFreeBytes || s.Space.AvailableInodes != nil && *s.Space.AvailableInodes < 4 {
 		return ErrInsufficientStorage
 	}
 	return nil

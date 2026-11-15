@@ -81,6 +81,10 @@ func settingsFrom(getenv func(string) string) (settings, error) {
 	if err != nil {
 		return settings{}, err
 	}
+	minimumFree, err := byteLimit(getenv, "TAG_FILES_MIN_FREE_BYTES", 1024*1024*1024)
+	if err != nil {
+		return settings{}, err
+	}
 	p := media.DefaultConfig()
 	p.MaxOutputBytes, err = byteLimit(getenv, "TAG_FILES_MAX_OUTPUT_BYTES", p.MaxOutputBytes)
 	if err != nil {
@@ -88,9 +92,9 @@ func settingsFrom(getenv func(string) string) (settings, error) {
 	}
 	return settings{listen: env(getenv, "TAG_FILES_LISTEN", ":8080"), app: application.Config{
 		DataDir: env(getenv, "TAG_FILES_DATA_DIR", "/data"),
-		Scratch: scratch.Config{Root: env(getenv, "TAG_FILES_SCRATCH_DIR", "/scratch"), MaxBytes: scratchMax, MinFreeBytes: 1024 * 1024 * 1024},
+		Scratch: scratch.Config{Root: env(getenv, "TAG_FILES_SCRATCH_DIR", "/scratch"), MaxBytes: scratchMax, MinFreeBytes: minimumFree},
 		Storage: objectstore.Config{Endpoint: env(getenv, "TAG_FILES_S3_ENDPOINT", "http://storage:8333"), Region: "us-east-1", Bucket: "tag-files", AccessKey: access, SecretKey: secret},
-		Media:   p, Version: version,
+		Media:   p, Version: version, MinimumFreeBytes: minimumFree,
 	}}, nil
 }
 

@@ -17,10 +17,12 @@ import (
 
 	"github.com/getkin/kin-openapi/routers/gorillamux"
 	"github.com/google/uuid"
+	"github.com/mikd1/tag-files/app/internal/diskspace"
 	"github.com/mikd1/tag-files/app/internal/domain"
 	"github.com/mikd1/tag-files/app/internal/httpapi/api"
 	"github.com/mikd1/tag-files/app/internal/mediaserve"
 	"github.com/mikd1/tag-files/app/internal/operations"
+	"github.com/mikd1/tag-files/app/internal/resourceerr"
 	"github.com/mikd1/tag-files/app/internal/search"
 	"github.com/mikd1/tag-files/app/internal/store"
 	"github.com/oapi-codegen/nethttp-middleware"
@@ -35,6 +37,9 @@ type Options struct {
 	Readiness func(context.Context) error
 	Disk      func(context.Context) (map[string]any, error)
 	Admit     func() (release func(), accepted bool)
+	// BeforeMutation checks local metadata headroom only; it may run in an
+	// operation transaction after replay lookup and must never perform S3 IO.
+	BeforeMutation func(context.Context) error
 }
 type server struct {
 	s       *store.Store
@@ -172,6 +177,10 @@ func problem(ctx context.Context, err error) api.Problem {
 	switch {
 	case errors.As(err, &request):
 		status, code, message = request.status, request.code, request.message
+	case resourceerr.Insufficient(err):
+		status, code, message = 507, "insufficient_storage", "Insufficient storage to complete this work"
+	case errors.Is(err, diskspace.ErrUnavailable):
+		status, code, message = 503, "capacity_unavailable", "Storage capacity is unavailable"
 	case errors.Is(err, domain.ErrNotFound), errors.Is(err, sql.ErrNoRows):
 		status, code, message = 404, "not_found", "Resource not found"
 	case errors.Is(err, domain.ErrStaleVersion):
@@ -246,6 +255,9 @@ func (s *server) command(ctx context.Context, key api.UUID, body any, fn func(*s
 		return response{}, err
 	}
 	result, err := operations.Execute(ctx, s.s, operations.Request{Key: key.String(), Method: info.method, Route: info.path, Body: raw}, s.now(), func(tx *sql.Tx) (operations.Result, error) {
+		if err := s.beforeMutation(ctx); err != nil {
+			return operations.Result{}, err
+		}
 		r, err := fn(tx)
 		if err == nil {
 			return r.Result, nil
@@ -261,8 +273,18 @@ func (s *server) command(ctx context.Context, key api.UUID, body any, fn func(*s
 	return response{result}, err
 }
 func (s *server) mutation(ctx context.Context, fn func(*sql.Tx) (response, error)) (r response, err error) {
+	if err := s.beforeMutation(ctx); err != nil {
+		return r, err
+	}
 	err = s.s.Write(ctx, func(tx *sql.Tx) error { var e error; r, e = fn(tx); return e })
 	return r, err
+}
+func (s *server) beforeMutation(ctx context.Context) error {
+	info, _ := ctx.Value(scopeKey{}).(scope)
+	if s.options.BeforeMutation == nil || info.method == http.MethodDelete || strings.HasSuffix(info.path, "/cancel") {
+		return nil
+	}
+	return s.options.BeforeMutation(ctx)
 }
 func read[T any](ctx context.Context, s *server, fn func(*sql.Tx) (T, error)) (out T, err error) {
 	tx, err := s.s.Reader().BeginTx(ctx, &sql.TxOptions{ReadOnly: true})

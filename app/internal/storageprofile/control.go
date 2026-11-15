@@ -9,12 +9,13 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/mikd1/tag-files/app/internal/diskspace"
 	"github.com/mikd1/tag-files/app/internal/storageprotocol"
 )
 
 func pairingGate(p *Installation, credentials aws.Credentials, epoch string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == storageprotocol.ControlPath {
+		if r.URL.Path == storageprotocol.ControlPath || r.URL.Path == storageprotocol.CapacityPath {
 			serveControl(w, r, p, credentials, epoch)
 			return
 		}
@@ -59,6 +60,27 @@ func serveControl(w http.ResponseWriter, r *http.Request, p *Installation, crede
 	state, err := p.Snapshot()
 	if err != nil || state.Phase != "ready" {
 		reply(503, []byte(`{"error":"storage_unavailable"}`))
+		return
+	}
+	if r.URL.Path == storageprotocol.CapacityPath {
+		var expected storageprotocol.Binding
+		decoder := json.NewDecoder(bytes.NewReader(data))
+		decoder.DisallowUnknownFields()
+		if r.Method != "POST" || !json.Valid(data) || decoder.Decode(&expected) != nil || expected.Version != 1 {
+			reply(400, []byte(`{"error":"invalid_request"}`))
+			return
+		}
+		if expected.StorageID != state.ID || expected.LibraryID == "" || expected.LibraryID != state.LibraryID || expected.VolumeID != state.VolumeID {
+			reply(409, []byte(`{"error":"storage_identity_mismatch"}`))
+			return
+		}
+		capacity, err := diskspace.Measure(p.root)
+		if err != nil || capacity.RootIdentity != state.VolumeID {
+			reply(503, []byte(`{"error":"storage_unavailable"}`))
+			return
+		}
+		body, _ := json.Marshal(storageprotocol.Capacity{Identity: storageprotocol.Identity{Version: 1, StorageID: state.ID, LibraryID: state.LibraryID, Epoch: epoch, VolumeID: state.VolumeID}, Snapshot: capacity})
+		reply(200, body)
 		return
 	}
 	switch r.Method {

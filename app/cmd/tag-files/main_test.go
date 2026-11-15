@@ -17,13 +17,16 @@ func TestSettingsReadBoundedSecretFilesAndExplicitRuntimePaths(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	env := map[string]string{"TAG_FILES_DATA_DIR": filepath.Join(root, "metadata"), "TAG_FILES_SCRATCH_DIR": filepath.Join(root, "cache"), "TAG_FILES_S3_ENDPOINT": "http://storage:8333", "TAG_FILES_ACCESS_KEY_FILE": filepath.Join(root, "access"), "TAG_FILES_SECRET_KEY_FILE": filepath.Join(root, "secret"), "TAG_FILES_LISTEN": "127.0.0.1:8123", "TAG_FILES_SCRATCH_MAX_BYTES": "8388608"}
+	env := map[string]string{"TAG_FILES_DATA_DIR": filepath.Join(root, "metadata"), "TAG_FILES_SCRATCH_DIR": filepath.Join(root, "cache"), "TAG_FILES_S3_ENDPOINT": "http://storage:8333", "TAG_FILES_ACCESS_KEY_FILE": filepath.Join(root, "access"), "TAG_FILES_SECRET_KEY_FILE": filepath.Join(root, "secret"), "TAG_FILES_LISTEN": "127.0.0.1:8123", "TAG_FILES_SCRATCH_MAX_BYTES": "8388608", "TAG_FILES_MIN_FREE_BYTES": "65536"}
 	settings, err := settingsFrom(func(key string) string { return env[key] })
 	if err != nil {
 		t.Fatal(err)
 	}
 	if settings.listen != "127.0.0.1:8123" || settings.app.Storage.AccessKey != access || settings.app.Storage.SecretKey != secret || settings.app.DataDir != env["TAG_FILES_DATA_DIR"] || settings.app.Scratch.Root != env["TAG_FILES_SCRATCH_DIR"] || settings.app.Scratch.MaxBytes != 8388608 || settings.app.Storage.Bucket != "tag-files" {
 		t.Fatal("runtime settings were not applied")
+	}
+	if settings.app.MinimumFreeBytes != 65536 || settings.app.Scratch.MinFreeBytes != 65536 {
+		t.Fatal("configured headroom did not reach both capacity checks")
 	}
 	env["TAG_FILES_SCRATCH_MAX_BYTES"] = "-1"
 	if _, err := settingsFrom(func(key string) string { return env[key] }); err == nil {

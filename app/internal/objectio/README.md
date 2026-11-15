@@ -66,4 +66,6 @@ Media/process/scratch execution, independent posters, guarded crash-scratch
 reclamation, deletion/restart reconciliation and media HTTP streams are tested
 too. The application factory now supplies the bound adapter after pairing and
 startup recovery and joins HTTP/worker activity before releasing owners. Upload
-HTTP/full disk admission and final server/SPA container packaging remain open.
+HTTP/batch/retry integration and final server/SPA container packaging remain open.
+The application supplies the coordinator/media runner with a disk budget using
+authenticated observations and this module's authoritative intent decoder.

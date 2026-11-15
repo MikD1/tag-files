@@ -60,7 +60,9 @@ Ready primary/poster work never recreates an upload session.
 Scratch has guarded, bounded reclamation after producer quiescence. The
 application factory now verifies pairing, preflights/recovers SQL and reclaims
 before starting one runner with all four handlers. HTTP and worker share shutdown
-cancellation and are joined before owners close. Whole-volume upload admission/
-HTTP507, upload HTTP and server/SPA container packaging remain integration gates.
+cancellation and are joined before owners close. A shared physical budget now
+gates media execution with durable retries for 507; cleanup keeps running.
+Upload HTTP/batch/retry, full capacity acceptance and server/SPA container
+packaging remain integration gates.
 Persistent pairing primitives are in `librarybinding`; merely opening a store
 must not be treated as completion of the startup sequence.

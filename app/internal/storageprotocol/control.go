@@ -94,6 +94,44 @@ func Reply(w http.ResponseWriter, r *http.Request, secret string, status int, bo
 	_, _ = w.Write(body)
 }
 
+func (c *Client) exchange(ctx context.Context, method, path string, body []byte) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, method, c.origin+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set(accessHeader, c.access)
+	req.Header.Set(nonceHeader, domain.NewUUID())
+	req.Header.Set(signatureHeader, signature(c.secret, requestMessage(req, body)))
+	if len(body) != 0 {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	response, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(response.Body, MaxControlBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > MaxControlBytes {
+		return nil, ErrProtocol
+	}
+	if response.StatusCode == http.StatusUnauthorized {
+		return nil, ErrAuthentication
+	}
+	if len(response.Header.Values(signatureHeader)) != 1 || len(response.Header.Values(nonceHeader)) != 1 || response.Header.Get(nonceHeader) != req.Header.Get(nonceHeader) || !validMAC(signature(c.secret, responseMessage(req, response.StatusCode, data)), response.Header.Get(signatureHeader)) {
+		return nil, ErrAuthentication
+	}
+	if response.StatusCode == http.StatusConflict {
+		return nil, ErrBindingMismatch
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("owned storage control HTTP %d", response.StatusCode)
+	}
+	return data, nil
+}
+
 func (c *Client) request(ctx context.Context, method string, binding *Binding) (Identity, error) {
 	var body []byte
 	var err error
@@ -103,39 +141,9 @@ func (c *Client) request(ctx context.Context, method string, binding *Binding) (
 			return Identity{}, err
 		}
 	}
-	req, err := http.NewRequestWithContext(ctx, method, c.origin+ControlPath, bytes.NewReader(body))
+	data, err := c.exchange(ctx, method, ControlPath, body)
 	if err != nil {
 		return Identity{}, err
-	}
-	req.Header.Set(accessHeader, c.access)
-	req.Header.Set(nonceHeader, domain.NewUUID())
-	req.Header.Set(signatureHeader, signature(c.secret, requestMessage(req, body)))
-	if binding != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	response, err := c.http.Do(req)
-	if err != nil {
-		return Identity{}, err
-	}
-	defer response.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(response.Body, MaxControlBytes+1))
-	if err != nil {
-		return Identity{}, err
-	}
-	if len(data) > MaxControlBytes {
-		return Identity{}, ErrProtocol
-	}
-	if response.StatusCode == http.StatusUnauthorized {
-		return Identity{}, ErrAuthentication
-	}
-	if len(response.Header.Values(signatureHeader)) != 1 || len(response.Header.Values(nonceHeader)) != 1 || response.Header.Get(nonceHeader) != req.Header.Get(nonceHeader) || !validMAC(signature(c.secret, responseMessage(req, response.StatusCode, data)), response.Header.Get(signatureHeader)) {
-		return Identity{}, ErrAuthentication
-	}
-	if response.StatusCode == http.StatusConflict {
-		return Identity{}, ErrBindingMismatch
-	}
-	if response.StatusCode != http.StatusOK {
-		return Identity{}, fmt.Errorf("owned storage control HTTP %d", response.StatusCode)
 	}
 	var identity Identity
 	decoder := json.NewDecoder(bytes.NewReader(data))

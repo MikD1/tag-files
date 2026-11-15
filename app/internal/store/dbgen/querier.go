@@ -99,6 +99,8 @@ type Querier interface {
 	HeartbeatJob(ctx context.Context, arg HeartbeatJobParams) (int64, error)
 	IncrementView(ctx context.Context, arg IncrementViewParams) (int64, error)
 	InsertViewEvent(ctx context.Context, arg InsertViewEventParams) (int64, error)
+	ListCapacityPosters(ctx context.Context, arg ListCapacityPostersParams) ([]Job, error)
+	ListCapacitySessions(ctx context.Context, arg ListCapacitySessionsParams) ([]ListCapacitySessionsRow, error)
 	ListCollections(ctx context.Context) ([]ListCollectionsRow, error)
 	ListDeletionAssets(ctx context.Context, arg ListDeletionAssetsParams) ([]DeletionAsset, error)
 	ListItemPosterJobs(ctx context.Context, subjectID string) ([]Job, error)

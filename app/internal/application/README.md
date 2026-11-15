@@ -18,9 +18,10 @@ visible to the caller. The library/scratch locks can then be reacquired.
 `/health/live` reports the process. `/health/ready` checks running state, SQLite
 and the authenticated current storage identity/epoch with a bounded deadline.
 A storage outage makes readiness fail while SQL reads/liveness remain available.
-`/api/v1/system/status` reports the app/schema/format/library and durable queue
-counts. Unmeasured storage capacity is explicitly unknown; no S3 free-space
-value is inferred from object listings or HEAD.
+`/api/v1/system/status` reports the app/schema/format/library, durable queue and
+measured metadata/scratch/storage capacity. Storage observations are authenticated
+and pinned to the physical library pair. Failed measurements stay explicitly
+unknown. The [disk budget](../capacity/README.md) gates new writes and media work.
 
 The development entry point is `go run ./cmd/tag-files`. `tag-files check` only
 requests readiness and does not acquire a library owner. SIGINT/SIGTERM use the
@@ -36,11 +37,12 @@ same joined shutdown. Configuration:
 | `TAG_FILES_SECRET_KEY_FILE` | `/run/secrets/s3_secret_key` |
 | `TAG_FILES_SCRATCH_MAX_BYTES` | 64 GiB |
 | `TAG_FILES_MAX_OUTPUT_BYTES` | 20 GiB |
+| `TAG_FILES_MIN_FREE_BYTES` | 1 GiB |
 
 Use the owned storage image and matching private secret files, not a user's
 existing MinIO/database. Secret reads are bounded, reject nonregular files and
-control bytes, and never include contents in errors. Scratch keeps a physical
-1 GiB reserve in this command. The roots must be separate. The existing
+control bytes, and never include contents in errors. The configured physical
+reserve applies to metadata/storage/scratch. The roots must be separate. The existing
 `media-runtime` image supplies the pinned tools; packaging this CGO server and
 the completed React SPA into the final application image is still pending.
 
@@ -50,5 +52,5 @@ forced joined shutdown. The owned-image integration also uses actual FFmpeg,
 SeaweedFS, an interrupted ingest, HTTP catalog/media/poster, paused storage,
 the built server command, its health check and actual SIGTERM. The command
 currently exposes the implemented catalog/organization/navigation/operations/
-deletion/media/system APIs; upload HTTP, complete storage/metadata/scratch disk
-admission and the SPA remain unfinished. It is not a release-ready product.
+deletion/media/system APIs; upload HTTP/batch/retry integration, full deployment
+capacity acceptance and the SPA remain unfinished. It is not a release-ready product.

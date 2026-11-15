@@ -32,6 +32,10 @@ type fixture struct {
 }
 
 func create(t *testing.T) *fixture {
+	return createWithVolume(t, nil)
+}
+
+func createWithVolume(t *testing.T, volumeOptions []string) *fixture {
 	t.Helper()
 	image := os.Getenv("TAG_FILES_STORAGE_IMAGE")
 	if image == "" {
@@ -39,7 +43,9 @@ func create(t *testing.T) *fixture {
 	}
 	f := &fixture{t: t, name: "tag-files-image-" + domain.NewUUID(), access: domain.NewUUID(), secret: domain.NewUUID() + domain.NewUUID()}
 	f.volume = f.name
-	testutil.Docker(t, "", "volume", "create", f.volume)
+	volumeArgs := append([]string{"volume", "create"}, volumeOptions...)
+	volumeArgs = append(volumeArgs, f.volume)
+	testutil.Docker(t, "", volumeArgs...)
 	t.Cleanup(func() { testutil.Docker(t, "", "volume", "rm", f.volume) })
 	testutil.Docker(t, "", "create", "--name", f.name, "--mount", "type=volume,src="+f.volume+",dst=/data", "-p", "127.0.0.1::8333", image)
 	t.Cleanup(func() { testutil.Docker(t, "", "rm", "-f", f.name) })

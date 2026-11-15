@@ -23,9 +23,9 @@ join the periodic monitor and close only after the callback returns. They check
 capacity after download/conversion and once per second during work. Exhaustion
 cancels and joins the source read/media execution
 before scratch removal; the durable S3 source remains authoritative. The typed
-insufficient-storage error is available for runtime HTTP507 mapping, which is
-not wired yet. This module measures scratch only; it does not infer physical
-storage-volume capacity through S3 or replace metadata/storage preflight.
+insufficient-storage error now maps to runtime HTTP507. This module measures
+scratch only; `capacity` combines it with authenticated physical storage
+observations and metadata headroom, alongside the existing storage preflight.
 
 After a crash, Linux kills direct media processes with the application. A
 surviving descendant retains the inherited root lock and refuses a new owner.
@@ -39,5 +39,7 @@ This protocol assumes the pinned media tools preserve inherited descriptors;
 actual FFmpeg and adversarial descendant tests exercise this boundary. Arbitrary
 commands that close their inherited guards are outside this profile. Application
 startup now acquires scratch ownership, verifies the persistent storage pair,
-preflights/recovers SQL and reclaims before worker/HTTP admission. Full disk admission, process
-RSS and Mac capacity remain open.
+preflights/recovers SQL and reclaims before worker/HTTP admission. The shared disk
+budget credits allocated canonical source/output bytes; sparse length and
+unrelated files never reduce unwritten physical demand. Full deployment capacity,
+20 GiB/RSS and Mac acceptance remain open alongside upload HTTP integration.

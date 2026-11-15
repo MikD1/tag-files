@@ -32,7 +32,8 @@ No release, migration of real data, or production-readiness claim has been made.
   duplicate owned MPUs. Primary candidates now persist immutable descriptors,
   pass full object verification and publish through a leased ready transaction
   that removes visible uploads and creates independent cleanup/poster work.
-  Whole-volume upload/Compose admission wiring remains open.
+  Physical admission now derives pending demand from SQLite and signed storage
+  observations. Upload HTTP/batch/retry and Compose wiring remain open.
   Persistent pairing primitives now bind the logical storage UUID and physical
   root in SQLite/storage metadata, with authenticated identity/epoch discovery.
 - Task 5 started: one bounded Linux process supervisor now runs FFmpeg/ffprobe;
@@ -58,8 +59,11 @@ No release, migration of real data, or production-readiness claim has been made.
   waits admitted key-specific reads; actual poster 404 queues a durable rebuild.
   The application factory and development executable now wire persistent pairing,
   startup SQL recovery, scratch reclaim, all four worker kinds, HTTP admission,
-  liveness/readiness/status and joined shutdown. Full disk/upload admission remains open.
-- Next: full disk admission and upload HTTP, then UI/tools/releases.
+  liveness/readiness/status and joined shutdown. Physical budget/507 now gates
+  coordinator data writes, metadata commands and media execution, preserving
+  replay/cleanup. Full upload HTTP/batch/retry integration remains open.
+- Next: upload HTTP using the disk budget, then remaining capacity/media/browser
+  acceptance, UI/tools/releases.
   No executable application/SPA release image exists yet.
 
 ## Decisions
@@ -876,6 +880,45 @@ disposable containers were removed. This supplies a development server, not the
 completed app/SPA release image. Upload HTTP/full disk admission, the remaining
 media/browser/Mac matrix, React v27, offline migration/backup/restore, Compose/
 release publication and final branch review remain required.
+
+## Physical disk admission and 507 (2026-11-15)
+
+The owned storage now supplies authenticated capacity for its exact bound root;
+the observation and unchanged format2 root fingerprint use one opened descriptor.
+An unknown/replaced root refuses measurement. Runtime budget reads durable demand
+before observations, combines shared filesystems, accounts pending MPU/incoming,
+one media working set, poster, scratch, uncertain/orphan writes and metadata
+headroom. Reopening keeps reservations. Sparse length and unrelated active-cache
+files no longer create free-space credit; both regressions were reproduced and fixed.
+
+The factory gates coordinator writes and media attempts; metadata errors map to
+507 without consuming operation keys or blocking prior replay/deletion. Status
+reports measured/unknown capacities. Batch/retry has an atomic budget boundary
+tested with concurrent 500-file creation; its actual HTTP adapters remain open.
+The configured reserve defaults to 1 GiB/1024 inodes, with guest/host limits still
+subject to the external deployment checks.
+
+Fresh `scripts/check`, expanded `scripts/check-media`, `scripts/check-media-image`
+and full `TAG_FILES_MEDIA_INTEGRATION=1 scripts/check-storage-image` passed. The
+full native arm64/race suite took 383.750 s (14 cases), including a 21.54 s actual
+ENOSPC case on a disposable 256 MiB RAM-backed storage volume: rejected part body
+remained unread, committed source outcome survived and full hash matched after
+freeing space. Disk-backed restart suites separately passed. Real SQLite
+page-limit FULL and actual SDK507 errors are tested too. The HTTP replay test's
+clock was aligned with its original fixed fixture after gate launch; the full
+ordinary/race/generation suite was rerun. Other production/native/image sources
+remained unchanged after their final gate launches.
+
+Native images: storage
+`sha256:a1a20ce733c3aa07310dc05575d3c60ee642d0aefb9c8fdcb4ed175a9e1b6ae4`,
+media check
+`sha256:0308a9be2c3aea20a86b8d261f031de1c0b510cf9cc44c19f3161d5332a03af6`.
+Logs: `/tmp/tag-files-capacity-final-{check,media,media-image,storage-image}.log`.
+All final check sessions exited 0; disposable containers/volumes were removed.
+The earlier focused failure expected `queued` instead of the public `pending`
+outcome; its corrected ENOSPC rerun passed 22.079 s. This is not a completion claim
+for Task 5 or production: upload HTTP, broader stress/media/browser/Mac, React v27,
+offline migration/backup/restore and release containers remain required.
 
 ## Completion boundary
 
