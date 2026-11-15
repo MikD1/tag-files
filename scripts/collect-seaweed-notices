@@ -1,0 +1,32 @@
+#!/bin/sh
+# The pinned upstream executable, not its complete development graph, owns this list.
+set -eu
+binary=${1:?Provide the pinned weed executable}
+output=${2:?Provide the output directory}
+mkdir -p "$output/go"
+go version -m "$binary" > "$output/go-buildinfo.txt"
+awk '$1=="build" && $2=="CGO_ENABLED=0" {found=1} END {exit !found}' "$output/go-buildinfo.txt"
+awk '$1=="build" && $2=="vcs.revision=4ab66fb76da83700739f5839e62fcaf15fb7d02a" {found=1} END {exit !found}' "$output/go-buildinfo.txt"
+awk '$1=="dep" {print $2, $3, $4}' "$output/go-buildinfo.txt" | sort > "$output/.expected"
+awk '$1=="dep" || $1=="mod" {print $2 "@" $3}' "$output/go-buildinfo.txt" > "$output/.downloads"
+printf 'Resolving verified sources for %s shipped Go modules\n' "$(wc -l < "$output/.downloads")"
+# Go verifies module downloads using the checksum database. Compare the result
+# to the sums embedded in this exact executable as an additional identity check.
+xargs go mod download -json < "$output/.downloads" > "$output/.downloaded"
+awk -F '"' '
+  /^\{/ {path=""; version=""; directory=""; sum=""}
+  $2=="Path" {path=$4} $2=="Version" {version=$4}
+  $2=="Dir" {directory=$4} $2=="Sum" {sum=$4}
+  /^\}/ {print path, version, sum > sums; print path, version, directory > inventory}
+' sums="$output/.actual-sums" inventory="$output/.inventory" "$output/.downloaded"
+awk '$1!="github.com/seaweedfs/seaweedfs"' "$output/.actual-sums" | sort > "$output/.actual"
+cmp "$output/.expected" "$output/.actual"
+echo 'All module checksums match; collecting distribution notices'
+collect-go-notices "$output/go" --modules "$output/.inventory"
+main=$(awk '$1=="github.com/seaweedfs/seaweedfs" {print $3}' "$output/.inventory")
+cp "$main/LICENSE" "$output/LICENSE"
+# 4.53 has no root NOTICE; all nested NOTICE/LICENSE assets are retained above.
+wget -q -O "$output/GO-LICENSE" https://raw.githubusercontent.com/golang/go/go1.26.10/LICENSE
+sha256sum "$binary" > "$output/weed.sha256"
+cp "$output/.actual-sums" "$output/module-sums.txt"
+rm "$output"/.expected "$output"/.actual "$output"/.actual-sums "$output"/.inventory "$output"/.downloads "$output"/.downloaded

@@ -1,5 +1,19 @@
 # Owned storage image
 
+The final image is built from scratch using the pinned Alpine 3.24.4 BusyBox
+and musl files, the pinned upstream CA bundle, the unchanged static SeaweedFS
+`weed` executable and the two Tag Files supervisors. Unused upstream Rust and
+OS executables are absent from every distributed layer. Shell, cat, dd, find
+and df remain available for the owned operational checks.
+
+Distribution texts live at `/usr/share/tag-files/notices`: project/Go licenses,
+actual supervisor module notices, the upstream executable's exact Go module
+notices and nested embedded notices, plus BusyBox, musl and CA texts/sources.
+The build refuses mismatched module sums or missing dependency notice files.
+Pinned sources are recorded in [notices/SOURCES.md](notices/SOURCES.md).
+After building, run `scripts/check-image-notices storage IMAGE` to audit the
+actual binaries' dependency coverage and all image layers.
+
 Build from the repository root:
 
 ```sh
@@ -56,7 +70,8 @@ Runtime write intents must save that expected epoch before forwarding. A changed
 epoch then proves the earlier backend cannot accept the old request later; it
 does not establish its earlier result. Owned objects/MPUs still require full
 reconciliation. Age and lease expiry provide no such proof. The durable I/O
-journal and its cleanup/recovery wiring are still the next ingestion work.
+journal and cleanup/recovery wiring are implemented in the application's
+[object I/O module](../../app/internal/objectio/README.md).
 
 Every restart follows the same S3-disabled preflight. Existing unsafe rules,
 public access settings, bucket policies, lifecycle rules, changed secrets or
@@ -74,8 +89,10 @@ conditional responses through the gateway.
 
 For cold backup/restore, stop both application and storage and preserve the whole
 volume, including dotfiles and `config/s3.json`, plus the external app secret
-files and exact image digests. The separate backup/restore tooling and drills
-remain a later rewrite task. These container tests do not establish physical
+files and exact image digests. The separate
+[backup/restore tool](../../tools/backup/README.md) and
+[Linux cold-restore drill](../../tools/backup/EVIDENCE.md) are implemented.
+These container tests do not establish physical
 power-loss durability or macOS/Docker Desktop acceptance.
 
 Ownership format2 adds a once-bound library UUID and a physical root fingerprint;
@@ -84,5 +101,6 @@ protocol and SDK library/root pins prevent an unrelated live storage epoch from
 being used as proof that an old writer stopped. Copying a format2 marker to a
 different root is refused. The external cold restore/rehearsal tool must validate
 the generation and explicitly rebase that physical fingerprint in both copied
-storage metadata and SQLite. Runtime has no reset/rebind endpoint. This tooling
-is still pending, together with the complete app/Compose release integration.
+storage metadata and SQLite. Runtime has no reset/rebind endpoint. The external
+tool performs that validated restore; installation/update and the paired
+Compose deployment are documented in [INSTALL](../INSTALL.md).

@@ -97,9 +97,11 @@ also depend on the unresolved cross-cutting gates at the end of this document.
 
 - The corrected checksum journal, full current Go/runtime regression, restored
   proof comparison and maximum browser upload have passed. Final artifact review
-  found omitted distribution notices in storage and the backup image; packaging
-  correction and focused new-image checks are in progress. Physical power-loss
-  durability remains an external check.
+  found omitted distribution notices in storage and the backup image; both
+  findings are now independently closed on exact rebuilt artifacts. New storage
+  native proof passed49.10 s (race package50.140 s), and two image browser cases
+  passed9.9 s plus simultaneous restart. Repackaged backup cold restore passed
+  72.802 s. Physical power-loss durability remains an external check.
 - Native amd64 CI and actual release-triggered build/pull verification have not
   run here. Workflows are locally linted; no image was published. QEMU is separate
   evidence, with exact digests in the amd64 report.
@@ -112,5 +114,7 @@ also depend on the unresolved cross-cutting gates at the end of this document.
   and the full reference performance profile remain separate. The passed padded
   maximum browser case covers actual bytes, hashing, memory and controls.
 - Final whole-change code review has closed both editor P2 findings. Artifact
-  distribution fixes and any newly discovered issues must close before production acceptance. Existing
+  review has closed both missing-notice findings, including BusyBox embedded
+  components and exact-version FlatBuffers license coverage. Actual hosted
+  publication/source-offer review remains separate from these local checks. Existing
   C#/Angular sources and explicit legacy Compose copies remain available.

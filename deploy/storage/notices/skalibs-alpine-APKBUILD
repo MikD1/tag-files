@@ -1,0 +1,43 @@
+# Maintainer: Laurent Bercot <ska-devel@skarnet.org>
+pkgname=skalibs
+# NOTE: If you're upgrading to a new version that fixes some security
+# vulnerability in the APIs used by utmps (mainly timed ipcs),
+# rebuild the following aports:
+# - busybox
+# - mingetty
+# - openssh
+# - util-linux
+pkgver=2.14.5.0
+pkgrel=0
+pkgdesc="Set of general-purpose C programming libraries for skarnet.org software."
+url=https://skarnet.org/software/skalibs/
+arch="all"
+license="ISC"
+options="!check"
+subpackages="$pkgname-static $pkgname-libs $pkgname-dev $pkgname-doc"
+source="https://skarnet.org/software/skalibs/skalibs-$pkgver.tar.gz"
+
+build() {
+	./configure \
+		--prefix=/usr \
+		--enable-pkgconfig \
+		--with-sysdep-devurandom=yes \
+		--with-sysdep-posixspawnearlyreturn=no \
+		--with-sysdep-procselfexe=/proc/self/exe
+	make
+}
+
+package() {
+	make DESTDIR="$pkgdir" install
+	mkdir -p "$pkgdir/usr/share/doc"
+	cp -a "$builddir/doc" "$pkgdir/usr/share/doc/$pkgname"
+}
+
+dev() {
+	default_dev
+	amove usr/lib/skalibs/sysdeps
+}
+
+sha512sums="
+a14801ec44cfc302b17265184f82f06032b429d82adac7f7e870cf740ff3712d33cd47802ca0bf803b151719a86130976da331e514bc446ad81ffad1af37c49a  skalibs-2.14.5.0.tar.gz
+"

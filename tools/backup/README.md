@@ -24,6 +24,18 @@ stopped app and storage containers, and holds their native ownership locks for
 the operation. A paused/restarting container also counts as running. It never
 stops or starts a service automatically.
 
+The scratch image also ships `/usr/share/tag-files/notices`: the original
+project MIT LICENSE, Go 1.27.4 LICENSE, notices for the actual Go dependency
+graph (including the locally replaced app module),
+[musl 1.2.6 COPYRIGHT](https://git.musl-libc.org/cgit/musl/plain/COPYRIGHT?h=v1.2.6),
+and GCC 15.2.0's original
+[GPL 3 text](https://github.com/gcc-mirror/gcc/blob/releases/gcc-15.2.0/COPYING3)
+and [GCC Runtime Library Exception](https://github.com/gcc-mirror/gcc/blob/releases/gcc-15.2.0/COPYING.RUNTIME).
+The static link map records the actual musl/libgcc members, alongside compiler
+version and Go build metadata. All license assets retain their upstream bytes.
+`scripts/check-image-notices backup IMAGE` checks the resulting image rather
+than assuming that a Docker build copied these files.
+
 Only the owned storage profile is supported: `/data` contains the entire
 master, LevelDB2, volumes/indexes, hidden state and configuration. The application
 has a separate named `/data` volume and optional named `/scratch`; scratch is
@@ -234,6 +246,9 @@ publication and independent cleanup, retains failed input/lost-MPU state, and
 proves those writes did not affect the stopped baseline or archive.
 
 This is synthetic Linux arm64 evidence. It does not replace a full-library
-100 GB rehearsal/RTO measurement, browser fingerprint/Safari acceptance,
-linux/amd64 execution, macOS sleep/Docker Desktop restart, or physical
+100 GB rehearsal/RTO measurement, shipping Safari/File-reselection acceptance,
+native linux/amd64 CI, macOS sleep/Docker Desktop restart, or physical
 power-loss checks. Preserve those explicit release gates until actually run.
+The separate [Linux maximum-browser evidence](../../docs/rewrite/BROWSER-MEMORY.md)
+now records the valid 20 GiB upload/close/reselect/fingerprint/recovery run;
+that result does not establish shipping Safari or real-library acceptance.

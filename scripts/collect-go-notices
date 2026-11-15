@@ -1,20 +1,47 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 output=${1:?Provide an output directory}
+shift
 mkdir -p "$output/modules"
-go list -deps -f '{{with .Module}}{{if not .Main}}{{.Path}} {{.Version}} {{.Dir}}{{end}}{{end}}' ./cmd/tag-files | sort -u > "$output/go-modules.txt"
+if [ "${1-}" = --modules ]; then
+  [ "$#" -eq 2 ] || { echo 'Usage: collect-go-notices OUTPUT --modules INVENTORY' >&2; exit 1; }
+  cp "$2" "$output/go-modules.txt"
+else
+  [ "$#" -gt 0 ] || set -- ./cmd/tag-files
+  # Keep go list outside a pipeline: a failed package lookup must fail closed.
+  go list -deps -f '{{with .Module}}{{if not .Main}}{{.Path}} {{.Version}} {{.Dir}}{{end}}{{end}}' "$@" > "$output/.module-list"
+  sort -u "$output/.module-list" > "$output/go-modules.txt"
+  rm "$output/.module-list"
+fi
 : > "$output/missing-go-notices.txt"
 while read -r module_path module_version module_dir; do
-  [[ -n "$module_path" ]] || continue
+  [ -n "$module_path" ] || continue
+  [ -n "$module_version" ] && [ -d "$module_dir" ] || { echo "Invalid module inventory: $module_path" >&2; exit 1; }
   module_target="$output/modules/$module_path@$module_version"
   mkdir -p "$module_target"
-  found=0
-  for notice in "$module_dir"/[Ll][Ii][Cc][Ee][Nn][Ss][Ee]* "$module_dir"/[Nn][Oo][Tt][Ii][Cc][Ee]* "$module_dir"/COPYING*; do
-    if [[ -f "$notice" ]]; then cp "$notice" "$module_target/"; found=1; fi
+  # Embedded/vendor components can have their own copyrights below the root.
+  : > "$output/.notice-list"
+  # A nested module's archive can omit its repository-root license. Only an
+  # explicitly supplied supplement for this exact module and version applies.
+  for notice_root in "$module_dir" "${COLLECT_GO_NOTICES_EXTRA_DIR:+$COLLECT_GO_NOTICES_EXTRA_DIR/$module_path@$module_version}"; do
+    [ -d "$notice_root" ] || continue
+    find "$notice_root" -type f \( -iname 'LICENSE*' -o -iname 'NOTICE*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' -o -ipath '*/licenses/*' -o -ipath '*/license/*' \) > "$output/.source-notice-list"
+    while IFS= read -r notice; do
+      relative=${notice#"$notice_root"/}
+      mkdir -p "$module_target/$(dirname "$relative")"
+      if [ -f "$module_target/$relative" ] && ! cmp -s "$notice" "$module_target/$relative"; then
+        echo "Conflicting notice originals: $module_path $module_version $relative" >&2
+        exit 1
+      fi
+      cp "$notice" "$module_target/$relative"
+    done < "$output/.source-notice-list"
+    cat "$output/.source-notice-list" >> "$output/.notice-list"
   done
-  if [[ $found == 0 ]]; then printf '%s %s\n' "$module_path" "$module_version" >> "$output/missing-go-notices.txt"; fi
+  if [ ! -s "$output/.notice-list" ]; then printf '%s %s\n' "$module_path" "$module_version" >> "$output/missing-go-notices.txt"; fi
 done < "$output/go-modules.txt"
-if [[ -s "$output/missing-go-notices.txt" ]]; then
+rm -f "$output/.notice-list" "$output/.source-notice-list"
+if [ -s "$output/missing-go-notices.txt" ]; then
   echo "Runtime Go dependencies are missing distribution notices" >&2
+  cat "$output/missing-go-notices.txt" >&2
   exit 1
 fi

@@ -1199,3 +1199,39 @@ backup images. A separate packaging-only correction is in progress: preserve
 the pinned Go SeaweedFS executable and include actual dependency/license texts
 without distributing its unused Rust executables. New image/runtime checks are
 required before that finding closes. No publication occurred.
+
+## Distribution artifacts corrected and independently reviewed
+
+Both missing-notice findings are closed. Storage now copies the unchanged pinned
+SeaweedFS executable into a minimal runtime containing the required BusyBox,
+musl and CA files, with no unused Rust executables in any distributed layer.
+The343 notice/source files cover244 actual upstream Go dependencies, both
+supervisors' two dependencies, original Go/project texts, BusyBox's embedded
+utmps/skalibs, CA and exact-version FlatBuffers supplemental root license.
+Downloaded module h1 sums match the executable; originals and runtime files
+retain independently checked hashes. Source/provenance is in
+[distribution sources](../../deploy/storage/notices/SOURCES.md).
+
+The generic collector's five tests pass, including nested notice directories,
+exact-version supplementation and refusal of unknown/missing originals. CI
+now runs those tests and audits actual storage/backup image files before seal.
+Independent artifact review checked all eight storage layers,343 files and
+runtime/source hashes, and closed both original findings with no further
+concrete P0/P1/P2 within scope.
+
+Frozen storage `sha256:20e806b7170765ac826a0533e09587cf4cf8e9ddb2fb8ee09af2ed83bb78a559`
+passed the real lost-ACK/restart/body/binding/1001-part pagination/full-SHA/cleanup
+proof test49.10s (race package50.140s). The actual app/storage browser pair passed
+both expanded cases9.9s plus simultaneous restart and retained media/SPA checks.
+Backup `sha256:ea33de2a15a0bb9fe0603710df34e372822ad8ceea06ce7d8406615ca16e4881`
+passed full native cold restore72.802s, including five restored proof files and
+all ten full objects; its nine Go dependencies/static musl/GCC notices were
+independently audited. Exact scope is in [backup evidence](../../tools/backup/EVIDENCE.md).
+
+The one-time upstream-license cache preparation needed245 verified module ZIPs,
+including six large archives totalling370MB. Slow single-connection downloads
+were replaced by complete official ranged downloads followed by normal Go
+SUMDB and embedded-h1 checks; no checksum was waived. Subsequent cached collector
+execution took6.3s. This was packaging/network work, not repeated maximum uploads.
+The final release-version archive bundle is rebuilt from this committed slice
+and receives the focused final image/seal checks separately.

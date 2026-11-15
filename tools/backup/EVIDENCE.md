@@ -84,3 +84,26 @@ measurement; real browser fingerprint/resume and Safari/VoiceOver acceptance;
 linux/amd64 execution; Apple Silicon macOS/Docker Desktop sleep/restart;
 physical VM/power-loss durability. Custom external filer metadata overrides are
 refused by this profile and require a separately extended/drilled format.
+
+## Distribution-notice image verification
+
+The repackaged backup tool passed the complete native cold restore fixture on
+2026-11-15: race suite72.802s, native drill70.44s, measured cold
+backup/restore/recovery47.751s. The exact images were:
+
+- Backup: `sha256:ea33de2a15a0bb9fe0603710df34e372822ad8ceea06ce7d8406615ca16e4881`.
+- Storage: `sha256:251df0d7010a8068a1c8ccb80a852fa3b1a46397479bba140d0721906382dc07`.
+
+All ten full objects,155 archived entries/429,321 native bytes, retained partial
+MPU and the five proof files/1750 bytes passed the same independent baseline
+and recovery assertions above. The backup image's nine actual Go dependencies,
+project/Go licenses, musl copyright and linked GCC runtime exception now ship
+with the binary; image audit passed25 notice/inventory files. A retained linker
+map identifies the actual static GCC helper objects rather than guessing the
+toolchain's runtime distribution.
+
+This run uses the previously accepted storage image. Later storage runtime
+packaging receives separate native checks; these measurements are not described
+as a full real-library or newer-storage-image restore. Local log:
+`/tmp/tag-files-backup-notices-native.log`. Fixture volumes and containers were
+removed after the successful run.
