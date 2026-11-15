@@ -50,6 +50,7 @@ type Part struct {
 type Session struct {
 	dbgen.UploadSession
 	Parts []Part
+	JobID string
 }
 type Batch struct {
 	ID       string
@@ -88,32 +89,42 @@ func missing(err error) error {
 
 // Create persists the whole batch's intent. In particular it does not initiate
 // an MPU; that may happen only after the caller commits this transaction.
-func Create(ctx context.Context, tx *sql.Tx, files []File, collectionID *int64, limits Limits, now time.Time) (Batch, error) {
+func ValidateFiles(files []File, collectionID *int64, limits Limits) error {
 	if err := limits.validate(); err != nil {
-		return Batch{}, err
+		return err
 	}
 	if len(files) < 1 || len(files) > 500 {
-		return Batch{}, domain.Invalid("files", "Select 1 to 500 files")
+		return domain.Invalid("files", "Select 1 to 500 files")
 	}
 	seen := map[string]bool{}
 	for _, file := range files {
 		id, err := canonicalID(file.ClientFileID)
 		if err != nil || seen[id] {
-			return Batch{}, domain.Invalid("clientFileId", "File identities must be unique UUIDs")
+			return domain.Invalid("clientFileId", "File identities must be unique UUIDs")
 		}
 		seen[id] = true
 		if !validFilename(file.Filename) {
-			return Batch{}, domain.Invalid("filename", "Filename must contain 1 to 1024 characters")
+			return domain.Invalid("filename", "Filename must contain 1 to 1024 characters")
 		}
 		if file.Size < 1 {
-			return Batch{}, domain.Invalid("size", "File must be nonempty")
+			return domain.Invalid("size", "File must be nonempty")
 		}
 		if file.Size > limits.MaxFileSize {
-			return Batch{}, &domain.ValidationError{Field: "size", Code: "file_too_large", Message: "File exceeds the configured upload limit"}
+			return &domain.ValidationError{Field: "size", Code: "file_too_large", Message: "File exceeds the configured upload limit"}
 		}
 		if file.Fingerprint != "" && !validHash(file.Fingerprint) {
-			return Batch{}, domain.Invalid("fingerprint", "Fingerprint must be a lowercase SHA-256 hex digest")
+			return domain.Invalid("fingerprint", "Fingerprint must be a lowercase SHA-256 hex digest")
 		}
+	}
+	if collectionID != nil {
+		return domain.ValidateID(*collectionID)
+	}
+	return nil
+}
+
+func Create(ctx context.Context, tx *sql.Tx, files []File, collectionID *int64, limits Limits, now time.Time) (Batch, error) {
+	if err := ValidateFiles(files, collectionID, limits); err != nil {
+		return Batch{}, err
 	}
 	q := dbgen.New(tx)
 	collection := sql.NullInt64{}
@@ -157,6 +168,15 @@ func sessionParts(ctx context.Context, q *dbgen.Queries, row dbgen.UploadSession
 	session := Session{UploadSession: row, Parts: make([]Part, 0, len(parts))}
 	for _, part := range parts {
 		session.Parts = append(session.Parts, partFromRow(part))
+	}
+	job, err := q.GetIngestionJob(ctx, "ingest/"+row.ID)
+	if errors.Is(err, sql.ErrNoRows) {
+		job, err = q.FindCompleteJob(ctx, "complete/"+row.ID)
+	}
+	if err == nil {
+		session.JobID = job.ID
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return Session{}, err
 	}
 	return session, nil
 }
@@ -230,12 +250,7 @@ func lookup(ctx context.Context, q *dbgen.Queries, id string) (Outcome, error) {
 		state = "failed"
 	}
 	result := Outcome{State: state, Session: &session}
-	job, err := q.GetIngestionJob(ctx, "ingest/"+id)
-	if err == nil {
-		result.JobID = job.ID
-	} else if !errors.Is(err, sql.ErrNoRows) {
-		return Outcome{}, err
-	}
+	result.JobID = session.JobID
 	return result, nil
 }
 
@@ -278,6 +293,58 @@ func AttachMultipart(ctx context.Context, tx *sql.Tx, id string, generation int6
 
 // BindPart commits size/content identity before any request body is forwarded.
 // A repeated number can never acquire different bytes, including after reopen.
+func checkPartBinding(row dbgen.UploadSession, generation int64, binding PartBinding, allowCreating bool) error {
+	if generation != row.Generation || (row.State != domain.SessionReceiving && !(allowCreating && row.State == domain.SessionCreating)) {
+		return ErrConflict
+	}
+	if row.State == domain.SessionReceiving && !row.MultipartUploadID.Valid {
+		return ErrConflict
+	}
+	if binding.Number < 1 || int64(binding.Number) > row.PartCount {
+		return ErrConflict
+	}
+	size := row.PartSize
+	if int64(binding.Number) == row.PartCount {
+		size = row.ExpectedSize - (row.PartCount-1)*row.PartSize
+	}
+	if binding.Size != size {
+		return ErrConflict
+	}
+	sum, err := base64.StdEncoding.Strict().DecodeString(binding.SHA256)
+	if err != nil || len(sum) != 32 || base64.StdEncoding.EncodeToString(sum) != binding.SHA256 {
+		return domain.Invalid("sha256", "Expected a canonical base64 SHA-256 digest")
+	}
+	return nil
+}
+
+// CheckPart refuses stale/invalid requests before MPU creation. BindPart repeats
+// the same rule in its writer transaction before dispatching any part bytes.
+func CheckPart(ctx context.Context, db *sql.DB, id string, generation int64, binding PartBinding) error {
+	id, err := canonicalID(id)
+	if err != nil {
+		return err
+	}
+	q := dbgen.New(db)
+	row, err := q.GetUploadSession(ctx, id)
+	if err != nil {
+		return missing(err)
+	}
+	if err := checkPartBinding(row, generation, binding, true); err != nil {
+		return err
+	}
+	part, err := q.GetUploadPart(ctx, dbgen.GetUploadPartParams{SessionID: id, PartNumber: int64(binding.Number)})
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if part.ExpectedSize != binding.Size || part.Sha256 != binding.SHA256 {
+		return ErrConflict
+	}
+	return nil
+}
+
 func BindPart(ctx context.Context, tx *sql.Tx, id string, generation int64, binding PartBinding) (Part, error) {
 	id, err := canonicalID(id)
 	if err != nil {
@@ -288,22 +355,8 @@ func BindPart(ctx context.Context, tx *sql.Tx, id string, generation int64, bind
 	if err != nil {
 		return Part{}, missing(err)
 	}
-	if generation != row.Generation || row.State != domain.SessionReceiving || !row.MultipartUploadID.Valid {
-		return Part{}, ErrConflict
-	}
-	if binding.Number < 1 || int64(binding.Number) > row.PartCount {
-		return Part{}, ErrConflict
-	}
-	size := row.PartSize
-	if int64(binding.Number) == row.PartCount {
-		size = row.ExpectedSize - (row.PartCount-1)*row.PartSize
-	}
-	if binding.Size != size {
-		return Part{}, ErrConflict
-	}
-	sum, err := base64.StdEncoding.Strict().DecodeString(binding.SHA256)
-	if err != nil || len(sum) != 32 || base64.StdEncoding.EncodeToString(sum) != binding.SHA256 {
-		return Part{}, domain.Invalid("sha256", "Expected a canonical base64 SHA-256 digest")
+	if err := checkPartBinding(row, generation, binding, false); err != nil {
+		return Part{}, err
 	}
 	if err := q.BindUploadPart(ctx, dbgen.BindUploadPartParams{SessionID: id, PartNumber: int64(binding.Number), ExpectedSize: binding.Size, Sha256: binding.SHA256}); err != nil {
 		return Part{}, err

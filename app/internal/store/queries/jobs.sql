@@ -25,7 +25,8 @@ WHERE id=sqlc.arg(id) AND lease_generation=sqlc.arg(generation) AND state='runni
 UPDATE jobs SET state='running',attempt=attempt+1,lease_generation=lease_generation+1,
  lease_until=sqlc.arg(lease_until),error_code=NULL
 WHERE id=(SELECT available.id FROM jobs AS available WHERE
- ((available.type='ingest' AND CAST(sqlc.arg(ingest) AS INTEGER)=1) OR
+ ((available.type='complete' AND CAST(sqlc.arg(completion) AS INTEGER)=1) OR
+  (available.type='ingest' AND CAST(sqlc.arg(ingest) AS INTEGER)=1) OR
   (available.type='poster' AND CAST(sqlc.arg(poster) AS INTEGER)=1) OR
   (available.type='cleanup' AND CAST(sqlc.arg(cleanup) AS INTEGER)=1) OR
   (available.type='delete' AND CAST(sqlc.arg(deletion) AS INTEGER)=1)) AND

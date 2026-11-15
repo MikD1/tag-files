@@ -54,7 +54,7 @@ func decodeManifest(encoded string) ([]objectstore.Part, error) {
 	return parts, nil
 }
 func completedSource(result Outcome) bool {
-	return result.Session == nil || result.Session.State == domain.SessionQueued || result.Session.State == domain.SessionProcessing || result.Session.State == domain.SessionFailed
+	return result.Session == nil || (result.Session.SourceSha256.Valid && (result.Session.State == domain.SessionQueued || result.Session.State == domain.SessionProcessing || result.Session.State == domain.SessionFailed))
 }
 
 // Complete has three durable boundaries: close part admission, freeze the
@@ -62,6 +62,9 @@ func completedSource(result Outcome) bool {
 // An ambiguous previous Complete is recovered by full verification of that
 // same manifest. Neither InvalidPart nor a later listing replaces it.
 func (c *Coordinator) Complete(ctx context.Context, id string) (Outcome, error) {
+	return c.complete(ctx, id, nil)
+}
+func (c *Coordinator) complete(ctx context.Context, id string, w *completionWork) (Outcome, error) {
 	id, err := canonicalID(id)
 	if err != nil {
 		return Outcome{}, err
@@ -78,6 +81,9 @@ func (c *Coordinator) Complete(ctx context.Context, id string) (Outcome, error) 
 	}
 	var session Session
 	err = c.db.Write(ctx, func(tx *sql.Tx) error {
+		if err := checkCompleteOwner(ctx, dbgen.New(tx), id, w); err != nil {
+			return err
+		}
 		current, err := readSession(ctx, dbgen.New(tx), id)
 		if err != nil {
 			return err
@@ -87,6 +93,11 @@ func (c *Coordinator) Complete(ctx context.Context, id string) (Outcome, error) 
 		}
 		if !current.MultipartUploadID.Valid {
 			return ErrConflict
+		}
+		if w != nil {
+			if err := matchComplete(current, w.payload); err != nil {
+				return err
+			}
 		}
 		if current.State == domain.SessionReceiving {
 			if int64(len(current.Parts)) != current.PartCount {
@@ -114,12 +125,20 @@ func (c *Coordinator) Complete(ctx context.Context, id string) (Outcome, error) 
 		var incomplete bool
 		err = c.db.Write(ctx, func(tx *sql.Tx) error {
 			q := dbgen.New(tx)
+			if err := checkCompleteOwner(ctx, q, id, w); err != nil {
+				return err
+			}
 			current, err := readSession(ctx, q, id)
 			if err != nil {
 				return err
 			}
 			if current.Generation != session.Generation || current.State != domain.SessionCompleting {
 				return ErrConflict
+			}
+			if w != nil {
+				if err := matchComplete(current, w.payload); err != nil {
+					return err
+				}
 			}
 			if current.CompletionManifest.Valid {
 				session = current
@@ -170,7 +189,7 @@ func (c *Coordinator) Complete(ctx context.Context, id string) (Outcome, error) 
 			return err
 		})
 		if err == nil {
-			if err := c.queueVerified(ctx, session, verified); err != nil {
+			if err := c.queueVerified(ctx, session, verified, w); err != nil {
 				return c.completedOrError(ctx, id, err)
 			}
 			return Lookup(ctx, c.db.Reader(), id)
@@ -186,6 +205,9 @@ func (c *Coordinator) Complete(ctx context.Context, id string) (Outcome, error) 
 	}
 	_, err = c.io.Complete(ctx, func(tx *sql.Tx) (objectio.Request, error) {
 		q := dbgen.New(tx)
+		if err := checkCompleteOwner(ctx, q, id, w); err != nil {
+			return objectio.Request{}, err
+		}
 		current, err := q.GetUploadSession(ctx, id)
 		if err != nil {
 			return objectio.Request{}, missing(err)
@@ -204,7 +226,7 @@ func (c *Coordinator) Complete(ctx context.Context, id string) (Outcome, error) 
 	}, parts, func(verified objectstore.Verified) error {
 		ackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
-		return c.queueVerified(ackCtx, session, verified)
+		return c.queueVerified(ackCtx, session, verified, w)
 	})
 	if err != nil {
 		return c.completedOrError(ctx, id, err)
@@ -218,12 +240,25 @@ func (c *Coordinator) completedOrError(ctx context.Context, id string, original 
 	}
 	return Outcome{}, original
 }
-func (c *Coordinator) queueVerified(ctx context.Context, session Session, verified objectstore.Verified) error {
+func (c *Coordinator) queueVerified(ctx context.Context, session Session, verified objectstore.Verified, work ...*completionWork) error {
 	if verified.Key != session.IncomingKey || verified.Size != session.ExpectedSize || !validHash(verified.SHA256) {
 		return objectstore.ErrIntegrity
 	}
-	return c.db.Write(ctx, func(tx *sql.Tx) error {
+	var w *completionWork
+	if len(work) > 0 {
+		w = work[0]
+	}
+	commit := c.db.Write
+	if w != nil {
+		commit = func(ctx context.Context, fn func(*sql.Tx) error) error {
+			return c.db.CommitJob(ctx, w.job.ID, w.job.LeaseGeneration, w.current(), fn)
+		}
+	}
+	return commit(ctx, func(tx *sql.Tx) error {
 		q := dbgen.New(tx)
+		if err := checkCompleteOwner(ctx, q, session.ID, w); err != nil {
+			return err
+		}
 		current, err := q.GetUploadSession(ctx, session.ID)
 		if err != nil {
 			return missing(err)

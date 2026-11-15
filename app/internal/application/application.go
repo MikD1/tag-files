@@ -182,15 +182,16 @@ func Open(ctx context.Context, c Config) (_ *App, err error) {
 		return nil, err
 	}
 	a.worker, err = worker.New(a.db, map[domain.JobKind]worker.Handler{
-		domain.JobIngest:  a.withCapacity(worker.Ingestion(uploads, processor, a.scratch)),
-		domain.JobPoster:  a.withCapacity(worker.Poster(posters, a.db, processor, a.scratch)),
-		domain.JobCleanup: worker.Cleanup(uploads, a.db, posters),
-		domain.JobDelete:  worker.Deletion(deletions, a.db),
+		domain.JobComplete: a.withCapacity(worker.Completion(uploads)),
+		domain.JobIngest:   a.withCapacity(worker.Ingestion(uploads, processor, a.scratch)),
+		domain.JobPoster:   a.withCapacity(worker.Poster(posters, a.db, processor, a.scratch)),
+		domain.JobCleanup:  worker.Cleanup(uploads, a.db, posters),
+		domain.JobDelete:   worker.Deletion(deletions, a.db),
 	}, c.Worker)
 	if err != nil {
 		return nil, err
 	}
-	a.handler, err = httpapi.New(a.db, httpapi.Options{Media: streams, Version: c.Version, Readiness: a.Ready, Admit: a.admit, BeforeMutation: a.capacity.Metadata, Disk: a.capacity.Diagnostics})
+	a.handler, err = httpapi.New(a.db, httpapi.Options{Media: streams, Version: c.Version, Readiness: a.Ready, Admit: a.admit, BeforeMutation: a.capacity.Metadata, Disk: a.capacity.Diagnostics, Uploads: &httpapi.UploadOptions{Coordinator: uploads, Budget: a.capacity, Limits: ingestion.DefaultLimits(), Wake: a.worker.Wake}})
 	if err != nil {
 		return nil, err
 	}

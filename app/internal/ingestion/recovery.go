@@ -55,7 +55,7 @@ func validateUploadIntent(session Session, intent objectio.Intent) error {
 
 // recoverCompletedSource checks the same frozen bytes, never a new ListParts
 // manifest. Queued/processing/failed source hashes must still match exactly.
-func (c *Coordinator) recoverCompletedSource(ctx context.Context, session Session, client objectio.Reader) error {
+func (c *Coordinator) recoverCompletedSource(ctx context.Context, session Session, client objectio.Reader, work ...*completionWork) error {
 	parts, err := decodeManifest(session.CompletionManifest.String)
 	if err != nil {
 		return err
@@ -68,14 +68,14 @@ func (c *Coordinator) recoverCompletedSource(ctx context.Context, session Sessio
 		return objectstore.ErrIntegrity
 	}
 	if session.State == domain.SessionCompleting {
-		return c.queueVerified(ctx, session, verified)
+		return c.queueVerified(ctx, session, verified, work...)
 	}
 	if !session.SourceSha256.Valid {
 		return ErrConflict
 	}
 	return nil
 }
-func (c *Coordinator) reconcileUploadIntent(ctx context.Context, client objectio.ReconciliationClient, intent objectio.Intent) error {
+func (c *Coordinator) reconcileUploadIntent(ctx context.Context, client objectio.ReconciliationClient, intent objectio.Intent, work ...*completionWork) error {
 	session, err := c.session(ctx, intent.TargetID)
 	if err != nil {
 		return err
@@ -89,7 +89,7 @@ func (c *Coordinator) reconcileUploadIntent(ctx context.Context, client objectio
 		return err
 	case objectio.UploadPart:
 		if session.CompletionManifest.Valid {
-			return c.recoverFrozenSource(ctx, session, client)
+			return c.recoverFrozenSource(ctx, session, client, work...)
 		}
 		parts, err := client.ListParts(ctx, session.IncomingKey, session.MultipartUploadID.String)
 		if err != nil {
@@ -97,13 +97,13 @@ func (c *Coordinator) reconcileUploadIntent(ctx context.Context, client objectio
 		}
 		return c.reconcileListedParts(ctx, session, parts)
 	case objectio.CompleteMPU:
-		return c.recoverFrozenSource(ctx, session, client)
+		return c.recoverFrozenSource(ctx, session, client, work...)
 	}
 	return ErrConflict
 }
 
-func (c *Coordinator) recoverFrozenSource(ctx context.Context, session Session, client objectio.Reader) error {
-	err := c.recoverCompletedSource(ctx, session, client)
+func (c *Coordinator) recoverFrozenSource(ctx context.Context, session Session, client objectio.Reader, work ...*completionWork) error {
+	err := c.recoverCompletedSource(ctx, session, client, work...)
 	if !missingObject(err) || session.State != domain.SessionCompleting || session.SourceSha256.Valid {
 		return err
 	}
@@ -133,6 +133,9 @@ func (c *Coordinator) recoverFrozenSource(ctx context.Context, session Session, 
 // byte/MPU/manifest identities. It returns the current usable outcome together
 // with ErrUnsettled when same-epoch unknown writers must still be retained.
 func (c *Coordinator) RecoverSession(ctx context.Context, id string) (Outcome, error) {
+	return c.recoverSession(ctx, id, nil)
+}
+func (c *Coordinator) recoverSession(ctx context.Context, id string, w *completionWork) (Outcome, error) {
 	id, err := canonicalID(id)
 	if err != nil {
 		return Outcome{}, err
@@ -164,7 +167,7 @@ func (c *Coordinator) RecoverSession(ctx context.Context, id string) (Outcome, e
 				return Outcome{}, ErrConflict
 			}
 			err := c.io.ReconcileAfterRestart(ctx, intent, func(client objectio.ReconciliationClient, current objectio.Intent) error {
-				return c.reconcileUploadIntent(ctx, client, current)
+				return c.reconcileUploadIntent(ctx, client, current, w)
 			})
 			if errors.Is(err, objectio.ErrUnsettled) {
 				unsettled = true
@@ -193,7 +196,7 @@ func (c *Coordinator) RecoverSession(ctx context.Context, id string) (Outcome, e
 		case domain.SessionReceiving:
 			result, err = c.Refresh(ctx, id)
 		case domain.SessionCompleting:
-			result, err = c.Complete(ctx, id)
+			result, err = c.complete(ctx, id, w)
 			if errors.Is(err, objectio.ErrUnsettled) {
 				unsettled = true
 				result, err = Lookup(ctx, c.db.Reader(), id)

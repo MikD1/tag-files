@@ -8,4 +8,4 @@ generate:
 output-options:
   skip-prune: true
   nullable-type: true
-  include-tags: [catalog, organization, navigation, operations, deletion, system]
+  include-tags: [catalog, organization, navigation, operations, deletion, system, ingestion]

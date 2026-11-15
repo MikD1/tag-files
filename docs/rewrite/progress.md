@@ -15,8 +15,9 @@ No release, migration of real data, or production-readiness claim has been made.
   catalog retrieval and atomic metadata/favorite/view commands.
 - Task 3 core implemented: full OpenAPI source, generated Go/TypeScript,
   strict JSON adapters for catalog/organization, durable operation results
-  and navigation contexts. System health/status is wired. Upload handlers and the full API-only
-  acceptance matrix remain open alongside Tasks 4–9.
+  and navigation contexts. System health/status and upload handlers are wired,
+  including durable asynchronous Complete. The full API-only acceptance matrix
+  remains open alongside Tasks 4–9.
 - Task 4 started: the S3 adapter and read-only checker pass real pinned
   SeaweedFS/SDK conformance. The owned storage image now has resumable bootstrap,
   fsync before bucket creation and a network gate after the complete preflight.
@@ -919,6 +920,62 @@ The earlier focused failure expected `queued` instead of the public `pending`
 outcome; its corrected ENOSPC rerun passed 22.079 s. This is not a completion claim
 for Task 5 or production: upload HTTP, broader stress/media/browser/Mac, React v27,
 offline migration/backup/restore and release containers remain required.
+
+## Upload HTTP and durable Complete (2026-11-15)
+
+Upload JSON routes and raw same-origin part PUT are now wired into the runtime.
+Batch creation is SQL-only and admitted against measured capacity; the first
+part initializes/reconciles its MPU. Raw bodies bypass JSON decoding/size limits.
+Header/length/content checks, shared domain generation/binding preflight and
+507 admission occur before body consumption. DTOs expose public IDs/state,
+parts and job IDs without keys/MPU credentials. Batches contain pending/error
+only. Retry/cancel job controls target upload Complete/ingestion work; cleanup
+and deletion remain independent resource protocols. Cancel explicitly returns
+ready200 or absent204 when those outcomes win its race.
+
+Schema6 atomically preserves existing jobs and adds versioned `complete` work.
+Complete commits the client's generation/ordered selectors and closes admission
+before returning202; browser disconnect is no longer the execution boundary.
+The worker reconciles/drains, checks the selectors again, fully verifies source
+and atomically transfers its lease to ingestion. Startup fences/requeues it;
+terminal failure retains input and manual retry reuses session/job identity.
+Pending operation targets resolve to durable ready/failure outcomes in the same
+publication/failure/cancel transaction. Ready lookup survives session removal
+and seven-day receipt expiry/pruning. No session/input TTL was added.
+
+Real regressions reproduced and fixed: stale generation previously initialized
+an MPU before rejection (two SDK-peer requests); it now refuses before storage.
+A concurrent receipt committed after read-only inspection could previously be
+masked by507; admission failure now rechecks/replays that winner. Tests cover
+parts larger than the JSON limit, unread invalid/full-disk bodies, immutable
+selectors, changed listing, bad source, stale lease, atomic source/job transfer,
+retained failure, retry/cancel, pending-only batches, expired ready replay and
+known-key conflicts. Binary responses validate against the full source OpenAPI.
+
+Fresh `scripts/check` (generation/gofmt/vet/ordinary/race), expanded
+`scripts/check-media` and `scripts/check-media-image` all passed. Full native
+arm64/race `TAG_FILES_MEDIA_INTEGRATION=1 scripts/check-storage-image` passed
+383.936s, including actual HTTP create/part/Complete, interrupted Complete with
+browser closed, reopen/recovery through real S3/FFmpeg primary/poster, final
+operation receipt, no upload history, media/readiness/CLI/SIGTERM and owner
+reacquisition. That HTTP/runtime case was rerun after the last HTTP-only replay
+fix and passed27.107s (case26.06s); unrelated native cases and media sources did
+not change after their final gate launch. Focused source verification and race
+tests passed too. The startup-recovery and expired-receipt tests required fixture
+corrections (reopen before recovery, owned primary and typed request hashing),
+without relaxing production rules.
+
+Images: storage
+`sha256:5493f8f698c189e70f8316d2b8071ad3cf3f6b137c28cef28db9f9058fbb2157`,
+media check
+`sha256:60cc10d9ef7d0d40659750c3bb833bcdac11920dd0fa6be1978c99ff9cdcae7d`.
+Logs: `/tmp/tag-files-upload-final-{check,media,media-image,storage-image}.log`,
+`/tmp/tag-files-upload-native-final-focused.log` and
+`/tmp/tag-files-upload-replay-admission-{red,green}.log`. All final sessions exited
+0; disposable test resources were removed. Operational receipt housekeeping,
+full upload/browser/20GiB/RSS and broader media/Mac acceptance remain open,
+alongside React v27, offline migration/backup/restore and release containers.
+This is progress on Tasks3–5, not full task/rewrite acceptance.
 
 ## Completion boundary
 

@@ -9,10 +9,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/getkin/kin-openapi/routers/gorillamux"
 	"github.com/mikd1/tag-files/app/internal/httpapi/api"
@@ -85,6 +87,11 @@ func (h *harness) request(method, path, body string, headers ...string) *httptes
 	w := httptest.NewRecorder()
 	h.handler.ServeHTTP(w, req)
 	spec, err := api.GetSwagger()
+	if strings.Contains(path, "/parts/") {
+		// Binary operations are deliberately excluded from the generated JSON
+		// handler subset; validate their responses against the source contract.
+		spec, err = openapi3.NewLoader().LoadFromFile(filepath.Join("..", "..", "..", "api", "openapi.yaml"))
+	}
 	if err != nil {
 		h.t.Fatal(err)
 	}

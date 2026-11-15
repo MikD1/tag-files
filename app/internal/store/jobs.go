@@ -44,6 +44,8 @@ func (s *Store) ClaimJobKinds(ctx context.Context, kinds []domain.JobKind, now t
 	var args dbgen.ClaimJobKindsParams
 	for _, kind := range kinds {
 		switch kind {
+		case domain.JobComplete:
+			args.Completion = 1
 		case domain.JobIngest:
 			args.Ingest = 1
 		case domain.JobPoster:

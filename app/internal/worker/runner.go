@@ -67,7 +67,7 @@ func New(db *store.Store, handlers map[domain.JobKind]Handler, config Config) (*
 	}
 	r := &Runner{db: db, config: config, handlers: map[domain.JobKind]Handler{}, wake: make(chan struct{}, 1)}
 	for kind, h := range handlers {
-		if kind != domain.JobIngest && kind != domain.JobPoster && kind != domain.JobCleanup && kind != domain.JobDelete || h.Execute == nil || h.Fail == nil || h.Interrupt == nil {
+		if kind != domain.JobComplete && kind != domain.JobIngest && kind != domain.JobPoster && kind != domain.JobCleanup && kind != domain.JobDelete || h.Execute == nil || h.Fail == nil || h.Interrupt == nil {
 			return nil, domain.Invalid("worker", "Invalid worker handler")
 		}
 		r.handlers[kind] = h

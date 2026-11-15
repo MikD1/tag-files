@@ -13,6 +13,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,7 +22,9 @@ import (
 	"time"
 
 	"github.com/mikd1/tag-files/app/internal/application"
+	"github.com/mikd1/tag-files/app/internal/capacity"
 	"github.com/mikd1/tag-files/app/internal/domain"
+	"github.com/mikd1/tag-files/app/internal/httpapi"
 	"github.com/mikd1/tag-files/app/internal/httpapi/api"
 	"github.com/mikd1/tag-files/app/internal/ingestion"
 	"github.com/mikd1/tag-files/app/internal/librarybinding"
@@ -79,27 +82,69 @@ func TestApplicationOwnedImageRecoversInterruptedIngestAndServesPublishedMedia(t
 	if err := png.Encode(&photo, image.NewNRGBA(image.Rect(0, 0, 13, 9))); err != nil {
 		t.Fatal(err)
 	}
-	var batch ingestion.Batch
-	if err := db.Write(ctx, func(tx *sql.Tx) error {
-		var err error
-		batch, err = ingestion.Create(ctx, tx, []ingestion.File{{ClientFileID: domain.NewUUID(), Filename: "photo.png", Size: int64(photo.Len())}}, nil, ingestion.DefaultLimits(), time.Now())
-		return err
-	}); err != nil {
+	sandbox, err := scratch.Open(cfg.Scratch)
+	if err != nil {
 		t.Fatal(err)
 	}
-	session := batch.Sessions[0]
+	defer sandbox.Close()
+	processor, err := media.New(cfg.Media)
+	if err != nil {
+		t.Fatal(err)
+	}
+	budget, err := capacity.New(db, sandbox, client, capacity.Config{DataDir: cfg.DataDir, OutputLimit: processor.OutputLimit(), PosterLimit: processor.PosterOutputLimit(), PartSize: ingestion.DefaultLimits().PartSize, Parallel: 2, MinFreeBytes: 1, MinFreeInodes: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, err := httpapi.New(db, httpapi.Options{Uploads: &httpapi.UploadOptions{Coordinator: uploads, Budget: budget, Limits: ingestion.DefaultLimits()}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport := httptest.NewServer(handler)
+	defer transport.Close()
+	request := func(method, path string, body []byte, headers ...string) []byte {
+		t.Helper()
+		req, err := http.NewRequestWithContext(ctx, method, transport.URL+path, bytes.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		for i := 0; i < len(headers); i += 2 {
+			req.Header.Set(headers[i], headers[i+1])
+		}
+		res, err := transport.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		raw, err := io.ReadAll(res.Body)
+		if err != nil || res.StatusCode < 200 || res.StatusCode >= 300 {
+			t.Fatal("native upload HTTP", res.StatusCode, string(raw), err)
+		}
+		return raw
+	}
+	newBody, _ := json.Marshal(map[string]any{"files": []map[string]any{{"clientFileId": domain.NewUUID(), "filename": "photo.png", "size": photo.Len()}}})
+	var created api.UploadsCreated
+	if err := json.Unmarshal(request("POST", "/api/v1/upload-sessions", newBody, "Idempotency-Key", domain.NewUUID()), &created); err != nil || len(created.Sessions) != 1 {
+		t.Fatal("native batch", created, err)
+	}
+	session := struct{ ID string }{created.Sessions[0].Id.String()}
 	sum := sha256.Sum256(photo.Bytes())
-	if _, err := uploads.EnsureMultipart(ctx, session.ID); err != nil {
-		t.Fatal(err)
+	var part api.UploadPart
+	if err := json.Unmarshal(request("PUT", "/api/v1/upload-sessions/"+session.ID+"/parts/1", photo.Bytes(), "Content-Type", "application/octet-stream", "X-Upload-Generation", "1", "X-Part-SHA256", base64.StdEncoding.EncodeToString(sum[:])), &part); err != nil || part.Etag == nil {
+		t.Fatal(part, err)
 	}
-	if _, err := uploads.UploadPart(ctx, session.ID, 1, ingestion.PartBinding{Number: 1, Size: int64(photo.Len()), SHA256: base64.StdEncoding.EncodeToString(sum[:])}, bytes.NewReader(photo.Bytes())); err != nil {
-		t.Fatal(err)
+	completeBody, _ := json.Marshal(map[string]any{"generation": 1, "parts": []map[string]any{{"partNumber": 1, "etag": *part.Etag}}})
+	operationKey := domain.NewUUID()
+	var accepted api.UploadOutcome
+	if err := json.Unmarshal(request("POST", "/api/v1/upload-sessions/"+session.ID+"/complete", completeBody, "Idempotency-Key", operationKey), &accepted); err != nil || accepted.State != "pending" || accepted.JobId == nil {
+		t.Fatal("native Complete not durable", accepted, err)
 	}
-	if _, err := uploads.Complete(ctx, session.ID); err != nil {
+	transport.Close()
+	if err := sandbox.Close(); err != nil {
 		t.Fatal(err)
 	}
 	interrupted, err := db.ClaimJob(ctx, time.Now(), time.Minute)
-	if err != nil || interrupted.Type != domain.JobIngest {
+	if err != nil || interrupted.Type != domain.JobComplete {
 		t.Fatal("could not leave an interrupted generation", err)
 	}
 	if err := db.Close(); err != nil {
@@ -152,6 +197,17 @@ func TestApplicationOwnedImageRecoversInterruptedIngestAndServesPublishedMedia(t
 	}
 	if item.ContentUrl == nil || item.PosterUrl == nil {
 		t.Fatal("factory did not recover and run ingest/poster work")
+	}
+	if status, body := get("/api/v1/operations/" + operationKey); status != 200 {
+		t.Fatalf("native final receipt %d %s", status, body)
+	} else {
+		var op api.Operation
+		if err := json.Unmarshal(body, &op); err != nil || op.State != "completed" || op.HttpStatus != 200 {
+			t.Fatal("native ready did not resolve Complete receipt", op, err)
+		}
+	}
+	if status, body := get("/api/v1/upload-batches"); status != 200 || string(body) != "[]" {
+		t.Fatalf("native ready left upload history: %d %s", status, body)
 	}
 	if status, body := get(*item.ContentUrl); status != 200 || !bytes.Equal(body, photo.Bytes()) {
 		t.Fatalf("published native media: %d %d bytes", status, len(body))

@@ -34,10 +34,11 @@ const (
 type JobKind string
 
 const (
-	JobIngest  JobKind = "ingest"
-	JobPoster  JobKind = "poster"
-	JobCleanup JobKind = "cleanup"
-	JobDelete  JobKind = "delete"
+	JobComplete JobKind = "complete"
+	JobIngest   JobKind = "ingest"
+	JobPoster   JobKind = "poster"
+	JobCleanup  JobKind = "cleanup"
+	JobDelete   JobKind = "delete"
 )
 
 type JobState string

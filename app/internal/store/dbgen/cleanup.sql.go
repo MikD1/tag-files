@@ -94,7 +94,7 @@ func (q *Queries) DeleteCleanupReceipt(ctx context.Context, id string) error {
 }
 
 const deleteUploadIngestJobs = `-- name: DeleteUploadIngestJobs :exec
-DELETE FROM jobs WHERE type='ingest' AND subject_id=?
+DELETE FROM jobs WHERE type IN ('complete','ingest') AND subject_id=?
 `
 
 func (q *Queries) DeleteUploadIngestJobs(ctx context.Context, subjectID string) error {

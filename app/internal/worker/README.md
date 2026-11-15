@@ -26,6 +26,15 @@ old generation while preserving input/MPU/bindings. Future payload versions are
 retained and refused. `Cleanup` executes the independent receipt protocol;
 ready/cancel continue to remove visible uploads without a history or TTL.
 
+`Completion` owns a durable versioned upload generation and ordered client
+part selectors. HTTP Complete commits that intent and closes part admission
+before returning 202. Full source verification, journal reconciliation and S3
+Complete then run without the browser. A leased transaction queues ingestion
+and retires Complete together. Stale leases and changed selectors cannot queue
+source. Startup preflights/requeues this kind, including clock rollback; failed
+input stays until explicit retry/cancel. Primary publication or terminal failure
+also finalizes pending Complete command receipts in the same transaction.
+
 `Poster` independently reads a verified ready primary, prepares a bounded JPEG,
 and publishes a unique verified candidate without recreating uploads. Failure
 only updates the poster job. `Cleanup` dispatches strict receipt codecs to their
@@ -59,10 +68,11 @@ Ready primary/poster work never recreates an upload session.
 
 Scratch has guarded, bounded reclamation after producer quiescence. The
 application factory now verifies pairing, preflights/recovers SQL and reclaims
-before starting one runner with all four handlers. HTTP and worker share shutdown
+before starting one runner with all five handlers. HTTP and worker share shutdown
 cancellation and are joined before owners close. A shared physical budget now
 gates media execution with durable retries for 507; cleanup keeps running.
-Upload HTTP/batch/retry, full capacity acceptance and server/SPA container
-packaging remain integration gates.
+HTTP now exposes batch creation, part streaming, Complete, upload job retry/cancel
+and pending/error polling. Remaining stress/media/browser acceptance, operational
+receipt housekeeping and server/SPA container packaging remain integration gates.
 Persistent pairing primitives are in `librarybinding`; merely opening a store
 must not be treated as completion of the startup sequence.

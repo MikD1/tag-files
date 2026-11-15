@@ -15,7 +15,7 @@ SELECT * FROM jobs WHERE type='cleanup' AND dedupe_key=?;
 SELECT * FROM assets WHERE upload_id=? AND item_id IS NULL ORDER BY id;
 
 -- name: DeleteUploadIngestJobs :exec
-DELETE FROM jobs WHERE type='ingest' AND subject_id=?;
+DELETE FROM jobs WHERE type IN ('complete','ingest') AND subject_id=?;
 
 -- name: DeleteUploadSession :exec
 DELETE FROM upload_sessions WHERE id=?;

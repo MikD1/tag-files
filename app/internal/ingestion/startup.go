@@ -97,6 +97,33 @@ func validateStartupJob(ctx context.Context, q *dbgen.Queries, library dbgen.Lib
 		return ErrConflict
 	}
 	switch job.Type {
+	case domain.JobComplete:
+		p, err := decodeCompleteJob(job)
+		if err != nil {
+			return err
+		}
+		session, err := readSession(ctx, q, p.UploadID)
+		if err != nil {
+			return err
+		}
+		if session.Generation != p.Generation || session.IncomingKey != incomingKey(library.LibraryID, session.ID) || session.SourceSha256.Valid || !session.MultipartUploadID.Valid || (session.State != domain.SessionCompleting && session.State != domain.SessionFailed) || ((job.State == domain.JobFailed) != (session.State == domain.SessionFailed)) {
+			return ErrConflict
+		}
+		if session.CompletionManifest.Valid {
+			parts, err := decodeManifest(session.CompletionManifest.String)
+			if err != nil {
+				return err
+			}
+			if len(parts) != len(p.Parts) {
+				return ErrConflict
+			}
+			for i, part := range parts {
+				if part.Number != p.Parts[i].Number || part.ETag != p.Parts[i].ETag {
+					return ErrConflict
+				}
+			}
+		}
+		return nil
 	case domain.JobIngest:
 		payload, err := decodeIngestJob(job)
 		if err != nil {

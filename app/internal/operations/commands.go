@@ -82,19 +82,13 @@ func Get(ctx context.Context, db *sql.DB, id string, now time.Time) (Operation, 
 	return op, nil
 }
 
-// Execute commits command metadata and its replayable HTTP result together.
-// The callback performs SQLite work only. An explicit 4xx/5xx Result rolls back
-// callback mutations to a savepoint, then retains the failure outcome; an
-// unexpected Go error aborts the whole transaction. 202 must carry a durable
-// intent for later IO, never start network/process work inside this callback.
-func Execute(ctx context.Context, s *store.Store, req Request, now time.Time, fn func(*sql.Tx) (Result, error)) (result Result, err error) {
-	sampled := time.Now()
+func requestHash(req Request) (string, string, error) {
 	if err := domain.ValidateUUID(req.Key); err != nil {
-		return result, domain.Invalid("Idempotency-Key", "Expected a UUID")
+		return "", "", domain.Invalid("Idempotency-Key", "Expected a UUID")
 	}
 	req.Key = strings.ToLower(req.Key)
 	if req.Method == "" || req.Route == "" {
-		return result, fmt.Errorf("command scope is required")
+		return "", "", fmt.Errorf("command scope is required")
 	}
 	if len(req.Body) == 0 {
 		req.Body = json.RawMessage(`null`)
@@ -104,13 +98,50 @@ func Execute(ctx context.Context, s *store.Store, req Request, now time.Time, fn
 		Body          json.RawMessage
 	}{req.Method, req.Route, req.Body})
 	if err != nil {
-		return result, err
+		return "", "", err
 	}
 	hash := sha256.Sum256(canonical)
-	digest := hex.EncodeToString(hash[:])
+	return req.Key, hex.EncodeToString(hash[:]), nil
+}
+
+// Inspect avoids taking the writer or doing external admission for a known
+// command. Execute still checks again atomically before changing domain state.
+func Inspect(ctx context.Context, db *sql.DB, req Request, now time.Time) (Operation, bool, error) {
+	key, digest, err := requestHash(req)
+	if err != nil {
+		return Operation{}, false, err
+	}
+	row, err := dbgen.New(db).GetOperation(ctx, key)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Operation{}, false, nil
+	}
+	if err != nil {
+		return Operation{}, false, err
+	}
+	if row.RequestHash != digest {
+		return Operation{}, true, ErrKeyConflict
+	}
+	op, err := decode(row)
+	if err == nil && !now.Before(op.ExpiresAt) {
+		err = ErrOperationExpired
+	}
+	return op, true, err
+}
+
+// Execute commits command metadata and its replayable HTTP result together.
+// The callback performs SQLite work only. An explicit 4xx/5xx Result rolls back
+// callback mutations to a savepoint, then retains the failure outcome; an
+// unexpected Go error aborts the whole transaction. 202 must carry a durable
+// intent for later IO, never start network/process work inside this callback.
+func Execute(ctx context.Context, s *store.Store, req Request, now time.Time, fn func(*sql.Tx) (Result, error)) (result Result, err error) {
+	sampled := time.Now()
+	key, digest, err := requestHash(req)
+	if err != nil {
+		return result, err
+	}
 	err = s.Write(ctx, func(tx *sql.Tx) error {
 		q := dbgen.New(tx)
-		row, err := q.GetOperation(ctx, req.Key)
+		row, err := q.GetOperation(ctx, key)
 		if err == nil {
 			if row.RequestHash != digest {
 				return ErrKeyConflict
@@ -160,7 +191,7 @@ func Execute(ctx context.Context, s *store.Store, req Request, now time.Time, fn
 		if err != nil {
 			return err
 		}
-		return q.CreateOperation(ctx, dbgen.CreateOperationParams{OperationID: req.Key, RequestHash: digest, State: state, HttpStatus: int64(result.Status), ResultJson: string(raw), CreatedAt: store.Timestamp(now), ExpiresAt: store.Timestamp(now.Add(Retention))})
+		return q.CreateOperation(ctx, dbgen.CreateOperationParams{OperationID: key, RequestHash: digest, State: state, HttpStatus: int64(result.Status), ResultJson: string(raw), CreatedAt: store.Timestamp(now), ExpiresAt: store.Timestamp(now.Add(Retention))})
 	})
 	return result, err
 }

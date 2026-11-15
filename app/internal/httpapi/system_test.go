@@ -7,6 +7,7 @@ import (
 
 	"github.com/mikd1/tag-files/app/internal/domain"
 	"github.com/mikd1/tag-files/app/internal/httpapi/api"
+	"github.com/mikd1/tag-files/app/internal/store"
 	"github.com/mikd1/tag-files/app/internal/store/dbgen"
 )
 
@@ -38,7 +39,7 @@ func TestSystemStatusReportsLibraryAndDurableQueueWithoutInventedCapacity(t *tes
 		t.Fatal(err)
 	}
 	meta, err := dbgen.New(h.s.Reader()).GetLibraryMeta(ctx)
-	if err != nil || status.LibraryId.String() != meta.LibraryID || status.Queue["queued"] != 1 || status.Queue["running"] != 0 || status.AppVersion == "" || status.SchemaVersion != 5 || status.FormatVersion != 1 {
+	if err != nil || status.LibraryId.String() != meta.LibraryID || status.Queue["queued"] != 1 || status.Queue["running"] != 0 || status.AppVersion == "" || status.SchemaVersion != store.SchemaVersion || status.FormatVersion != 1 {
 		t.Fatalf("incorrect library/queue: %+v %v", status, err)
 	}
 	storage, ok := status.Disk["storage"].(map[string]any)

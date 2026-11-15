@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/mikd1/tag-files/app/internal/domain"
+	"github.com/mikd1/tag-files/app/internal/operations"
 	"github.com/mikd1/tag-files/app/internal/store/dbgen"
 )
 
@@ -100,6 +101,9 @@ func Cancel(ctx context.Context, tx *sql.Tx, id string, now time.Time) (Cancella
 		return Cancellation{}, err
 	}
 	if err := q.DeleteUploadIngestJobs(ctx, id); err != nil {
+		return Cancellation{}, err
+	}
+	if err := operations.FailUpload(ctx, tx, id, 409, "upload_cancelled"); err != nil {
 		return Cancellation{}, err
 	}
 	if err := q.DeleteUploadSession(ctx, id); err != nil {

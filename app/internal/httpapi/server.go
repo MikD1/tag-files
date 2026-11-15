@@ -20,7 +20,10 @@ import (
 	"github.com/mikd1/tag-files/app/internal/diskspace"
 	"github.com/mikd1/tag-files/app/internal/domain"
 	"github.com/mikd1/tag-files/app/internal/httpapi/api"
+	"github.com/mikd1/tag-files/app/internal/ingestion"
 	"github.com/mikd1/tag-files/app/internal/mediaserve"
+	"github.com/mikd1/tag-files/app/internal/objectio"
+	"github.com/mikd1/tag-files/app/internal/objectstore"
 	"github.com/mikd1/tag-files/app/internal/operations"
 	"github.com/mikd1/tag-files/app/internal/resourceerr"
 	"github.com/mikd1/tag-files/app/internal/search"
@@ -31,6 +34,7 @@ import (
 const MaxJSONBytes = 1024 * 1024
 
 type Options struct {
+	Uploads   *UploadOptions
 	Clock     func() time.Time
 	Media     *mediaserve.Service
 	Version   string
@@ -129,6 +133,14 @@ func New(s *store.Store, options Options) (http.Handler, error) {
 			}
 			return
 		}
+		if strings.HasPrefix(r.URL.Path, "/api/v1/upload-sessions/") && strings.Contains(r.URL.Path, "/parts/") {
+			if err := service.uploadPart(w, r); err != nil {
+				if r.Context().Err() == nil {
+					writeProblem(w, r.Context(), err)
+				}
+			}
+			return
+		}
 		r.Body = http.MaxBytesReader(w, r.Body, MaxJSONBytes)
 		// The validator's streaming decoder accepts the first JSON value. Check
 		// the bounded original document before validation can apply defaults or
@@ -181,6 +193,12 @@ func problem(ctx context.Context, err error) api.Problem {
 		status, code, message = 507, "insufficient_storage", "Insufficient storage to complete this work"
 	case errors.Is(err, diskspace.ErrUnavailable):
 		status, code, message = 503, "capacity_unavailable", "Storage capacity is unavailable"
+	case errors.Is(err, ingestion.ErrConflict):
+		status, code, message = 409, "upload_conflict", "Upload state or immutable content binding conflicts"
+	case errors.Is(err, objectio.ErrBusy), errors.Is(err, objectio.ErrUnsettled):
+		status, code, message = 503, "upload_busy", "Upload work is still being reconciled"
+	case errors.Is(err, objectstore.ErrIntegrity):
+		status, code, message = 422, "object_integrity", "Stored bytes do not match the upload"
 	case errors.Is(err, domain.ErrNotFound), errors.Is(err, sql.ErrNoRows):
 		status, code, message = 404, "not_found", "Resource not found"
 	case errors.Is(err, domain.ErrStaleVersion):
@@ -202,6 +220,9 @@ func problem(ctx context.Context, err error) api.Problem {
 
 func writeProblem(w http.ResponseWriter, ctx context.Context, err error) {
 	p := problem(ctx, err)
+	if p.Status == 503 {
+		w.Header().Set("Retry-After", "5")
+	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	if info, ok := ctx.Value(scopeKey{}).(scope); ok && info.method == http.MethodHead {
 		body, _ := json.Marshal(p)

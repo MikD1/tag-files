@@ -2,8 +2,8 @@
 
 This describes the new runtime foundation, not a completed importer or release.
 The authoritative DDL is the numbered history in `app/internal/store/migrations`.
-The external format version remains 1; current SQLite schema version is 5.
-Known schemas 1–4 upgrade atomically without changing library identity/data or
+The external format version remains 1; current SQLite schema version is 6.
+Known schemas 1–5 upgrade atomically without changing library identity/data or
 an already-bound logical/physical storage pair.
 
 App data contains `library.sqlite`, its WAL/SHM when present, and `.library.lock`.
@@ -30,6 +30,18 @@ Only this checkpoint may change; a compare-and-swap prevents an older request
 from replacing a newer lifetime. Minimal inventory/receipt/job records remain
 until absent keys are rechecked at a later authenticated same-volume epoch,
 then are removed together. They are temporary recovery work, not trash/history.
+
+Schema 6 adds the durable `complete` job kind, preserving every existing job,
+attempt, lease generation and payload during migration. Its versioned payload
+binds upload generation and the client's ordered part-number/ETag selectors.
+The worker drains/reconciles parts and verifies the complete source before
+atomically replacing its leased job with ingestion work. Permanent failures
+keep the session and inputs for explicit retry/cancel. `operation_targets`
+links seven-day command receipts to upload publication or a job. Final ready
+and failure outcomes commit with their domain transition; no session/history
+row is needed to replay a ready result. Deferred foreign keys permit intent,
+target and command receipt in one transaction; pruning a receipt cascades only
+its link. Job retirement/failure finalizes linked accepted job-command receipts.
 
 The only application writer has one connection and BEGIN IMMEDIATE. Four
 read-only/query-only connections serve readers. Each physical connection has

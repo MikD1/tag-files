@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/mikd1/tag-files/app/internal/domain"
+	"github.com/mikd1/tag-files/app/internal/operations"
 	"github.com/mikd1/tag-files/app/internal/store"
 	"github.com/mikd1/tag-files/app/internal/store/dbgen"
 )
@@ -63,6 +64,9 @@ func (c *Coordinator) FailIngest(ctx context.Context, job dbgen.Job, now time.Ti
 		if n != 1 {
 			return store.ErrLeaseLost
 		}
+		if retryAt == nil {
+			return operations.FailUpload(ctx, tx, session.ID, completionStatus(code), code)
+		}
 		return nil
 	})
 }
@@ -80,6 +84,27 @@ func Retry(ctx context.Context, tx *sql.Tx, id string, now time.Time) (Outcome, 
 	session := result.Session
 	if session.State == domain.SessionQueued || session.State == domain.SessionProcessing {
 		return result, nil
+	}
+	if session.State == domain.SessionFailed && !session.SourceSha256.Valid {
+		job, err := q.FindCompleteJob(ctx, "complete/"+id)
+		if err != nil {
+			return Outcome{}, missing(err)
+		}
+		p, err := decodeCompleteJob(job)
+		if err != nil || p.Generation != session.Generation {
+			return Outcome{}, ErrConflict
+		}
+		n, err := q.RetryCompleteJob(ctx, dbgen.RetryCompleteJobParams{ID: job.ID, LeaseGeneration: job.LeaseGeneration, NextAttemptAt: store.Timestamp(now)})
+		if err != nil {
+			return Outcome{}, err
+		}
+		if n != 1 {
+			return Outcome{}, ErrConflict
+		}
+		if _, err := q.SetUploadWorkerState(ctx, dbgen.SetUploadWorkerStateParams{ID: id, Generation: session.Generation, State: domain.SessionCompleting}); err != nil {
+			return Outcome{}, err
+		}
+		return lookup(ctx, q, id)
 	}
 	if session.State != domain.SessionFailed || !session.SourceSha256.Valid || !validHash(session.SourceSha256.String) {
 		return Outcome{}, ErrConflict

@@ -1754,6 +1754,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Ready won the race */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadOutcome"];
+                };
+            };
             /** @description Fenced cancellation */
             202: {
                 headers: {
@@ -1762,6 +1771,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["JobReceipt"];
                 };
+            };
+            /** @description Already absent */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Problem"];
         };

@@ -11,6 +11,7 @@ import (
 
 type Querier interface {
 	AddItemTag(ctx context.Context, arg AddItemTagParams) error
+	AddOperationTarget(ctx context.Context, arg AddOperationTargetParams) error
 	AdvanceSearchGeneration(ctx context.Context) error
 	AttachPublishedPoster(ctx context.Context, arg AttachPublishedPosterParams) (int64, error)
 	AttachPublishedPrimary(ctx context.Context, arg AttachPublishedPrimaryParams) error
@@ -65,6 +66,7 @@ type Querier interface {
 	DeleteUploadSession(ctx context.Context, id string) error
 	FailLeasedJob(ctx context.Context, arg FailLeasedJobParams) (int64, error)
 	FindCancellationReceipt(ctx context.Context, uploadID sql.NullString) (CleanupReceipt, error)
+	FindCompleteJob(ctx context.Context, dedupeKey string) (Job, error)
 	FindDuplicateMultipartReceipt(ctx context.Context, arg FindDuplicateMultipartReceiptParams) (CleanupReceipt, error)
 	FindItemDeletion(ctx context.Context, itemID sql.NullInt64) (CleanupReceipt, error)
 	FindPosterCandidateReceipt(ctx context.Context, payloadJson string) (CleanupReceipt, error)
@@ -121,6 +123,7 @@ type Querier interface {
 	MarkPrimaryMissing(ctx context.Context, arg MarkPrimaryMissingParams) (int64, error)
 	MarkPrimaryVerified(ctx context.Context, id string) error
 	MarkUploadProcessing(ctx context.Context, id string) error
+	PendingTargetOperations(ctx context.Context, arg PendingTargetOperationsParams) ([]OperationResult, error)
 	PruneNavigationContexts(ctx context.Context, expiresAt string) (int64, error)
 	PruneOperations(ctx context.Context, expiresAt string) (int64, error)
 	QueueVerifiedUpload(ctx context.Context, arg QueueVerifiedUploadParams) error
@@ -131,6 +134,8 @@ type Querier interface {
 	ReopenUploadAdmission(ctx context.Context, id string) error
 	ResetInterruptedJob(ctx context.Context, arg ResetInterruptedJobParams) (int64, error)
 	ResetUploadPartConfirmation(ctx context.Context, arg ResetUploadPartConfirmationParams) error
+	ResolveTargetOperation(ctx context.Context, arg ResolveTargetOperationParams) (int64, error)
+	RetryCompleteJob(ctx context.Context, arg RetryCompleteJobParams) (int64, error)
 	RetryIngestionJob(ctx context.Context, arg RetryIngestionJobParams) (int64, error)
 	SetFavorite(ctx context.Context, arg SetFavoriteParams) (int64, error)
 	SetItemCollection(ctx context.Context, arg SetItemCollectionParams) (int64, error)

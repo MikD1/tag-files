@@ -144,6 +144,12 @@ type OperationResult struct {
 	ExpiresAt   string
 }
 
+type OperationTarget struct {
+	OperationID string
+	TargetKind  string
+	TargetID    string
+}
+
 type SavedSearch struct {
 	ID               int64
 	Name             string

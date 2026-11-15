@@ -72,18 +72,20 @@ const claimJobKinds = `-- name: ClaimJobKinds :one
 UPDATE jobs SET state='running',attempt=attempt+1,lease_generation=lease_generation+1,
  lease_until=?1,error_code=NULL
 WHERE id=(SELECT available.id FROM jobs AS available WHERE
- ((available.type='ingest' AND CAST(?2 AS INTEGER)=1) OR
-  (available.type='poster' AND CAST(?3 AS INTEGER)=1) OR
-  (available.type='cleanup' AND CAST(?4 AS INTEGER)=1) OR
-  (available.type='delete' AND CAST(?5 AS INTEGER)=1)) AND
- ((available.state IN ('queued','retry_wait') AND available.next_attempt_at<=?6) OR
-  (available.state='running' AND available.lease_until<=?6))
+ ((available.type='complete' AND CAST(?2 AS INTEGER)=1) OR
+  (available.type='ingest' AND CAST(?3 AS INTEGER)=1) OR
+  (available.type='poster' AND CAST(?4 AS INTEGER)=1) OR
+  (available.type='cleanup' AND CAST(?5 AS INTEGER)=1) OR
+  (available.type='delete' AND CAST(?6 AS INTEGER)=1)) AND
+ ((available.state IN ('queued','retry_wait') AND available.next_attempt_at<=?7) OR
+  (available.state='running' AND available.lease_until<=?7))
  ORDER BY available.created_at,available.id LIMIT 1)
 RETURNING id, type, subject_id, dedupe_key, payload_json, state, attempt, next_attempt_at, lease_until, lease_generation, progress_json, error_code, created_at
 `
 
 type ClaimJobKindsParams struct {
 	LeaseUntil sql.NullString
+	Completion int64
 	Ingest     int64
 	Poster     int64
 	Cleanup    int64
@@ -94,6 +96,7 @@ type ClaimJobKindsParams struct {
 func (q *Queries) ClaimJobKinds(ctx context.Context, arg ClaimJobKindsParams) (Job, error) {
 	row := q.db.QueryRowContext(ctx, claimJobKinds,
 		arg.LeaseUntil,
+		arg.Completion,
 		arg.Ingest,
 		arg.Poster,
 		arg.Cleanup,

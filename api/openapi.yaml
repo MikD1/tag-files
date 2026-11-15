@@ -305,7 +305,9 @@ paths:
       operationId: cancelJob
       parameters: [{$ref: '#/components/parameters/UUIDPath'}, {$ref: '#/components/parameters/IdempotencyKey'}]
       responses:
+        '200': {description: Ready won the race, content: {application/json: {schema: {$ref: '#/components/schemas/UploadOutcome'}}}}
         '202': {description: Fenced cancellation, content: {application/json: {schema: {$ref: '#/components/schemas/JobReceipt'}}}}
+        '204': {description: Already absent}
         default: {$ref: '#/components/responses/Problem'}
   /media/{assetId}:
     parameters:

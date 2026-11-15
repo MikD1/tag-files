@@ -12,6 +12,7 @@ import (
 	"github.com/mikd1/tag-files/app/internal/domain"
 	"github.com/mikd1/tag-files/app/internal/objectio"
 	"github.com/mikd1/tag-files/app/internal/objectstore"
+	"github.com/mikd1/tag-files/app/internal/operations"
 	posterspec "github.com/mikd1/tag-files/app/internal/poster"
 	"github.com/mikd1/tag-files/app/internal/store"
 	"github.com/mikd1/tag-files/app/internal/store/dbgen"
@@ -218,6 +219,9 @@ func (c *Coordinator) PublishPrimary(ctx context.Context, job dbgen.Job, assetID
 			return err
 		}
 		if err := q.MarkItemReady(ctx, dbgen.MarkItemReadyParams{ID: item.ID, PrimaryAssetID: sql.NullString{String: asset.ID, Valid: true}}); err != nil {
+			return err
+		}
+		if err := operations.ResolveUpload(ctx, tx, session.ID, item.ID); err != nil {
 			return err
 		}
 		if err := q.AdvanceSearchGeneration(ctx); err != nil {

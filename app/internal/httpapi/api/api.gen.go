@@ -821,6 +821,16 @@ type RecordViewJSONBody struct {
 	EventId UUID `json:"eventId"`
 }
 
+// CancelJobParams defines parameters for CancelJob.
+type CancelJobParams struct {
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// RetryJobParams defines parameters for RetryJob.
+type RetryJobParams struct {
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
 // CreateNavigationContextParams defines parameters for CreateNavigationContext.
 type CreateNavigationContextParams struct {
 	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
@@ -854,6 +864,16 @@ type CreateTagParams struct {
 // RenameTagParams defines parameters for RenameTag.
 type RenameTagParams struct {
 	IfMatch IfMatch `json:"If-Match"`
+}
+
+// CreateUploadSessionsParams defines parameters for CreateUploadSessions.
+type CreateUploadSessionsParams struct {
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// CompleteUploadParams defines parameters for CompleteUpload.
+type CompleteUploadParams struct {
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }
 
 // CreateCollectionJSONRequestBody defines body for CreateCollection for application/json ContentType.
@@ -894,6 +914,12 @@ type CreateTagJSONRequestBody = NameInput
 
 // RenameTagJSONRequestBody defines body for RenameTag for application/json ContentType.
 type RenameTagJSONRequestBody = NameInput
+
+// CreateUploadSessionsJSONRequestBody defines body for CreateUploadSessions for application/json ContentType.
+type CreateUploadSessionsJSONRequestBody = NewUploads
+
+// CompleteUploadJSONRequestBody defines body for CompleteUpload for application/json ContentType.
+type CompleteUploadJSONRequestBody = CompleteUpload
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -943,6 +969,12 @@ type ServerInterface interface {
 	// (POST /api/v1/items/{id}/views)
 	RecordView(w http.ResponseWriter, r *http.Request, id EntityId)
 
+	// (POST /api/v1/jobs/{id}/cancel)
+	CancelJob(w http.ResponseWriter, r *http.Request, id UUIDPath, params CancelJobParams)
+
+	// (POST /api/v1/jobs/{id}/retry)
+	RetryJob(w http.ResponseWriter, r *http.Request, id UUIDPath, params RetryJobParams)
+
 	// (POST /api/v1/navigation-contexts)
 	CreateNavigationContext(w http.ResponseWriter, r *http.Request, params CreateNavigationContextParams)
 
@@ -981,6 +1013,21 @@ type ServerInterface interface {
 
 	// (PATCH /api/v1/tags/{id})
 	RenameTag(w http.ResponseWriter, r *http.Request, id EntityId, params RenameTagParams)
+
+	// (GET /api/v1/upload-batches)
+	ListUploadBatches(w http.ResponseWriter, r *http.Request)
+
+	// (POST /api/v1/upload-sessions)
+	CreateUploadSessions(w http.ResponseWriter, r *http.Request, params CreateUploadSessionsParams)
+
+	// (DELETE /api/v1/upload-sessions/{id})
+	CancelUpload(w http.ResponseWriter, r *http.Request, id UUIDPath)
+
+	// (GET /api/v1/upload-sessions/{id})
+	GetUploadSession(w http.ResponseWriter, r *http.Request, id UUIDPath)
+
+	// (POST /api/v1/upload-sessions/{id}/complete)
+	CompleteUpload(w http.ResponseWriter, r *http.Request, id UUIDPath, params CompleteUploadParams)
 
 	// (GET /health/live)
 	Liveness(w http.ResponseWriter, r *http.Request)
@@ -1720,6 +1767,114 @@ func (siw *ServerInterfaceWrapper) RecordView(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// CancelJob operation middleware
+func (siw *ServerInterfaceWrapper) CancelJob(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id UUIDPath
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CancelJobParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelJob(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RetryJob operation middleware
+func (siw *ServerInterfaceWrapper) RetryJob(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id UUIDPath
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RetryJobParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RetryJob(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateNavigationContext operation middleware
 func (siw *ServerInterfaceWrapper) CreateNavigationContext(w http.ResponseWriter, r *http.Request) {
 
@@ -2167,6 +2322,171 @@ func (siw *ServerInterfaceWrapper) RenameTag(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// ListUploadBatches operation middleware
+func (siw *ServerInterfaceWrapper) ListUploadBatches(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListUploadBatches(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateUploadSessions operation middleware
+func (siw *ServerInterfaceWrapper) CreateUploadSessions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateUploadSessionsParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateUploadSessions(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CancelUpload operation middleware
+func (siw *ServerInterfaceWrapper) CancelUpload(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id UUIDPath
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelUpload(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetUploadSession operation middleware
+func (siw *ServerInterfaceWrapper) GetUploadSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id UUIDPath
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUploadSession(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompleteUpload operation middleware
+func (siw *ServerInterfaceWrapper) CompleteUpload(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id UUIDPath
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CompleteUploadParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompleteUpload(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Liveness operation middleware
 func (siw *ServerInterfaceWrapper) Liveness(w http.ResponseWriter, r *http.Request) {
 
@@ -2342,6 +2662,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/navigation-contexts", wrapper.CreateNavigationContext)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/navigation-contexts/{id}/neighbors", wrapper.GetNeighbors)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/operations/{id}", wrapper.GetOperation)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/upload-sessions", wrapper.CreateUploadSessions)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/upload-sessions/{id}", wrapper.CancelUpload)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/upload-sessions/{id}", wrapper.GetUploadSession)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/upload-sessions/{id}/complete", wrapper.CompleteUpload)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/upload-batches", wrapper.ListUploadBatches)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/jobs/{id}/retry", wrapper.RetryJob)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/jobs/{id}/cancel", wrapper.CancelJob)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/system/status", wrapper.GetSystemStatus)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/health/live", wrapper.Liveness)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/health/ready", wrapper.Readiness)
@@ -3023,6 +3350,108 @@ func (response RecordViewdefaultApplicationProblemPlusJSONResponse) VisitRecordV
 	return err
 }
 
+type CancelJobRequestObject struct {
+	Id     UUIDPath `json:"id"`
+	Params CancelJobParams
+}
+
+type CancelJobResponseObject interface {
+	VisitCancelJobResponse(w http.ResponseWriter) error
+}
+
+type CancelJob200JSONResponse UploadOutcome
+
+func (response CancelJob200JSONResponse) VisitCancelJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelJob202JSONResponse JobReceipt
+
+func (response CancelJob202JSONResponse) VisitCancelJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelJob204Response struct {
+}
+
+func (response CancelJob204Response) VisitCancelJobResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type CancelJobdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CancelJobdefaultApplicationProblemPlusJSONResponse) VisitCancelJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryJobRequestObject struct {
+	Id     UUIDPath `json:"id"`
+	Params RetryJobParams
+}
+
+type RetryJobResponseObject interface {
+	VisitRetryJobResponse(w http.ResponseWriter) error
+}
+
+type RetryJob202JSONResponse JobReceipt
+
+func (response RetryJob202JSONResponse) VisitRetryJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryJobdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RetryJobdefaultApplicationProblemPlusJSONResponse) VisitRetryJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type CreateNavigationContextRequestObject struct {
 	Params CreateNavigationContextParams
 	Body   *CreateNavigationContextJSONRequestBody
@@ -3579,6 +4008,253 @@ func (response RenameTagdefaultApplicationProblemPlusJSONResponse) VisitRenameTa
 	return err
 }
 
+type ListUploadBatchesRequestObject struct {
+}
+
+type ListUploadBatchesResponseObject interface {
+	VisitListUploadBatchesResponse(w http.ResponseWriter) error
+}
+
+type ListUploadBatches200JSONResponse []UploadBatch
+
+func (response ListUploadBatches200JSONResponse) VisitListUploadBatchesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListUploadBatchesdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListUploadBatchesdefaultApplicationProblemPlusJSONResponse) VisitListUploadBatchesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateUploadSessionsRequestObject struct {
+	Params CreateUploadSessionsParams
+	Body   *CreateUploadSessionsJSONRequestBody
+}
+
+type CreateUploadSessionsResponseObject interface {
+	VisitCreateUploadSessionsResponse(w http.ResponseWriter) error
+}
+
+type CreateUploadSessions201JSONResponse UploadsCreated
+
+func (response CreateUploadSessions201JSONResponse) VisitCreateUploadSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateUploadSessions202JSONResponse UploadsCreated
+
+func (response CreateUploadSessions202JSONResponse) VisitCreateUploadSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateUploadSessionsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreateUploadSessionsdefaultApplicationProblemPlusJSONResponse) VisitCreateUploadSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelUploadRequestObject struct {
+	Id UUIDPath `json:"id"`
+}
+
+type CancelUploadResponseObject interface {
+	VisitCancelUploadResponse(w http.ResponseWriter) error
+}
+
+type CancelUpload200JSONResponse UploadOutcome
+
+func (response CancelUpload200JSONResponse) VisitCancelUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelUpload202JSONResponse JobReceipt
+
+func (response CancelUpload202JSONResponse) VisitCancelUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelUpload204Response struct {
+}
+
+func (response CancelUpload204Response) VisitCancelUploadResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type CancelUploaddefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CancelUploaddefaultApplicationProblemPlusJSONResponse) VisitCancelUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUploadSessionRequestObject struct {
+	Id UUIDPath `json:"id"`
+}
+
+type GetUploadSessionResponseObject interface {
+	VisitGetUploadSessionResponse(w http.ResponseWriter) error
+}
+
+type GetUploadSession200JSONResponse UploadOutcome
+
+func (response GetUploadSession200JSONResponse) VisitGetUploadSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUploadSessiondefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetUploadSessiondefaultApplicationProblemPlusJSONResponse) VisitGetUploadSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompleteUploadRequestObject struct {
+	Id     UUIDPath `json:"id"`
+	Params CompleteUploadParams
+	Body   *CompleteUploadJSONRequestBody
+}
+
+type CompleteUploadResponseObject interface {
+	VisitCompleteUploadResponse(w http.ResponseWriter) error
+}
+
+type CompleteUpload200JSONResponse UploadOutcome
+
+func (response CompleteUpload200JSONResponse) VisitCompleteUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompleteUpload202JSONResponse UploadOutcome
+
+func (response CompleteUpload202JSONResponse) VisitCompleteUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompleteUploaddefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CompleteUploaddefaultApplicationProblemPlusJSONResponse) VisitCompleteUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type LivenessRequestObject struct {
 }
 
@@ -3673,6 +4349,12 @@ type StrictServerInterface interface {
 	// (POST /api/v1/items/{id}/views)
 	RecordView(ctx context.Context, request RecordViewRequestObject) (RecordViewResponseObject, error)
 
+	// (POST /api/v1/jobs/{id}/cancel)
+	CancelJob(ctx context.Context, request CancelJobRequestObject) (CancelJobResponseObject, error)
+
+	// (POST /api/v1/jobs/{id}/retry)
+	RetryJob(ctx context.Context, request RetryJobRequestObject) (RetryJobResponseObject, error)
+
 	// (POST /api/v1/navigation-contexts)
 	CreateNavigationContext(ctx context.Context, request CreateNavigationContextRequestObject) (CreateNavigationContextResponseObject, error)
 
@@ -3711,6 +4393,21 @@ type StrictServerInterface interface {
 
 	// (PATCH /api/v1/tags/{id})
 	RenameTag(ctx context.Context, request RenameTagRequestObject) (RenameTagResponseObject, error)
+
+	// (GET /api/v1/upload-batches)
+	ListUploadBatches(ctx context.Context, request ListUploadBatchesRequestObject) (ListUploadBatchesResponseObject, error)
+
+	// (POST /api/v1/upload-sessions)
+	CreateUploadSessions(ctx context.Context, request CreateUploadSessionsRequestObject) (CreateUploadSessionsResponseObject, error)
+
+	// (DELETE /api/v1/upload-sessions/{id})
+	CancelUpload(ctx context.Context, request CancelUploadRequestObject) (CancelUploadResponseObject, error)
+
+	// (GET /api/v1/upload-sessions/{id})
+	GetUploadSession(ctx context.Context, request GetUploadSessionRequestObject) (GetUploadSessionResponseObject, error)
+
+	// (POST /api/v1/upload-sessions/{id}/complete)
+	CompleteUpload(ctx context.Context, request CompleteUploadRequestObject) (CompleteUploadResponseObject, error)
 
 	// (GET /health/live)
 	Liveness(ctx context.Context, request LivenessRequestObject) (LivenessResponseObject, error)
@@ -4208,6 +4905,60 @@ func (sh *strictHandler) RecordView(w http.ResponseWriter, r *http.Request, id E
 	}
 }
 
+// CancelJob operation middleware
+func (sh *strictHandler) CancelJob(w http.ResponseWriter, r *http.Request, id UUIDPath, params CancelJobParams) {
+	var request CancelJobRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CancelJob(ctx, request.(CancelJobRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CancelJob")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CancelJobResponseObject); ok {
+		if err := validResponse.VisitCancelJobResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RetryJob operation middleware
+func (sh *strictHandler) RetryJob(w http.ResponseWriter, r *http.Request, id UUIDPath, params RetryJobParams) {
+	var request RetryJobRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RetryJob(ctx, request.(RetryJobRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RetryJob")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RetryJobResponseObject); ok {
+		if err := validResponse.VisitRetryJobResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // CreateNavigationContext operation middleware
 func (sh *strictHandler) CreateNavigationContext(w http.ResponseWriter, r *http.Request, params CreateNavigationContextParams) {
 	var request CreateNavigationContextRequestObject
@@ -4577,6 +5328,149 @@ func (sh *strictHandler) RenameTag(w http.ResponseWriter, r *http.Request, id En
 	}
 }
 
+// ListUploadBatches operation middleware
+func (sh *strictHandler) ListUploadBatches(w http.ResponseWriter, r *http.Request) {
+	var request ListUploadBatchesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListUploadBatches(ctx, request.(ListUploadBatchesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListUploadBatches")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListUploadBatchesResponseObject); ok {
+		if err := validResponse.VisitListUploadBatchesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateUploadSessions operation middleware
+func (sh *strictHandler) CreateUploadSessions(w http.ResponseWriter, r *http.Request, params CreateUploadSessionsParams) {
+	var request CreateUploadSessionsRequestObject
+
+	request.Params = params
+
+	var body CreateUploadSessionsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateUploadSessions(ctx, request.(CreateUploadSessionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateUploadSessions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateUploadSessionsResponseObject); ok {
+		if err := validResponse.VisitCreateUploadSessionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CancelUpload operation middleware
+func (sh *strictHandler) CancelUpload(w http.ResponseWriter, r *http.Request, id UUIDPath) {
+	var request CancelUploadRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CancelUpload(ctx, request.(CancelUploadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CancelUpload")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CancelUploadResponseObject); ok {
+		if err := validResponse.VisitCancelUploadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetUploadSession operation middleware
+func (sh *strictHandler) GetUploadSession(w http.ResponseWriter, r *http.Request, id UUIDPath) {
+	var request GetUploadSessionRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUploadSession(ctx, request.(GetUploadSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUploadSession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUploadSessionResponseObject); ok {
+		if err := validResponse.VisitGetUploadSessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CompleteUpload operation middleware
+func (sh *strictHandler) CompleteUpload(w http.ResponseWriter, r *http.Request, id UUIDPath, params CompleteUploadParams) {
+	var request CompleteUploadRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	var body CompleteUploadJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CompleteUpload(ctx, request.(CompleteUploadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CompleteUpload")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CompleteUploadResponseObject); ok {
+		if err := validResponse.VisitCompleteUploadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Liveness operation middleware
 func (sh *strictHandler) Liveness(w http.ResponseWriter, r *http.Request) {
 	var request LivenessRequestObject
@@ -4630,78 +5524,85 @@ func (sh *strictHandler) Readiness(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
+	"52AwJjTYeBEfGIXtVvJ+J+tYj8n75+fn/xsA",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,
