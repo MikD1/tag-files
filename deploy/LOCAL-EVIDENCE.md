@@ -75,6 +75,10 @@ See [INSTALL](INSTALL.md) for update, required cold backup and rollback rules.
   multipart-proof and distribution-notice findings. The final storage audit
   covers 244 upstream dependencies, both supervisors and 343 notice/source
   files, and confirms no unused Rust executable exists in any distributed layer.
+- The final editor/packaging source also passed a fresh amd64 image rehearsal
+  under QEMU: two browser cases 7.0 s, real video conversion and restart/full
+  hashes, runtime 63.953 s; 343-file/all-layer storage audit passed.
+  [AMD64 evidence](AMD64-EVIDENCE.md) identifies those separate check images.
 
 Full traceability and remaining gates are in [ACCEPTANCE](../docs/rewrite/ACCEPTANCE.md).
 Actual macOS Safari/Chrome/VoiceOver, Desktop sleep/power loss, native amd64 CI,

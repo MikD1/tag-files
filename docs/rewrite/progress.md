@@ -1251,3 +1251,21 @@ main, with no push, publication or real-data migration. The goal is not declared
 fully accepted: actual Mac/browser/accessibility/power-loss, native amd64 CI,
 hosted publication, real legacy MinIO/SQLite100GB rehearsal and the remaining
 reference performance measurements require their stated environments/data.
+
+## Final-source amd64 rehearsal
+
+The final editor and distribution packaging were rebuilt from9856f01 for amd64
+and run under QEMU on this Linux arm64 host. Both expanded Chromium/WebKit
+upload/editor cases passed in7.0 s. Real amd64 FFmpeg converted the MPEG4/PCM
+fixture to H264/AAC with faststart, full decode and a JPEG poster. Both services
+restarted; the complete catalog and all three full primary hashes matched.
+Runtime fixture63.953 s, excluding builds/cleanup; QEMU Go build201.8 s.
+
+The exact new storage image also passed the343-file notice/runtime/all-layer
+audit. All274 selected production/build inputs remained byte-identical during
+parallel test-harness work. Own Docker resources and the newly added QEMU
+handler were removed; the existing Python handler and native image aliases
+were preserved. [AMD64 evidence](../../deploy/AMD64-EVIDENCE.md) records exact
+index/manifest/config IDs, logs and source hashes. This closes the local
+final-source QEMU evidence gap; native amd64 CI and hosted publication remain
+separate. No production code or real data changed in this slice.

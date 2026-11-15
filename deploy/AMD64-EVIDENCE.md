@@ -67,7 +67,58 @@ builds retain `app-build.json`/`storage-build.json`, build logs, `browser.log`,
   volumes and exact images. The complete catalog and all three full-byte hashes
   must match; readiness and SPA deep links must work again.
 
-## Latest run after the final multipart-proof corrections
+## Latest run with the final editor and distribution packaging
+
+Passed on **2026-11-15**, from committed source
+`9856f01810c3331009b0cf41f4c2969faec13812`. This rebuild includes the pending
+metadata/Enter fixes, Collection chevron and final storage notice/runtime
+packaging. It uses `VERSION=amd64-check`; the separately sealed `v0.1.0` arm64
+archives are unchanged. Execution remains QEMU on Linux arm64, with native host
+Chromium/WebKit processes talking to the actual amd64 services.
+
+```sh
+scripts/check-amd64 --artifacts /home/mik.guest/projects/tag-files-amd64-final-20261115
+# exit 0; runtime fixture 63.953 s, excluding builds/cleanup
+# Chromium 2.9 s; WebKit 3.4 s; Playwright: 2 passed in 7.0 s
+scripts/check-image-notices storage \
+  sha256:eee0946b0efa11ce431a2bfcd67670548fbb402b95d37cc373e1468078191cbc
+# exit 0; 343 notice/inventory files; all distributed layers exclude unused Rust
+```
+
+| Image | Identity | Digest |
+| --- | --- | --- |
+| App | Tested OCI index | `sha256:d435b2f4f3610825c99044dd39c732e291dfc29cf17cb7d6ba785fcd86d79683` |
+| App | Runtime manifest | `sha256:53e29406608128152d74b9fcb84621803e79e76651b096047e648baa995b2c28` |
+| App | Runtime config | `sha256:1e55873ba51e5cf12fca317f29c94bdfe0f62bc89cf8396e17953917554c3296` |
+| Storage | Tested OCI index | `sha256:eee0946b0efa11ce431a2bfcd67670548fbb402b95d37cc373e1468078191cbc` |
+| Storage | Runtime manifest | `sha256:c2dafc679e75ee12f348ac7fd731777a2ed4e08e7f3bc18c382b3f06404060be` |
+| Storage | Runtime config | `sha256:3af852e2f07f08b4744a47c11b12dcd8adef1bddacbc47a1f9f5dacaba294619` |
+
+The QEMU Go build/build-info/notices step took 201.8 s. Both expanded browser
+cases also checked search Enter, native option selection, all pending editor
+controls and persisted metadata after a delayed real PATCH. The video fixture
+again converted 57,908 source bytes to 12,409 H264/AAC MP4 bytes and a 265-byte
+JPEG poster. The complete primary SHA256 values match the preceding run's
+values below; all three primaries and the whole catalog matched after both
+services restarted. The runtime reported `x86_64`, UID 10001 and FFmpeg
+8.0.1-3ubuntu2. HEAD, exact Range, empty ready batches and SPA deep links passed.
+
+The storage artifact audit covered 244 actual `weed` dependencies and two each
+for both supervisors, original notice/source hashes, pinned runtime files and
+every distributed layer. The 274 selected production/build inputs were identical
+before and after the parallel test-harness work; both JSON manifests have SHA256
+`fc4052cd7021904ebaecf2a243394918c3d0a548d0c7ea43449aeac3b246ee2b`.
+
+Build metadata/logs, browser/runtime logs, `report.json`, `notices.log`, source
+manifests/comparison and `cleanup.json` are retained in the artifact directory
+above. The owned project `tag-files-amd64-e82f8e600902` has no remaining
+containers, networks or volumes. Only this run's newly registered `qemu-x86_64`
+handler was removed; the pre-existing `python3.14` handler is byte-identical.
+Native arm64 image aliases were preserved. Native amd64 CI, hosted publication,
+maximum-size/fault-matrix execution on amd64 and physical Mac acceptance remain
+separate gates.
+
+## Earlier run after the final multipart-proof corrections
 
 Passed again on **2026-11-15**, using the final corrected multipart-proof runtime
 sources and the same digest-pinned QEMU installer above. The app and storage
@@ -81,7 +132,7 @@ scripts/check-amd64 --artifacts /tmp/tag-files-amd64-proof-final-20261115
 # Chromium 4.5 s; WebKit 2.8 s; Playwright: 2 passed in 8.0 s
 ```
 
-The latest exact image identities are:
+That run's exact image identities are:
 
 | Image | Identity | Digest |
 | --- | --- | --- |
@@ -157,11 +208,9 @@ restart. It does not repeat the full multipart-proof fault matrix, 20GiB gate,
 whole-library restore, native amd64 CI or physical durability acceptance.
 
 The later catalog-only fix in `bdcff1a` disables pending metadata controls and
-prevents implicit search-Enter saves. It is outside this tested amd64 SPA's
-source scope and receives separate focused real-container/browser evidence.
-The later distribution-notice packaging work also changes image layers/base;
-this report must not be read as execution of those newer image identities.
-Native amd64 CI remains required for the final artifacts.
+prevents implicit search-Enter saves. It and the later distribution-notice
+packaging are outside this earlier run's source/image scope. The latest run
+above covers both on rebuilt amd64 images. Native amd64 CI remains separate.
 
 ## Earlier run before the final multipart-proof corrections
 
