@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 project_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+# Verify preserved distribution files before generation, tests or image builds.
+(
+  cd "$project_root/deploy/storage/notices"
+  sha256sum -c SHA256SUMS
+)
 check_tmp=$(mktemp -d)
 trap 'rm -rf -- "$check_tmp"' EXIT
 
