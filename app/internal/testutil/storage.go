@@ -35,9 +35,18 @@ func Docker(t testing.TB, input string, args ...string) string {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "docker", args...)
 	cmd.Stdin = strings.NewReader(input)
-	out, err := cmd.CombinedOutput()
+	var stderr bytes.Buffer
+	var out []byte
+	var err error
+	if args[0] == "logs" {
+		// Container logs include stderr; command data such as IDs must not.
+		out, err = cmd.CombinedOutput()
+	} else {
+		cmd.Stderr = &stderr
+		out, err = cmd.Output()
+	}
 	if err != nil {
-		t.Fatalf("docker %s: %v\n%s", args[0], err, out)
+		t.Fatalf("docker %s: %v\n%s%s", args[0], err, out, stderr.Bytes())
 	}
 	return strings.TrimSpace(string(out))
 }

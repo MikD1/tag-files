@@ -48,12 +48,15 @@ func handler(db *store.Store, run func(context.Context, dbgen.Job, time.Time) er
 func TestSingleRunnerRenewsLeaseAndLeavesUnregisteredKindsQueued(t *testing.T) {
 	db := library(t)
 	now := time.Now()
+	var elapsed atomic.Int64
+	clock := func() time.Time { return now.Add(time.Duration(elapsed.Load())) }
+	const lease = time.Minute
 	poster := enqueue(t, db, domain.JobPoster, now.Add(-time.Second))
 	enqueue(t, db, domain.JobIngest, now)
 	enqueue(t, db, domain.JobIngest, now)
 	entered := make(chan dbgen.Job, 2)
 	release := make(chan struct{})
-	finished := make(chan struct{}, 2)
+	finished := make(chan error, 2)
 	var active atomic.Int64
 	h := handler(db, func(ctx context.Context, j dbgen.Job, _ time.Time) error {
 		if active.Add(1) != 1 {
@@ -66,11 +69,11 @@ func TestSingleRunnerRenewsLeaseAndLeavesUnregisteredKindsQueued(t *testing.T) {
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-		err := db.CommitJob(ctx, j.ID, j.LeaseGeneration, time.Now(), func(tx *sql.Tx) error { _, err := tx.Exec("INSERT INTO tags(name) VALUES(?)", j.ID); return err })
-		finished <- struct{}{}
+		err := db.CommitJob(ctx, j.ID, j.LeaseGeneration, clock(), func(tx *sql.Tx) error { _, err := tx.Exec("INSERT INTO tags(name) VALUES(?)", j.ID); return err })
+		finished <- err
 		return err
 	})
-	r, err := New(db, map[domain.JobKind]Handler{domain.JobIngest: h}, Config{Lease: 100 * time.Millisecond, Heartbeat: 10 * time.Millisecond, Poll: 5 * time.Millisecond})
+	r, err := New(db, map[domain.JobKind]Handler{domain.JobIngest: h}, Config{Lease: lease, Heartbeat: 10 * time.Millisecond, Poll: 5 * time.Millisecond, Now: clock})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,15 +90,37 @@ func TestSingleRunnerRenewsLeaseAndLeavesUnregisteredKindsQueued(t *testing.T) {
 	if _, err := r.RunOne(context.Background()); !errors.Is(err, ErrRunning) {
 		t.Fatalf("second runner admitted: %v", err)
 	}
-	time.Sleep(150 * time.Millisecond)
-	current, err := dbgen.New(db.Reader()).GetLeasedJob(context.Background(), dbgen.GetLeasedJobParams{ID: first.ID, Generation: first.LeaseGeneration, Now: sql.NullString{String: store.Timestamp(time.Now()), Valid: true}})
+	// Observe a durable renewal before moving beyond the original lease. The
+	// minute-long lease leaves room for slow SQLite writes on a loaded runner.
+	elapsed.Store(int64(lease / 2))
+	deadline := time.NewTimer(5 * time.Second)
+	defer deadline.Stop()
+	for {
+		current, err := dbgen.New(db.Reader()).GetLeasedJob(context.Background(), dbgen.GetLeasedJobParams{ID: first.ID, Generation: first.LeaseGeneration, Now: sql.NullString{String: store.Timestamp(clock()), Valid: true}})
+		if err != nil {
+			t.Fatalf("active job lease lost: %v", err)
+		}
+		if current.LeaseUntil.String >= store.Timestamp(now.Add(lease+lease/2)) {
+			break
+		}
+		select {
+		case <-deadline.C:
+			t.Fatal("worker did not persist a renewed lease")
+		case <-time.After(time.Millisecond):
+		}
+	}
+	elapsed.Store(int64(lease + lease/4))
+	current, err := dbgen.New(db.Reader()).GetLeasedJob(context.Background(), dbgen.GetLeasedJobParams{ID: first.ID, Generation: first.LeaseGeneration, Now: sql.NullString{String: store.Timestamp(clock()), Valid: true}})
 	if err != nil || current.Attempt != 1 {
 		t.Fatalf("lease not renewed during active media: %+v %v", current, err)
 	}
 	close(release)
 	for i := 0; i < 2; i++ {
 		select {
-		case <-finished:
+		case err := <-finished:
+			if err != nil {
+				t.Fatalf("job publication failed: %v", err)
+			}
 		case <-time.After(time.Second):
 			t.Fatal("serial queue stalled")
 		}
@@ -114,7 +139,9 @@ func TestSingleRunnerRenewsLeaseAndLeavesUnregisteredKindsQueued(t *testing.T) {
 		t.Fatalf("unregistered poster consumed: %s %v", state, err)
 	}
 	var n int
-	db.Reader().QueryRow("SELECT count(*) FROM tags").Scan(&n)
+	if err := db.Reader().QueryRow("SELECT count(*) FROM tags").Scan(&n); err != nil {
+		t.Fatal(err)
+	}
 	if n != 2 {
 		t.Fatalf("published %d jobs", n)
 	}
