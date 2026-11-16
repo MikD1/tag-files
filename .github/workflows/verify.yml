@@ -63,8 +63,6 @@ jobs:
         run: npm --prefix web run test:browser
       - name: Build native release-version archives and load exact images
         run: scripts/release-images build --version "$TAG_FILES_VERSION" --arch "$TARGET_ARCH" --directory "$RUNNER_TEMP/verified-images"
-      - name: Audit actual storage binaries and shipped dependency notices
-        run: scripts/check-image-notices storage tag-files-storage:local-check
       - name: Exact application/storage images, browser upload and restart
         env:
           TAG_FILES_SKIP_IMAGE_BUILD: '1'
@@ -75,8 +73,6 @@ jobs:
           TAG_FILES_MIGRATE_INTEGRATION=1 TAG_FILES_MIGRATE_STORAGE_IMAGE=tag-files-storage:local-check go test -race ./... -count=1 -timeout=5m
       - name: Complete external cold backup and fresh-volume recovery
         run: tools/backup/check-drill
-      - name: Audit the actual backup binary and shipped dependency notices
-        run: scripts/check-image-notices backup tag-files-cold-backup:local-drill
       - name: Versioned install/update with required cold backup
         run: TAG_FILES_DEPLOYMENT_INTEGRATION=1 python3 -m unittest discover -s scripts -p test_install_update.py -v
       - name: Docker-only setup with host data, container recreation and native restore

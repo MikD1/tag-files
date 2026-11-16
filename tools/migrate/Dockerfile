@@ -5,20 +5,15 @@ WORKDIR /src/app
 COPY app/go.mod app/go.sum ./
 RUN go mod download
 COPY app/ ./
-COPY LICENSE /src/app/LICENSE
-COPY scripts/collect-go-notices /usr/local/bin/collect-go-notices
 WORKDIR /src/tools/migrate
 COPY tools/migrate/go.mod tools/migrate/go.sum ./
 RUN go mod download
 COPY tools/migrate/ ./
-RUN CGO_ENABLED=1 go build -trimpath -ldflags='-s -w' -o /out/tag-files-migrate ./cmd/tag-files-migrate \
-    && collect-go-notices /out/notices ./cmd/tag-files-migrate \
-    && go version -m /out/tag-files-migrate > /out/notices/go-buildinfo.txt
+RUN CGO_ENABLED=1 go build -trimpath -ldflags='-s -w' -o /out/tag-files-migrate ./cmd/tag-files-migrate
 
-# The application runtime supplies the matching libc, FFprobe and license notices.
+# The application runtime supplies the matching libc and FFprobe.
 FROM ${APP_IMAGE}
 COPY --from=build /out/tag-files-migrate /usr/local/bin/tag-files-migrate
-COPY --from=build /out/notices /usr/share/tag-files/notices/migration
 USER 0:0
 ENTRYPOINT ["tag-files-migrate"]
 CMD []

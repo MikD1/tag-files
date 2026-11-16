@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 project_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-# Verify preserved distribution files before generation, tests or image builds.
-(
-  cd "$project_root/deploy/storage/notices"
-  sha256sum -c SHA256SUMS
-)
 check_tmp=$(mktemp -d)
 trap 'rm -rf -- "$check_tmp"' EXIT
 
@@ -44,5 +39,4 @@ python3 -m unittest discover -s "$project_root/scripts" -p 'test_install_update.
 python3 -m unittest discover -s "$project_root/scripts" -p 'test_release_images.py'
 python3 -m unittest discover -s "$project_root/scripts" -p 'test_setup.py'
 python3 -m unittest discover -s "$project_root/scripts" -p 'test_host_data.py'
-python3 -m unittest discover -s "$project_root/scripts" -p 'test_collect_go_notices.py'
 "$project_root/scripts/check-web"

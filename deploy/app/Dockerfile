@@ -4,7 +4,7 @@ WORKDIR /web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
 COPY web/ ./
-RUN npm run build && node scripts/dependency-notices.mjs > /web/web-dependencies.json
+RUN npm run build
 
 # This builder runs for the target platform so CGO uses that platform's libc.
 # Debian's glibc ABI is also available in the pinned Ubuntu media runtime.
@@ -13,11 +13,8 @@ WORKDIR /src
 COPY app/go.mod app/go.sum ./
 RUN go mod download
 COPY app/ ./
-COPY scripts/collect-go-notices /usr/local/bin/collect-go-notices
 ARG VERSION=development
-RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/tag-files ./cmd/tag-files \
-    && go version -m /out/tag-files > /out/go-buildinfo.txt \
-    && collect-go-notices /out/notices
+RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/tag-files ./cmd/tag-files
 
 FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS media-tests
 ARG TARGETOS
@@ -48,15 +45,7 @@ CMD ["/usr/local/bin/media-test", "-test.v", "-test.timeout=2m"]
 FROM media-runtime AS app
 ENV TAG_FILES_WEB_DIR=/usr/share/tag-files/web
 COPY --from=app-build /out/tag-files /usr/local/bin/tag-files
-COPY --from=app-build /out/notices /usr/share/tag-files/notices
-COPY --from=app-build /out/go-buildinfo.txt /usr/share/tag-files/notices/go-buildinfo.txt
-COPY --from=app-build /usr/local/go/LICENSE /usr/share/tag-files/notices/GO-LICENSE
-COPY --from=web-build /web/web-dependencies.json /usr/share/tag-files/notices/web-dependencies.json
 COPY --from=web-build /web/dist /usr/share/tag-files/web
-COPY LICENSE /usr/share/tag-files/notices/LICENSE
-USER root
-RUN dpkg-query -W -f='${Package}\t${Version}\t${Architecture}\n' > /usr/share/tag-files/notices/runtime-packages.tsv
-USER 10001:10001
 WORKDIR /data
 STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=10s --timeout=10s --start-period=90s --retries=3 CMD ["tag-files", "check"]
