@@ -203,35 +203,87 @@ change that target. API/schema generators live in `tools/codegen`.
 Install browser runtimes with the command in the root README. Integration
 harnesses create isolated libraries and may retain ignored failure reports.
 
+After building the local app and storage images, rehearse the complete migration
+and native rollback on disposable SQLite/MinIO data:
+
+```sh
+docker build --build-arg APP_IMAGE=tag-files-app:local \
+  -f tools/migrate/Dockerfile -t tag-files-migrate:local .
+TAG_FILES_MIGRATION_INTEGRATION=1 \
+  TAG_FILES_MIGRATION_STORAGE_IMAGE=tag-files-storage:local \
+  python3 -m unittest discover \
+  -s scripts -p test_migrate.py -v
+```
+
+The test builds its pinned upstream MinIO fixture if needed. It uses a temporary
+directory beside the checkout; set `TAG_FILES_MIGRATION_TEST_ROOT` to choose
+another host-backed disk with sufficient migration capacity.
+
+## Migration recovery
+
+The [migration guide](migration.md) covers the ordinary transfer. Migration state
+is retained beside the target in `TARGET_DIR.migration`: rollback data, a working
+MinIO copy, source archives, configuration, reports, and the resumable journal.
+The original installation and retained state are never removed automatically.
+
+After an interruption, keep the source stopped and rerun the same command with
+the same files and paths. Completed archives and copy checkpoints are reused;
+an interrupted archive is retained and a new archive attempt starts. Changed
+source bytes, operation settings, or unrelated target data cause a refusal.
+
+If source issues block startup, read the retained manifest and reports. To accept
+a supported loss explicitly, add an entry to the `Exceptions` array in
+`TARGET_DIR.migration/config.json`, then rerun:
+
+```json
+{"issueId":"<manifest issue ID>","decision":"missing_media","reason":"<why this loss is accepted>","owner":"<person accepting it>"}
+```
+
+Use `missing_media` for `missing_primary`, `clear_reference` for
+`dangling_collection`, and `archive_only` for supported malformed rows or
+categories. Decisions are frozen when copying begins. Unknown schemas and probe
+failures for existing image/video bytes require investigation.
+
+To return to the original installation before accepting new writes, stop the new
+services and start the old Compose deployment. After new writes, preserve the
+complete new metadata/storage pair first: returning to the old snapshot loses
+those changes. See [cold backup and restore](#cold-backup-and-restore).
+
+`sh migrate.sh --help` lists options for the environment file, port, project, and
+image overrides.
+
 ## Release distribution
 
 Push a version tag to run native verification on amd64 and arm64, publish the
-tested images, and create a GitHub release. For example, prepare `v0.20.0` on the
+tested images, and create a GitHub release. For example, prepare `v0.21.0` on the
 desired commit and send the branch and tag together:
 
 ```sh
-git tag -a v0.20.0 -m "Tag Files v0.20.0"
-git push --atomic origin main v0.20.0
+git tag -a v0.21.0 -m "Tag Files v0.21.0"
+git push --atomic origin main v0.21.0
 ```
 
-The `Publish` workflow promotes images to `ghcr.io/mikd1/tag-files-app:0.20.0`
-and `ghcr.io/mikd1/tag-files-storage:0.20.0`, and publishes the `0.20` and `latest`
-tags. It creates the release after image verification and publication, then
-attaches `setup.sh`, `compose.yml`, and `SHA256SUMS`. The installer embeds the
+The `Publish` workflow promotes the tested app, storage, and migration images to
+`ghcr.io/mikd1/tag-files-app:0.21.0`, `ghcr.io/mikd1/tag-files-storage:0.21.0`, and
+`ghcr.io/mikd1/tag-files-migrate:0.21.0`, and publishes the `0.21` and `latest`
+tags. Native amd64 and arm64 checks include a disposable SQLite/MinIO migration
+and rollback rehearsal before sealing the image identities. It creates the
+release after image verification and publication, then attaches `setup.sh`,
+`compose.yml`, `migrate.sh`, `migration.env`, and `SHA256SUMS`. The installer embeds the
 release version and pins the pulled image IDs in the generated `.env`.
 Subsequent `docker compose up -d` uses those images.
 
 Publishing a release through GitHub's Releases page also runs this workflow.
-Prerelease tags such as `v0.20.0-rc.1` publish their version-specific images and a
+Prerelease tags such as `v0.21.0-rc.1` publish their version-specific images and a
 prerelease. Stable releases provide installer assets.
 
-For the first publication, set both GHCR packages' visibility to **Public** in
+For the first publication, set all three GHCR packages' visibility to **Public** in
 their package settings so users can pull the images anonymously. Publication
 uses the workflow's `GITHUB_TOKEN` with `contents: write` and `packages: write`.
 
 To prepare the downloadable files in a local directory:
 
 ```sh
-scripts/release-images installer-assets --version v0.20.0 \
+scripts/release-images installer-assets --version v0.21.0 \
   --repository MikD1/tag-files --directory /path/to/new/release-assets
 ```

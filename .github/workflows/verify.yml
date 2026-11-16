@@ -77,6 +77,8 @@ jobs:
         run: TAG_FILES_DEPLOYMENT_INTEGRATION=1 python3 -m unittest discover -s scripts -p test_install_update.py -v
       - name: Docker-only setup with host data, container recreation and native restore
         run: TAG_FILES_DEPLOYMENT_INTEGRATION=1 python3 -m unittest discover -s scripts -p test_host_data.py -v
+      - name: Docker-only migration, retained rollback and retry on disposable libraries
+        run: TAG_FILES_MIGRATION_INTEGRATION=1 python3 -m unittest discover -s scripts -p test_migrate.py -v
       - name: Seal identities only after every verification gate passes
         run: scripts/release-images seal --version "$TAG_FILES_VERSION" --arch "$TARGET_ARCH" --directory "$RUNNER_TEMP/verified-images"
       - name: Hand off these exact tested images to publication

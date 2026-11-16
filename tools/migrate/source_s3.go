@@ -59,6 +59,34 @@ func NewS3Source(config objectstore.Config, buckets []string) (*S3Source, error)
 	}
 	return &S3Source{client, origin, append([]string(nil), buckets...)}, nil
 }
+
+// DiscoverSourceBuckets lists every bucket visible to the supplied frozen-source
+// credentials. Inventory subsequently refuses additional, undiscovered buckets.
+func DiscoverSourceBuckets(ctx context.Context, config objectstore.Config) ([]string, error) {
+	client, _, err := newS3(config)
+	if err != nil {
+		return nil, err
+	}
+	all, err := client.ListBuckets(ctx, &s3.ListBucketsInput{})
+	if err != nil {
+		return nil, err
+	}
+	buckets := make([]string, 0, len(all.Buckets))
+	seen := map[string]bool{}
+	for _, bucket := range all.Buckets {
+		name := aws.ToString(bucket.Name)
+		if name == "" || seen[name] {
+			return nil, fmt.Errorf("empty/duplicate discovered source bucket")
+		}
+		seen[name] = true
+		buckets = append(buckets, name)
+	}
+	if len(buckets) == 0 {
+		return nil, fmt.Errorf("source has no visible buckets")
+	}
+	sort.Strings(buckets)
+	return buckets, nil
+}
 func apiCode(e error, codes ...string) bool {
 	var api smithy.APIError
 	if !errors.As(e, &api) {

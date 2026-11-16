@@ -16,6 +16,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/mikd1/tag-files/app/internal/domain"
 	"github.com/mikd1/tag-files/app/internal/objectstore"
 	"github.com/mikd1/tag-files/app/internal/search"
 	"github.com/mikd1/tag-files/app/internal/store"
@@ -37,6 +38,15 @@ func (j *journal) Close() { j.db.Close(); j.lock.Close() }
 func openJournal(ctx context.Context, c ApplyConfig, m *Manifest, db *store.Store, plans []mapping) (*journal, error) {
 	if c.TargetID == "" || c.Journal == "" {
 		return nil, fmt.Errorf("stable explicit target identity and journal required")
+	}
+	var libraryID string
+	if e := db.Reader().QueryRowContext(ctx, `SELECT library_id FROM library_meta WHERE singleton=1`).Scan(&libraryID); e != nil {
+		return nil, e
+	}
+	for _, p := range plans {
+		if p.Role != "quarantine" && !domain.OwnedObjectKey(libraryID, p.AssetID, p.Role, p.Key) {
+			return nil, fmt.Errorf("published migration object key is not owned by its runtime asset")
+		}
 	}
 	if e := os.MkdirAll(filepath.Dir(c.Journal), 0700); e != nil {
 		return nil, e
@@ -67,6 +77,24 @@ func openJournal(ctx context.Context, c ApplyConfig, m *Manifest, db *store.Stor
 		probeErr = probe.QueryRowContext(ctx, `PRAGMA application_id`).Scan(&appID)
 		if probeErr == nil {
 			probeErr = probe.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&version)
+		}
+		// Recognized older journals may contain descriptors that the runtime
+		// cannot serve. Compare their immutable keys before opening a writer;
+		// never repair published keys or migrate a journal in place.
+		if probeErr == nil && appID == 0x54464d4a && version == 1 {
+			var started bool
+			probeErr = probe.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM run)`).Scan(&started)
+			if probeErr == nil && started {
+				for _, p := range plans {
+					var key string
+					probeErr = probe.QueryRowContext(ctx, `SELECT object_key FROM objects WHERE id=?`, p.ID).Scan(&key)
+					if probeErr != nil || key != p.Key {
+						probe.Close()
+						lock.Close()
+						return nil, fmt.Errorf("journal immutable object mapping differs; resume refused without changing published descriptors")
+					}
+				}
+			}
 		}
 		probe.Close()
 		if probeErr != nil || appID != 0x54464d4a || version != 1 {
@@ -99,10 +127,6 @@ func openJournal(ctx context.Context, c ApplyConfig, m *Manifest, db *store.Stor
  CREATE TABLE IF NOT EXISTS row_mapping(source_table TEXT NOT NULL,source_id TEXT NOT NULL,target_table TEXT,target_id TEXT,state TEXT NOT NULL,PRIMARY KEY(source_table,source_id));
  CREATE TRIGGER IF NOT EXISTS immutable_mapping BEFORE UPDATE OF source_id,asset_id,item_id,role,object_key,size,sha256,content_type,metadata_json,archive_path ON objects BEGIN SELECT RAISE(ABORT,'immutable migration mapping'); END; COMMIT;`)
 	if e != nil {
-		return fail(e)
-	}
-	var libraryID string
-	if e = db.Reader().QueryRowContext(ctx, `SELECT library_id FROM library_meta WHERE singleton=1`).Scan(&libraryID); e != nil {
 		return fail(e)
 	}
 	exceptionJSON, _ := json.Marshal(c.Exceptions)
@@ -217,10 +241,10 @@ func makePlans(m *Manifest, library string) []mapping {
 		if role != "quarantine" {
 			asset = id
 			prefix := "primary"
-			name := "media"
+			name := "media.bin"
 			if role == "poster" {
 				prefix = "previews"
-				name = "poster.jpg"
+				name = m.RunID + "/poster.jpg"
 			}
 			key = prefix + "/" + library + "/" + id + "/" + name
 		}

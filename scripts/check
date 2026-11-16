@@ -39,4 +39,6 @@ python3 -m unittest discover -s "$project_root/scripts" -p 'test_install_update.
 python3 -m unittest discover -s "$project_root/scripts" -p 'test_release_images.py'
 python3 -m unittest discover -s "$project_root/scripts" -p 'test_setup.py'
 python3 -m unittest discover -s "$project_root/scripts" -p 'test_host_data.py'
+python3 -m unittest discover -s "$project_root/scripts" -p 'test_migrate_host.py'
+python3 -m unittest discover -s "$project_root/scripts" -p 'test_migrate.py'
 "$project_root/scripts/check-web"

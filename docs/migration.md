@@ -1,137 +1,43 @@
-# Transfer a C#/Angular library
+# Migrate an existing installation
 
-The separate offline tool transfers SQLite metadata and MinIO objects into the
-Go application with SQLite and SeaweedFS. It preserves IDs, duplicate tag names
-and exact duration ticks, and copies media bytes unchanged.
+Run these steps on the host of the old C#/Angular installation with SQLite and
+MinIO. Docker with Compose v2 is required. Allow space for several copies of the
+library plus at least 10 GB of free space.
 
-1. Stop the old application and all source writers. Make and verify a consistent
-   cold backup of its SQLite directory, including WAL/SHM/journal files, complete
-   MinIO storage and configuration/secrets. Keep this rollback copy. Serve frozen
-   objects through MinIO and keep the source unchanged throughout migration.
-2. Build both local images using [source builds](operations.md#development-and-checks), then prepare the
-   deployment below. **Keep the target application stopped** throughout migration.
-   Use a fresh target with empty `data/metadata` and `data/media` directories.
-3. Give the tool read-only source credentials able to list buckets, versions,
-   metadata and tags and read all objects. Include every visible source bucket.
-   Credential files must be private regular files (`chmod 600`), each containing
-   one value of at most 4096 bytes. Keep values out of command arguments and Git.
-4. Allow disk space for source, archive, target, journal, working space and rollback.
-   Measure target write peaks and metadata space in a representative pilot;
-   replace the example budget below with those measurements.
+1. Download [migrate.sh](https://github.com/MikD1/tag-files/releases/latest/download/migrate.sh)
+   and [migration.env](https://github.com/MikD1/tag-files/releases/latest/download/migration.env)
+   into the same directory.
 
-Run commands from the repository root. Put frozen SQLite in `/srv/source` and
-source credential files in `/srv/migration-secrets`. Create `/srv/migration/archive`
-and `/srv/migration/journal`; leave the archive's `run-001` directory absent.
-The source, archive, target metadata and journal directories must be disjoint.
+2. Edit `migration.env`. Set absolute paths to the old installation and a new,
+   empty destination outside it:
 
-```sh
-deployment="$HOME/tag-files"
-scripts/install --directory "$deployment" --version 0.20.0 --app-image tag-files-app:local --storage-image tag-files-storage:local --project tag-files --no-pull
-compose() { docker compose --project-directory "$deployment" --env-file "$deployment/.env" -f "$deployment/compose.yml" "$@"; }
-install -d -m 700 /srv/migration-target-secrets
-install -m 600 "$deployment/secrets/s3_access_key" /srv/migration-target-secrets/s3_access_key
-install -m 600 "$deployment/secrets/s3_secret_key" /srv/migration-target-secrets/s3_secret_key
-docker build --build-arg APP_IMAGE=tag-files-app:local -f tools/migrate/Dockerfile -t tag-files-migrate:local .
-compose up -d --wait storage
-docker network connect --alias frozen-minio tag-files_library SOURCE_MINIO_CONTAINER
-```
+   ```sh
+   SOURCE_DIR=/srv/tag-files-old
+   TARGET_DIR=/srv/tag-files-new
+   ```
 
-Replace `SOURCE_MINIO_CONTAINER` with the frozen source MinIO container name.
-This connects it to storage through the private target network.
-Keep the application stopped; `copy` creates and pairs SQLite with storage.
-The private credential copies are for the transfer tool; keep the deployment's
-original secret files unchanged.
+3. Stop the old installation. Keep its containers: the script uses them to find
+   the database and storage. **Do not run `docker compose down`.**
 
-Save `/srv/migration/config.json`, adapting source paths, buckets and measurements:
+   ```sh
+   cd /srv/tag-files-old
+   docker compose stop
+   ```
 
-```json
-{
-  "Source": {
-    "Endpoint": "http://frozen-minio:9000",
-    "Region": "us-east-1",
-    "Buckets": ["library", "temporary", "thumbnail"],
-    "AccessKeyFile": "/source-secrets/source_access",
-    "SecretKeyFile": "/source-secrets/source_secret"
-  },
-  "Database": "/source/app.sqlite",
-  "Archive": "/work/archive/run-001",
-  "SnapshotID": "frozen-source-001",
-  "RollbackReference": "verified cold source backup at /srv/rollback/run-001",
-  "RollbackVerified": true,
-  "Target": {
-    "Endpoint": "http://storage:8333",
-    "Region": "us-east-1",
-    "AccessKeyFile": "/target-secrets/s3_access_key",
-    "SecretKeyFile": "/target-secrets/s3_secret_key"
-  },
-  "TargetMetadata": "/target",
-  "Journal": "/work/journal/migration.sqlite",
-  "Budget": {"writePeakBytes": 2147483648, "metadataBytes": 1073741824, "reserveBytes": 0},
-  "Exceptions": [],
-  "FFprobe": "ffprobe"
-}
-```
+4. Return to the directory containing the downloaded files and run:
 
-Set `RollbackVerified` only after checking the backup. Zero target reserve selects
-max(10 GB, 10% of planned target bytes); the archive keeps 10 GB by default.
-Check physical disks and Docker disk limits separately.
+   ```sh
+   sh migrate.sh
+   ```
 
-Define this shell helper for the stopped target's metadata directory and private network:
+5. Wait for the success message and open the printed application URL
+   (default: `http://localhost:8080`). The script verifies the backup and migrated
+   data before starting the new installation.
 
-```sh
-migration() {
-  docker run --rm --network tag-files_library \
-    --mount "type=bind,src=$deployment/data/metadata,dst=/target" \
-    --mount type=bind,src=/srv/source,dst=/source,readonly \
-    --mount type=bind,src=/srv/migration,dst=/work \
-    --mount type=bind,src=/srv/migration-secrets,dst=/source-secrets,readonly \
-    --mount type=bind,src=/srv/migration-target-secrets,dst=/target-secrets,readonly \
-    tag-files-migrate:local "$@" -config /work/config.json
-}
-migration scan
-migration probe > /srv/migration/probe.json
-```
+If interrupted, keep the old installation stopped and rerun `sh migrate.sh`
+with the same files and paths. If a source issue blocks migration, follow
+[migration recovery](operations.md#migration-recovery).
 
-Review `/srv/migration/archive/run-001/manifest.json`, its blocking issues and the
-probe report. The archive retains raw SQLite rows and all inventoried objects,
-including orphans and historical versions. An interrupted scan needs a new archive
-path. Keep completed archives immutable. Review probe failures and confirm media
-playability as well as hashes.
-
-Resolve blockers before copying. Owner decisions go in `Exceptions` as
-`{"issueId":"<manifest issue ID>","decision":"archive_only","reason":"...","owner":"..."}`.
-Use `missing_media` for `missing_primary`, `clear_reference` for
-`dangling_collection`, and `archive_only` for other supported malformed rows or
-categories. Unsupported schemas require a matching reviewed tool. Freeze exceptions
-when copying begins; accepted losses remain in the verification report.
-
-```sh
-migration copy
-migration verify > /srv/migration/verify.json
-```
-
-Resume an interrupted copy with the same `migration copy` command, archive, target,
-journal and configuration, then verify again. Stop on changed source, hash
-mismatches, insufficient space or unresolved ambiguity. Verification rehashes
-objects and checks metadata, joins and category results; require `complete: true`
-and review exceptions and per-item provenance. An immutable report is also saved
-beside the journal. The tool cannot recover absent originals or execute old jobs.
-
-The tool writes as root. Give the imported metadata to the application user:
-
-```sh
-docker run --rm --network none --user 0:0 --entrypoint chown \
-  --mount "type=bind,src=$deployment/data/metadata,dst=/target" \
-  tag-files-app:local -R "$(id -u):$(id -g)" /target
-```
-
-Stop target storage with `compose stop storage`. Keep this verified pair
-frozen while testing startup, browsing, search, favorites and video seeking on a
-disposable copy; see [backup and restore](operations.md). When switching to the
-verified original pair, run `compose up -d --wait`. Keep its data directories
-and credentials together.
-
-Keep the source backup, archive, journal, configuration and secrets for rollback.
-Before new writes, stop the new services and return to the frozen source deployment
-if needed. After new writes, reverting the source snapshot loses that delta;
-preserve the complete new SQLite/storage pair before recovery.
+Keep the old installation and `TARGET_DIR.migration` until you decide to remove
+them. To manage the new installation, run `docker compose stop` or
+`docker compose up -d` inside `TARGET_DIR`.

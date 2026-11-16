@@ -108,14 +108,14 @@ jobs:
           else
             gh release create "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --verify-tag --title "Tag Files $RELEASE_VERSION" --generate-notes --prerelease="$RELEASE_PRERELEASE" --latest="$latest"
           fi
-      - name: Attach the standalone installer and Compose template to the stable release
+      - name: Attach Docker-only setup, migration and configuration downloads to the stable release
         if: needs.validate-release.outputs.prerelease == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ needs.validate-release.outputs.version }}
         run: |
           scripts/release-images installer-assets --version "$RELEASE_VERSION" --directory "$RUNNER_TEMP/installer-assets"
-          gh release upload "$RELEASE_VERSION" "$RUNNER_TEMP/installer-assets/setup.sh" "$RUNNER_TEMP/installer-assets/compose.yml" "$RUNNER_TEMP/installer-assets/SHA256SUMS" --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$RELEASE_VERSION" "$RUNNER_TEMP/installer-assets/setup.sh" "$RUNNER_TEMP/installer-assets/compose.yml" "$RUNNER_TEMP/installer-assets/migrate.sh" "$RUNNER_TEMP/installer-assets/migration.env" "$RUNNER_TEMP/installer-assets/SHA256SUMS" --repo "$GITHUB_REPOSITORY" --clobber
       - name: Retain publication digest receipts
         if: always()
         uses: actions/upload-artifact@v4

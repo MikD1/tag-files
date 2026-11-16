@@ -156,10 +156,10 @@ func run(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("tag-files-migrate", flag.ContinueOnError)
 	config := fs.String("config", "", "private configuration JSON")
 	if len(args) < 1 {
-		return fmt.Errorf("usage: tag-files-migrate {scan|copy|verify|probe} -config settings.json")
+		return fmt.Errorf("usage: tag-files-migrate {auto|scan|copy|verify|probe} -config settings.json")
 	}
 	command := args[0]
-	if command != "scan" && command != "copy" && command != "verify" && command != "probe" {
+	if command != "auto" && command != "scan" && command != "copy" && command != "verify" && command != "probe" {
 		return fmt.Errorf("unknown command %q", command)
 	}
 	if e := fs.Parse(args[1:]); e != nil {
@@ -174,6 +174,13 @@ func run(ctx context.Context, args []string) error {
 	}
 	if e = rootsDisjoint(s); e != nil {
 		return e
+	}
+	if command == "auto" {
+		report, err := runAutomatic(ctx, *config, s)
+		if err != nil {
+			return err
+		}
+		return json.NewEncoder(os.Stdout).Encode(report)
 	}
 	if command == "probe" {
 		ffprobe := s.FFprobe
@@ -224,64 +231,75 @@ func run(ctx context.Context, args []string) error {
 	if e = migrate.CheckFrozen(ctx, m, source); e != nil {
 		return e
 	}
-	targetConfig, e := endpointConfig(s.Target)
+	result, e := targetStage(ctx, command, s, source, m)
 	if e != nil {
 		return e
+	}
+	return json.NewEncoder(os.Stdout).Encode(result)
+}
+
+func targetStage(ctx context.Context, command string, s settings, source migrate.Source, m *migrate.Manifest) (any, error) {
+	if strings.TrimRight(strings.ToLower(s.Source.Endpoint), "/") == strings.TrimRight(strings.ToLower(s.Target.Endpoint), "/") {
+		return nil, fmt.Errorf("source and destination S3 must be separate origins")
+	}
+	targetConfig, e := endpointConfig(s.Target)
+	if e != nil {
+		return nil, e
 	}
 	control, e := storageprotocol.NewClient(targetConfig.Endpoint, targetConfig.AccessKey, targetConfig.SecretKey, nil)
 	if e != nil {
-		return e
+		return nil, e
 	}
 	identity, e := control.Identity(ctx)
 	if e != nil {
-		return e
+		return nil, e
 	}
 	if command == "copy" && identity.LibraryID == "" {
 		c, e := objectstore.New(targetConfig)
 		if e != nil {
-			return e
+			return nil, e
 		}
 		page, e := c.List(ctx, "", "", 1)
 		if e != nil {
-			return e
+			return nil, e
 		}
 		mpus, e := c.ListMultipart(ctx, "")
 		if e != nil {
-			return e
+			return nil, e
 		}
 		if len(page.Objects) > 0 || len(mpus) > 0 {
-			return fmt.Errorf("unbound target storage must be empty")
+			return nil, fmt.Errorf("unbound target storage must be empty")
 		}
 	}
 	if command == "verify" {
 		if _, e = os.Stat(filepath.Join(s.TargetMetadata, "library.sqlite")); e != nil {
-			return e
+			return nil, e
 		}
 	}
 	db, e := store.Open(ctx, s.TargetMetadata)
 	if e != nil {
-		return e
+		return nil, e
 	}
 	defer db.Close()
 	pair, e := librarybinding.Ensure(ctx, db, control)
 	if e != nil {
-		return e
+		return nil, e
 	}
 	client, e := objectstore.New(targetConfig)
 	if e != nil {
-		return e
+		return nil, e
 	}
 	client, e = client.AtLibrary(pair.StorageID, pair.LibraryID, pair.VolumeID)
 	if e != nil {
-		return e
+		return nil, e
 	}
 	epoch, e := client.StorageEpoch(ctx)
 	if e != nil {
-		return e
+		return nil, e
 	}
 	client, e = client.AtEpoch(epoch)
 	if e != nil {
-		return e
+		return nil, e
 	}
 	c := migrate.ApplyConfig{Archive: s.Archive, Journal: s.Journal, TargetID: pair.StorageID + "/" + pair.VolumeID, Exceptions: s.Exceptions, Budget: s.Budget, PartSize: s.PartSize, SinglePutLimit: s.SinglePutLimit, Capacity: func(ctx context.Context) (int64, int64, error) {
 		capacity, e := client.Capacity(ctx)
@@ -295,15 +313,15 @@ func run(ctx context.Context, args []string) error {
 	}}
 	if command == "copy" {
 		if e = migrate.Apply(ctx, c, m, source, db, client); e != nil {
-			return e
+			return nil, e
 		}
-		return json.NewEncoder(os.Stdout).Encode(map[string]any{"runId": m.RunID, "copied": true, "next": "verify"})
+		return map[string]any{"runId": m.RunID, "copied": true, "next": "verify"}, nil
 	}
 	report, e := migrate.Verify(ctx, c, m, source, db, client)
 	if e != nil {
-		return e
+		return nil, e
 	}
-	return json.NewEncoder(os.Stdout).Encode(report)
+	return report, nil
 }
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

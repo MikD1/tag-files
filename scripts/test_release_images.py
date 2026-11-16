@@ -25,17 +25,25 @@ class ReleaseImagesTest(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
 
-    def archive(self, name='app', arch='amd64', version='v1.2.3', corrupt=False, compressed=False, runtime_config=None, destination=None, ref=None):
+    def archive(self, name='app', arch='amd64', version='v1.2.3', corrupt=False, compressed=False, runtime_config=None, destination=None, ref=None, base_layer=None):
         layer = b'actual layer contents\0' + name.encode()
         config_value = {'architecture': arch, 'os': 'linux', 'config': {'Labels': {
             'org.opencontainers.image.version': version,
             'org.opencontainers.image.revision': 'a' * 40}},
             'rootfs': {'type': 'layers', 'diff_ids': ['sha256:' + hashlib.sha256(layer).hexdigest()]}}
+        if base_layer is not None:
+            config_value['rootfs']['diff_ids'].insert(0, 'sha256:' + hashlib.sha256(base_layer).hexdigest())
         config_value['config'].update(runtime_config or {})
         config = json.dumps(config_value).encode()
         ref = ref or release.local_ref(name, arch)
         manifest = [{'Config': 'config.json', 'Layers': ['layer.tar'], 'RepoTags': [ref]}]
+        if base_layer is not None:
+            manifest[0]['Layers'].insert(0, 'base.tar')
         with tarfile.open(destination or self.root / f'{name}.tar', 'w') as archive:
+            if base_layer is not None:
+                info = tarfile.TarInfo('base.tar')
+                info.size = len(base_layer)
+                archive.addfile(info, io.BytesIO(base_layer))
             for member, data in [('config.json', config), ('layer.tar', gzip.compress(layer) if compressed else layer + (b'x' if corrupt else b'')),
                                  ('manifest.json', json.dumps(manifest).encode())]:
                 info = tarfile.TarInfo(member)
@@ -44,7 +52,7 @@ class ReleaseImagesTest(unittest.TestCase):
         return hashlib.sha256(config).hexdigest()
 
     def bundle(self, arch='amd64'):
-        for name in ('app', 'storage'):
+        for name in release.IMAGES:
             self.archive(name, arch=arch)
         bundle = release.prepare_bundle(self.root, 'v1.2.3', arch, 'a' * 40, '42', '1')
         for entry in bundle['images'].values():
@@ -89,6 +97,9 @@ class ReleaseImagesTest(unittest.TestCase):
     def test_registry_config_mismatch_retains_evidence_and_never_changes_channels(self):
         self.promote_fixture(corrupt_registry=True)
 
+    def test_registry_migration_config_mismatch_prevents_all_channel_changes(self):
+        self.promote_fixture(corrupt_registry='migrate')
+
     def promote_fixture(self, corrupt_registry=False):
         publish = self.root / 'publish'
         bundles = {}
@@ -100,7 +111,7 @@ class ReleaseImagesTest(unittest.TestCase):
 
         def inspect(ref):
             arch = ref.rsplit(':', 1)[1]
-            name = 'storage' if 'storage' in ref else 'app'
+            name = next(name for name in release.IMAGES if name in ref)
             return {'Id': 'sha256:' + 'b' * 64, 'Architecture': arch, 'Os': 'linux',
                     'RootFS': {'Layers': bundles[arch]['images'][name]['identity']['diffIDs']},
                     'Config': {'Labels': {'org.opencontainers.image.version': 'v1.2.3'}}}
@@ -109,13 +120,13 @@ class ReleaseImagesTest(unittest.TestCase):
             if command[:3] == ['docker', 'image', 'push']:
                 stage = command[3]
                 arch = stage.rsplit('-', 1)[1]
-                name = 'storage' if '-storage:' in stage else 'app'
+                name = next(name for name in release.IMAGES if f'-{name}:' in stage)
                 digest = 'sha256:' + hashlib.sha256(stage.encode()).hexdigest()
                 source = stage.rsplit(':', 1)[0] + '@' + digest
                 source_configs[source] = bundles[arch]['images'][name]['identity']
                 return f'{stage}: digest: {digest} size: 123'
             identity = source_configs[command[-1]]
-            return json.dumps({'config': {'digest': 'sha256:' + '0' * 64 if corrupt_registry else identity['configDigest']}, 'layers': identity['diffIDs']})
+            return json.dumps({'config': {'digest': 'sha256:' + '0' * 64 if corrupt_registry is True or (corrupt_registry and f'-{corrupt_registry}@' in command[-1]) else identity['configDigest']}, 'layers': identity['diffIDs']})
 
         with contextlib.redirect_stdout(io.StringIO()), mock.patch.object(release, 'execute') as execute, mock.patch.object(release, 'capture', side_effect=capture), mock.patch.object(release, 'inspect_image', side_effect=inspect):
             if corrupt_registry:
@@ -128,14 +139,18 @@ class ReleaseImagesTest(unittest.TestCase):
                 return
             release.promote(publish, 'v1.2.3', False, 'Owner/Repo', 'a' * 40, '42', '1')
             commands = [call.args[0] for call in execute.call_args_list]
-        self.assertEqual(sum(c[:3] == ['docker', 'image', 'load'] for c in commands), 4)
+        self.assertEqual(sum(c[:3] == ['docker', 'image', 'load'] for c in commands), len(release.IMAGES) * len(release.ARCHES))
         self.assertFalse(any(c[:2] == ['docker', 'build'] or c[:3] == ['docker', 'buildx', 'build'] for c in commands))
         manifests = [c for c in commands if c[:4] == ['docker', 'buildx', 'imagetools', 'create']]
-        self.assertEqual(len(manifests), 2)
+        self.assertEqual(len(manifests), len(release.IMAGES))
         self.assertTrue(all(sum(x == '--tag' for x in c) == 3 for c in manifests))
-        self.assertTrue(all(len([x for x in c if '@sha256:' in x]) == 2 for c in manifests))
+        self.assertTrue(all(len([x for x in c if '@sha256:' in x]) == len(release.ARCHES) for c in manifests))
         receipt = json.loads((publish / 'publication.json').read_text())
         self.assertEqual(receipt['version'], 'v1.2.3')
+        self.assertEqual(set(receipt['images']), {'app', 'storage', 'migrate'})
+        self.assertEqual(receipt['images']['migrate']['publishedTags'], [
+            'ghcr.io/owner/repo-migrate:1.2.3', 'ghcr.io/owner/repo-migrate:1.2',
+            'ghcr.io/owner/repo-migrate:latest'])
 
     def test_layer_mutation_is_rejected_even_with_repacked_archive(self):
         self.archive(corrupt=True)
@@ -198,7 +213,7 @@ class ReleaseImagesTest(unittest.TestCase):
         commands = []
 
         def inspect(ref):
-            name = 'storage' if 'storage' in ref else 'app'
+            name = next(name for name in release.IMAGES if name in ref)
             image_id = 'c' if alias_changes_during_export and exported and ref == release.check_alias(name) else 'b'
             return {'Id': 'sha256:' + image_id * 64, 'Architecture': 'amd64', 'Os': 'linux',
                     'RootFS': {'Layers': bundle['images'][name]['identity']['diffIDs']},
@@ -220,7 +235,7 @@ class ReleaseImagesTest(unittest.TestCase):
             else:
                 release.seal_bundle(self.root, 'v1.2.3', 'amd64', 'a' * 40, '42', '1')
                 self.assertTrue(json.loads((self.root / 'bundle.json').read_text())['sealed'])
-                self.assertEqual(exported, ['app', 'storage'])
+                self.assertEqual(exported, list(release.IMAGES))
                 # Containerd image ID is intentionally distinct from the config hash.
                 self.assertNotEqual(bundle['images']['app']['testedImageID'], bundle['images']['app']['identity']['configDigest'])
         self.assertEqual(sum(c[:3] == ['docker', 'image', 'rm'] for c in commands), len(exported))
@@ -251,7 +266,7 @@ class ReleaseImagesTest(unittest.TestCase):
         release.write_bundle(self.root, bundle)
 
         def inspect(ref):
-            name = 'storage' if 'storage' in ref else 'app'
+            name = next(name for name in release.IMAGES if name in ref)
             image_id = 'c' if ref == release.check_alias(name) else 'b'
             return {'Id': 'sha256:' + image_id * 64, 'Architecture': 'amd64', 'Os': 'linux',
                     'RootFS': {'Layers': bundle['images'][name]['identity']['diffIDs']},
@@ -261,6 +276,102 @@ class ReleaseImagesTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'tested image'):
                 release.seal_bundle(self.root, 'v1.2.3', 'amd64', 'a' * 40, '42', '1')
         self.assertFalse(json.loads((self.root / 'bundle.json').read_text())['sealed'])
+
+    def test_migration_archive_is_required_in_release_receipt(self):
+        bundle = self.bundle()
+        self.assertIn('migrate', bundle['images'])
+        del bundle['images']['migrate']
+        release.write_bundle(self.root, bundle)
+        with self.assertRaisesRegex(ValueError, 'images'):
+            self.verify()
+
+    def test_migration_runtime_alias_is_independent_of_storage(self):
+        self.assertEqual(release.check_alias('migrate'), 'tag-files-migrate:local')
+
+    def test_migration_alias_replacement_is_refused_by_seal(self):
+        bundle = self.bundle()
+        bundle['sealed'] = False
+        release.write_bundle(self.root, bundle)
+
+        def inspect(ref):
+            name = next(name for name in release.IMAGES if name in ref)
+            image_id = 'c' if ref == 'tag-files-migrate:local' else 'b'
+            return {'Id': 'sha256:' + image_id * 64, 'Architecture': 'amd64', 'Os': 'linux',
+                    'RootFS': {'Layers': bundle['images'][name]['identity']['diffIDs']},
+                    'Config': {'Labels': {'org.opencontainers.image.version': 'v1.2.3'}}}
+
+        def execute(command):
+            if command[:3] == ['docker', 'image', 'save']:
+                # All images before migrate export their unchanged full config.
+                ref = command[-1]
+                name = next(name for name in release.IMAGES if name not in exported)
+                exported.append(name)
+                self.archive(name, destination=Path(command[command.index('--output') + 1]), ref=ref)
+
+        exported = []
+        with mock.patch.object(release, 'inspect_image', side_effect=inspect), mock.patch.object(release, 'execute', side_effect=execute):
+            with self.assertRaisesRegex(ValueError, 'tested image'):
+                release.seal_bundle(self.root, 'v1.2.3', 'amd64', 'a' * 40, '42', '1')
+        self.assertFalse(json.loads((self.root / 'bundle.json').read_text())['sealed'])
+
+    def test_native_build_uses_loaded_app_identity_as_migration_base(self):
+        self.native_build_fixture()
+
+    def test_native_build_rejects_migration_image_from_different_base(self):
+        self.native_build_fixture(wrong_base=True, error='application base')
+
+    def test_native_build_refuses_app_replacement_during_migration_build(self):
+        self.native_build_fixture(app_replaced=True, error='tested image')
+
+    def test_native_build_refuses_container_builder_for_local_application_base(self):
+        self.native_build_fixture(builder='docker-container', error='native Docker builder')
+
+    def native_build_fixture(self, *, wrong_base=False, app_replaced=False, builder='docker', error=None):
+        output = self.root / 'output'
+        loaded = set()
+        commands = []
+        migration_started = False
+        app_id = 'sha256:' + 'b' * 64
+
+        def execute(command):
+            nonlocal migration_started
+            commands.append(command)
+            if command[:3] == ['docker', 'buildx', 'build']:
+                ref = command[command.index('-t') + 1]
+                name = next(name for name in release.IMAGES if f'-{name}:' in ref)
+                if name == 'migrate':
+                    migration_started = True
+                    self.assertIn('app', loaded, 'application must be loaded before migration build')
+                    self.assertIn('APP_IMAGE=tag-files-verified-app:amd64', command)
+                    self.assertIn('--builder', command)
+                    self.assertEqual(command[command.index('--builder') + 1], 'default')
+                    self.assertEqual(command[command.index('-f') + 1], 'tools/migrate/Dockerfile')
+                self.archive(name, destination=output / f'{name}.tar', base_layer=(b'different application' if wrong_base else b'actual layer contents\0app') if name == 'migrate' else None)
+            if command[:3] == ['docker', 'image', 'load']:
+                loaded.add(Path(command[-1]).stem)
+
+        def inspect(ref):
+            name = next(name for name in release.IMAGES if f'-{name}:' in ref)
+            self.assertIn(name, loaded)
+            layers = ['sha256:' + hashlib.sha256(b'actual layer contents\0' + name.encode()).hexdigest()]
+            if name == 'migrate':
+                layers.insert(0, 'sha256:' + hashlib.sha256(b'actual layer contents\0app').hexdigest())
+            current_id = 'sha256:' + 'c' * 64 if app_replaced and migration_started and name == 'app' else app_id
+            return {'Id': current_id, 'Architecture': 'amd64', 'Os': 'linux',
+                    'RootFS': {'Layers': layers},
+                    'Config': {'Labels': {'org.opencontainers.image.version': 'v1.2.3'}}}
+
+        with mock.patch.object(release, 'capture', side_effect=lambda command: f'Name: default\nDriver: {builder}\n\nNodes:\nName: default' if command[:3] == ['docker', 'buildx', 'inspect'] else 'amd64'), mock.patch.object(release, 'execute', side_effect=execute), mock.patch.object(release, 'inspect_image', side_effect=inspect):
+            if error:
+                with self.assertRaisesRegex(ValueError, error):
+                    release.build(output, 'v1.2.3', 'amd64', 'a' * 40, '42', '1')
+                self.assertFalse((output / 'bundle.json').exists())
+                return
+            release.build(output, 'v1.2.3', 'amd64', 'a' * 40, '42', '1')
+        bundle = json.loads((output / 'bundle.json').read_text())
+        self.assertEqual(set(bundle['images']), {'app', 'storage', 'migrate'})
+        self.assertEqual(loaded, {'app', 'storage', 'migrate'})
+        self.assertTrue(any(command[:3] == ['docker', 'image', 'tag'] and command[-1] == 'tag-files-migrate:local' for command in commands))
 
     def test_release_tags_and_prerelease_channel_exclusion(self):
         self.assertEqual(release.release_tags('v1.2.3', False), ['1.2.3', '1.2', 'latest'])
@@ -282,8 +393,14 @@ class ReleaseImagesTest(unittest.TestCase):
         self.assertNotIn('@TAG_FILES_', text)
         subprocess.run(['sh', '-n', str(installer)], check=True)
         self.assertEqual((assets / 'compose.yml').read_bytes(), (release.ROOT / 'compose.yml').read_bytes())
+        migration = assets / 'migrate.sh'
+        self.assertIn("MIGRATE_VERSION='v1.2.3'", migration.read_text())
+        self.assertIn("MIGRATE_REPOSITORY='owner/repo'", migration.read_text())
+        self.assertNotIn('@TAG_FILES_', migration.read_text())
+        subprocess.run(['sh', '-n', str(migration)], check=True)
+        self.assertEqual((assets / 'migration.env').read_bytes(), (release.ROOT / 'scripts/migration.env').read_bytes())
         checksums = dict(line.split('  ', 1)[::-1] for line in (assets / 'SHA256SUMS').read_text().splitlines())
-        self.assertEqual(set(checksums), {'setup.sh', 'compose.yml'})
+        self.assertEqual(set(checksums), {'setup.sh', 'compose.yml', 'migrate.sh', 'migration.env'})
         for filename, expected in checksums.items():
             self.assertEqual(hashlib.sha256((assets / filename).read_bytes()).hexdigest(), expected)
 

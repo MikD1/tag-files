@@ -13,7 +13,7 @@ import tarfile
 import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
-IMAGES = ('app', 'storage')
+IMAGES = ('app', 'storage', 'migrate')
 ARCHES = ('amd64', 'arm64')
 DIGEST = re.compile(r'sha256:[0-9a-f]{64}\Z')
 VERSION = re.compile(r'v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?\Z')
@@ -43,24 +43,30 @@ def release_tags(version, prerelease):
 
 
 def installer_assets(directory, version, repository):
-    """Package a standalone, version-pinned installer for a stable release."""
+    """Package version-pinned Docker-only setup and migration downloads."""
     match = validate_version(version)
     require(match[4] is None, 'installer assets require a stable release')
     repository = repository.lower()
     require(re.fullmatch(r'[a-z0-9][a-z0-9_.-]*/[a-z0-9][a-z0-9_.-]*', repository) is not None,
             'invalid GitHub repository')
-    installer = (ROOT / 'scripts/setup.sh').read_text()
-    for placeholder, value in [('@TAG_FILES_VERSION@', version), ('@TAG_FILES_REPOSITORY@', repository)]:
-        require(installer.count(placeholder) == 1, 'installer release placeholder mismatch')
-        installer = installer.replace(placeholder, value)
-    require('@TAG_FILES_' not in installer, 'unstamped installer placeholder')
-    compose = (ROOT / 'compose.yml').read_bytes()
+    files = {}
+    for name in ('setup.sh', 'migrate.sh'):
+        script = (ROOT / 'scripts' / name).read_text()
+        for placeholder, value in [('@TAG_FILES_VERSION@', version), ('@TAG_FILES_REPOSITORY@', repository)]:
+            require(script.count(placeholder) == 1, f'{name} release placeholder mismatch')
+            script = script.replace(placeholder, value)
+        require('@TAG_FILES_' not in script, f'unstamped {name} placeholder')
+        files[name] = script.encode()
+    files['compose.yml'] = (ROOT / 'compose.yml').read_bytes()
+    files['migration.env'] = (ROOT / 'scripts/migration.env').read_bytes()
     directory.mkdir(parents=True, exist_ok=False)
-    (directory / 'setup.sh').write_text(installer)
-    (directory / 'setup.sh').chmod(0o755)
-    (directory / 'compose.yml').write_bytes(compose)
+    for name, data in files.items():
+        (directory / name).write_bytes(data)
+        if name.endswith('.sh'):
+            (directory / name).chmod(0o755)
     (directory / 'SHA256SUMS').write_text(''.join(
-        f'{file_sha(directory / name)}  {name}\n' for name in ('setup.sh', 'compose.yml')))
+        f'{file_sha(directory / name)}  {name}\n'
+        for name in ('setup.sh', 'compose.yml', 'migrate.sh', 'migration.env')))
 
 
 def local_ref(name, arch):
@@ -221,7 +227,8 @@ def verify_exported_image(entry, image_id, arch, version, directory):
 
 
 def check_alias(name):
-    return 'tag-files-app:local' if name == 'app' else 'tag-files-storage:local-check'
+    return {'app': 'tag-files-app:local', 'storage': 'tag-files-storage:local-check',
+            'migrate': 'tag-files-migrate:local'}[name]
 
 
 def seal_bundle(directory, version, arch, commit, run_id, attempt):
@@ -243,22 +250,42 @@ def build(directory, version, arch, commit, run_id, attempt):
     require(capture(['docker', 'version', '--format', '{{.Server.Arch}}']) == arch,
             'release verification must use the matching native Docker architecture')
     directory.mkdir(parents=True, exist_ok=False)
+    images = {}
     for name in IMAGES:
         command = ['docker', 'buildx', 'build', '--platform', 'linux/' + arch,
                    '--provenance=false', '--sbom=false', '--build-arg', 'VERSION=' + version,
                    '--label', 'org.opencontainers.image.version=' + version,
                    '--label', 'org.opencontainers.image.revision=' + commit,
                    '--output', f'type=docker,dest={directory / (name + ".tar")}',
-                   '-t', local_ref(name, arch), '-f', f'deploy/{name}/Dockerfile']
+                   '-t', local_ref(name, arch), '-f',
+                   'tools/migrate/Dockerfile' if name == 'migrate' else f'deploy/{name}/Dockerfile']
         if name == 'app':
             command += ['--target', 'app']
+        if name == 'migrate':
+            # The native Docker builder sees the exact local application loaded
+            # above. A container builder may resolve the same tag from a registry.
+            require(re.search(r'^Driver:\s+docker\s*$', capture(['docker', 'buildx', 'inspect', 'default']), re.MULTILINE),
+                    'migration build requires the native Docker builder')
+            verify_loaded(images['app'], local_ref('app', arch), arch, version, same_engine=True)
+            command += ['--builder', 'default', '--build-arg', 'APP_IMAGE=' + local_ref('app', arch)]
         execute(command + ['.'])
+        if name == 'migrate':
+            verify_loaded(images['app'], local_ref('app', arch), arch, version, same_engine=True)
+        path = directory / f'{name}.tar'
+        entry = {'archiveSHA256': file_sha(path),
+                 'identity': archive_identity(path, local_ref(name, arch), arch, version, commit)}
+        if name == 'migrate':
+            base = images['app']['identity']['diffIDs']
+            require(entry['identity']['diffIDs'][:len(base)] == base,
+                    'migration image differs from tested application base')
+        execute(['docker', 'image', 'load', '--input', str(path)])
+        entry['testedImageID'] = verify_loaded(entry, local_ref(name, arch), arch, version)
+        images[name] = entry
+        # Runtime gates use these aliases; sealing rechecks their immutable IDs.
+        execute(['docker', 'image', 'tag', local_ref(name, arch), check_alias(name)])
     bundle = prepare_bundle(directory, version, arch, commit, run_id, attempt)
     for name in IMAGES:
-        execute(['docker', 'image', 'load', '--input', str(directory / f'{name}.tar')])
-        bundle['images'][name]['testedImageID'] = verify_loaded(bundle['images'][name], local_ref(name, arch), arch, version)
-        # The existing exact-image check reads these dedicated CI-job local aliases.
-        execute(['docker', 'image', 'tag', local_ref(name, arch), check_alias(name)])
+        bundle['images'][name]['testedImageID'] = images[name]['testedImageID']
     write_bundle(directory, bundle)
 
 
@@ -314,7 +341,7 @@ def promote(directory, version, prerelease, repository, commit, run_id, attempt)
                         'registry layer count differs from tested rootfs')
                 record['verified'] = True
                 retain()
-        # Only after all four pushed manifests match original configs publish channels.
+        # Publish channels only after every native image matches its tested config.
         promoted['state'] = 'publishing-channels'
         retain()
         for details in promoted['images'].values():

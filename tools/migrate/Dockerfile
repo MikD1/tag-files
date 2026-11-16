@@ -9,11 +9,14 @@ WORKDIR /src/tools/migrate
 COPY tools/migrate/go.mod tools/migrate/go.sum ./
 RUN go mod download
 COPY tools/migrate/ ./
-RUN CGO_ENABLED=1 go build -trimpath -ldflags='-s -w' -o /out/tag-files-migrate ./cmd/tag-files-migrate
+RUN CGO_ENABLED=1 go build -trimpath -ldflags='-s -w' -o /out/tag-files-migrate ./cmd/tag-files-migrate \
+    && CGO_ENABLED=1 go build -trimpath -ldflags='-s -w' -o /out/tag-files-migration-host ./cmd/tag-files-migration-host
 
 # The application runtime supplies the matching libc and FFprobe.
 FROM ${APP_IMAGE}
-COPY --from=build /out/tag-files-migrate /usr/local/bin/tag-files-migrate
+COPY --from=build /out/tag-files-migrate /out/tag-files-migration-host /usr/local/bin/
+COPY compose.yml /usr/share/tag-files/compose.yml
+HEALTHCHECK NONE
 USER 0:0
 ENTRYPOINT ["tag-files-migrate"]
 CMD []

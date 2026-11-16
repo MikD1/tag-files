@@ -28,6 +28,68 @@ type ProbeReport struct {
 	CheckedAt string        `json:"checkedAt"`
 }
 
+// ValidateExceptions requires named owner decisions for every blocking source
+// issue. Unknown schemas cannot be accepted as an automatic data-loss decision.
+func ValidateExceptions(m *Manifest, exceptions []Exception) error {
+	if _, err := resolve(m, exceptions); err != nil {
+		return err
+	}
+	for _, issue := range m.Issues {
+		if issue.Code == "unknown_schema" {
+			return fmt.Errorf("unsupported schema requires a matching reviewed tool; raw archive retained")
+		}
+	}
+	return nil
+}
+
+// ValidateProbe retains failures in the report, but permits an absent primary
+// only when the matching source issue has an explicit missing_media decision.
+func ValidateProbe(m *Manifest, report ProbeReport, exceptions []Exception) error {
+	if err := ValidateExceptions(m, exceptions); err != nil {
+		return err
+	}
+	if report.RunID != m.RunID {
+		return fmt.Errorf("media inspection archive identity differs")
+	}
+	expected := map[int64]bool{}
+	for _, item := range m.Model.Items {
+		if item.Kind == "Image" || item.Kind == "Video" {
+			expected[item.ID] = true
+		}
+	}
+	seen := map[int64]bool{}
+	for _, result := range report.Results {
+		if !expected[result.ItemID] || seen[result.ItemID] {
+			return fmt.Errorf("unexpected or duplicate media inspection result")
+		}
+		seen[result.ItemID] = true
+	}
+	if len(seen) != len(expected) {
+		return fmt.Errorf("media inspection incomplete: checked %d of %d items", len(seen), len(expected))
+	}
+	decisions, _ := resolve(m, exceptions)
+	var failures []error
+	for _, result := range report.Results {
+		if result.Openable {
+			continue
+		}
+		entity := fmt.Sprintf("item:%d", result.ItemID)
+		if result.Error == "missing primary" && decisions["missing_primary\x00"+entity] == "missing_media" {
+			continue
+		}
+		archived := false
+		for _, item := range m.Model.Items {
+			if item.ID == result.ItemID && !item.Valid {
+				archived = decisions["invalid_row\x00"+entity] == "archive_only" || decisions["invalid_duration\x00"+entity] == "archive_only"
+			}
+		}
+		if !archived {
+			failures = append(failures, fmt.Errorf("media inspection failed for item %d: %s", result.ItemID, result.Error))
+		}
+	}
+	return errors.Join(failures...)
+}
+
 // Probe checks the existing bytes without transcoding or changing the archive.
 // This opening check supplements the complete source/destination hashes.
 func Probe(ctx context.Context, root, ffprobe string) (ProbeReport, error) {
