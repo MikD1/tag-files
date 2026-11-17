@@ -67,7 +67,11 @@ export function UploadsPage({ coordinator = getUploadCoordinator() }: { coordina
     </section>
     <Modal opened={chosen.length > 0} onClose={() => setChosen([])} title="Upload media" closeButtonProps={{ 'aria-label': 'Close upload dialog' }} centered classNames={{ content: 'production-dialog', header: 'production-dialog-header' }}>
       <p>{chosen.length} {chosen.length === 1 ? 'file' : 'files'} selected</p>
-      <Select label="Collection" placeholder="No collection" searchable clearable nothingFoundMessage="No collections found" value={collection} onChange={setCollection} data={(collections.data ?? []).map((entry) => ({ value: String(entry.id), label: entry.name }))}/>
+      <Select label="Collection" placeholder="No collection" searchable clearable nothingFoundMessage="No collections found"
+        value={collection} onChange={setCollection}
+        data={(collections.data ?? []).map((entry) => ({ value: String(entry.id), label: entry.name }))}
+        rightSection={<Icon name="chevrons-up-down" className="upload-collection-chevron"/>}
+        renderOption={({ option, checked }) => <>{checked && <Icon name="check" className="upload-collection-check"/>}<span>{option.label}</span></>}/>
       {collections.error && <p role="alert" className="form-error">{errorMessage(collections.error)}</p>}
       <div className="dialog-actions"><Button className="secondary" onClick={() => setChosen([])}>Cancel</Button><Button className="primary" onClick={upload}>Upload</Button></div>
     </Modal>
