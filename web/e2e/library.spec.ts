@@ -8,12 +8,14 @@ test('library pagination, invalid query, row selection and Cancel preserve real 
  await expect(page.getByText('Legacy text stays private')).toHaveCount(0);
  await page.getByRole('button',{name:'Next',exact:true}).click();
  await expect(page).toHaveURL(/page=2/);
- const before=await page.locator('.media-card a').first().getAttribute('href');
+ const firstCard=page.locator('.media-card a').first();
+ const before='/content/48?origin=%2Flibrary%3Fpage%3D2';
+ await expect(firstCard).toHaveAttribute('href',before);
  await page.getByRole('textbox',{name:'Search by tags'}).fill('cat AND (');
  await page.getByRole('button',{name:'Search',exact:true}).click();
  await expect(page.getByRole('alert')).toBeVisible();
  await expect(page).toHaveURL(/page=2/);
- expect(await page.locator('.media-card a').first().getAttribute('href')).toBe(before);
+ await expect(firstCard).toHaveAttribute('href',before);
  await page.getByRole('button',{name:'List view'}).click();
  await expect(page.getByRole('checkbox',{name:'Select current page'})).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Edit selected'})).toHaveCount(0);

@@ -335,6 +335,26 @@ class MigrationIntegration(unittest.TestCase):
                                   '--entrypoint', '/bin/sh', '--mount', f'type=bind,src={temporary},dst=/fixture',
                                   self.app, '-c', 'find /fixture -mindepth 1 -delete'])
 
+    def interrupt_copying(self):
+        container = self.project + '-migrate-run'
+        self.command(['docker', 'pause', container])
+        interrupted = False
+        try:
+            # The root migration owns its private 0600 journal. Docker copies
+            # it for the host user; pausing keeps the database and WAL coherent.
+            with tempfile.TemporaryDirectory(prefix='journal-snapshot-', dir=self.work) as snapshot:
+                self.command(['docker', 'cp', f'{container}:/work/journal/.', snapshot])
+                journal = Path(snapshot) / 'migration.sqlite'
+                with sqlite3.connect(f'file:{journal}?mode=ro', uri=True, timeout=0.1) as db:
+                    copying = db.execute("SELECT count(*) FROM objects WHERE state='copying'").fetchone()[0] > 0
+            if copying:
+                self.command(['docker', 'kill', container])
+                interrupted = True
+            return interrupted
+        finally:
+            if not interrupted:
+                self.command(['docker', 'unpause', container])
+
     def interrupt_when(self, stage):
         log = self.work / f'interrupt-{stage}.log'
         with log.open('w') as output:
@@ -350,14 +370,14 @@ class MigrationIntegration(unittest.TestCase):
                         if stage == 'archiving':
                             archive = self.state / Path(record['archive']).relative_to('/work')
                             observed = record['stage'] == stage and archive.is_dir() and not (archive / 'complete').exists()
+                            if observed:
+                                self.command(['docker', 'kill', self.project + '-migrate-run'])
                         else:
                             observed = False
                             journal = self.state / 'journal/migration.sqlite'
                             if record['copyStarted'] and journal.exists():
-                                with sqlite3.connect(f'file:{journal}?mode=ro', uri=True, timeout=0.1) as db:
-                                    observed = db.execute("SELECT count(*) FROM objects WHERE state='copying'").fetchone()[0] > 0
+                                observed = self.interrupt_copying()
                         if observed:
-                            self.command(['docker', 'kill', self.project + '-migrate-run'])
                             break
                     except (OSError, ValueError, KeyError, sqlite3.Error):
                         pass
