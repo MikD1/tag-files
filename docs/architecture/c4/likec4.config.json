@@ -1,0 +1,8 @@
+{
+  "$schema": "https://likec4.dev/schemas/config.json",
+  "name": "architecture",
+  "title": "Tag Files",
+  "metadata": {
+    "description": "Generated from the LikeC4 model (*.c4) in this folder by `likec4 export markdown`. Change the model and regenerate instead of editing the generated README."
+  }
+}

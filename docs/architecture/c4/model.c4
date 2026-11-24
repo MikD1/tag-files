@@ -1,0 +1,172 @@
+// Systems, containers, components and their relationships.
+model {
+  owner = person 'Library owner' 'Uploads, tags and browses photos and videos in a browser on the same machine; installs, updates and backs up the library'
+
+  github = external 'GitHub' 'Releases with installer assets; GHCR with the app, storage and migrate images'
+  legacy = external 'Legacy installation' 'Previous C#/Angular Tag Files with SQLite and MinIO; source for the one-time migration'
+
+  tagFiles = system 'Tag Files' 'Local photo and video library with tag search, collections, categories and favorites' {
+
+    spa = webapp 'Web UI' 'Library grid and list, viewer, uploads queue, tags, collections and categories; hashes files and parts in a Web Worker' {
+      technology 'React, TypeScript, Vite, Mantine, TanStack Query'
+    }
+
+    app = container 'Application' 'One process: serves the SPA, JSON API, uploads and media; runs the durable job worker and FFmpeg' {
+      technology 'Go, net/http'
+
+      lifecycle = component 'Lifecycle' 'Startup gates, request admission, worker and HTTP lifecycle, hourly pruning, joined shutdown' {
+        technology 'application'
+      }
+      httpApi = component 'HTTP API' 'Generated OpenAPI handlers, idempotent commands, raw part uploads, SPA assets and health routes' {
+        technology 'httpapi, webui'
+      }
+      mediaServe = component 'Media delivery' 'Serves owned assets at /media/{assetId} with GET, HEAD, byte ranges and conditional requests' {
+        technology 'mediaserve'
+      }
+      library = component 'Library domain' 'Items, tags, collections, categories, the tag search language, viewer order snapshots, command receipts' {
+        technology 'catalog, organization, search, navigation, operations'
+      }
+      ingestion = component 'Upload ingestion' 'Upload sessions, hash-bound parts, completion, publication, cancel and startup recovery' {
+        technology 'ingestion'
+      }
+      derived = component 'Posters, deletion and cleanup' 'Poster jobs, irreversible item deletion with retained key inventory, independent cleanup receipts' {
+        technology 'poster, deletion, cleanup'
+      }
+      worker = component 'Job worker' 'Single durable queue consumer with leases, heartbeats and generation fencing' {
+        technology 'worker'
+      }
+      mediaProc = component 'Media processing' 'Probes, validates and normalizes images and video, renders posters in reserved scratch attempts' {
+        technology 'media, process, scratch; FFmpeg, FFprobe'
+      }
+      capacity = component 'Capacity admission' 'Checks free bytes and inodes on metadata, scratch and storage before accepting work' {
+        technology 'capacity, diskspace, resourceerr'
+      }
+      store = component 'Metadata store' 'One immediate writer and four read-only connections, library lock, embedded migrations, sqlc queries' {
+        technology 'store, mattn/go-sqlite3, Goose, sqlc'
+      }
+      objects = component 'Object storage adapter' 'Write-intent journal, bounded object I/O, storage identity, boot epoch and one-time library pairing' {
+        technology 'objectio, objectstore, storageprotocol, librarybinding; AWS SDK v2'
+      }
+    }
+
+    db = database 'Metadata' 'Catalog, tags, collections, categories, upload sessions, jobs, cleanup receipts, idempotency results' {
+      technology 'SQLite (WAL, synchronous=FULL), data/metadata/library.sqlite'
+    }
+
+    scratch = database 'Scratch' 'Disposable workspace for media processing attempts' {
+      technology 'Host directory scratch/'
+    }
+
+    storage = container 'Storage' 'Private object storage for media bytes; reachable only on the internal Compose network' {
+      technology 'Go storage-run, SeaweedFS 4.53'
+
+      supervisor = component 'Supervisor' 'Starts weed mini, enforces global fsync, the private bucket and public-access block, checks the storage profile' {
+        technology 'storage-run'
+      }
+      gateway = component 'Gateway' 'S3 endpoint on :8333; checks storage, library and volume identity, refuses stale boot epochs, records part proofs, serves signed pairing and capacity control' {
+        technology 'Go'
+      }
+      weed = component 'SeaweedFS mini' 'Master, volume server, filer and S3 in one loopback-only process' {
+        technology 'SeaweedFS weed mini, LevelDB2'
+      }
+    }
+
+    media = database 'Media volume' 'SeaweedFS volumes and filer metadata, multipart part-proof journal' {
+      technology 'Host directory data/media/'
+    }
+
+    installer = container 'Installer and maintenance scripts' 'setup.sh installs a fresh library; install and update prepare and upgrade deployments with a verified cold backup' {
+      technology 'POSIX sh, Python, Docker Compose'
+    }
+
+    backupTool = container 'Cold backup tool' 'Backs up, verifies and restores the stopped metadata/storage pair with deployment configuration' {
+      technology 'Go, Python host script'
+    }
+
+    migrateTool = container 'Migration tool' 'Offline, resumable copy of a legacy library into a new installation with verification and rollback data' {
+      technology 'Go, POSIX sh'
+    }
+  }
+
+  // People and tools
+  owner -> tagFiles.spa 'browses, tags and uploads'
+  owner -> tagFiles.installer 'installs and updates'
+  owner -> tagFiles.backupTool 'backs up and restores'
+  owner -> tagFiles.migrateTool 'migrates a legacy library'
+  owner -> github 'downloads setup.sh and migrate.sh'
+
+  tagFiles.installer -> github 'pulls images' {
+    technology 'docker pull'
+  }
+  tagFiles.installer -> tagFiles.backupTool 'runs before an update'
+  tagFiles.backupTool -> tagFiles.db 'archives and restores' {
+    technology 'files, SQLite snapshot'
+  }
+  tagFiles.backupTool -> tagFiles.media 'archives and restores' {
+    technology 'files'
+  }
+  tagFiles.migrateTool -> legacy 'reads metadata and objects' {
+    technology 'SQLite, S3'
+  }
+  tagFiles.migrateTool -> tagFiles.db 'writes migrated metadata' {
+    technology 'SQL'
+  }
+  tagFiles.migrateTool -> tagFiles.storage 'writes migrated objects' {
+    technology 'S3'
+  }
+
+  // Browser to application
+  tagFiles.spa -> tagFiles.app.httpApi 'calls the JSON API and uploads parts' {
+    technology 'same-origin HTTP'
+  }
+  tagFiles.spa -> tagFiles.app.mediaServe 'loads media' {
+    technology 'same-origin HTTP'
+  }
+
+  // Inside the application
+  tagFiles.app.lifecycle -> tagFiles.app.httpApi 'serves'
+  tagFiles.app.lifecycle -> tagFiles.app.worker 'runs'
+  tagFiles.app.lifecycle -> tagFiles.app.objects 'verifies storage pairing at startup'
+  tagFiles.app.httpApi -> tagFiles.app.library 'runs queries and commands'
+  tagFiles.app.httpApi -> tagFiles.app.ingestion 'creates sessions and stores parts'
+  tagFiles.app.httpApi -> tagFiles.app.derived 'deletes items'
+  tagFiles.app.httpApi -> tagFiles.app.capacity 'admits work'
+  tagFiles.app.worker -> tagFiles.app.ingestion 'runs completion and ingest jobs'
+  tagFiles.app.worker -> tagFiles.app.derived 'runs poster, cleanup and delete jobs'
+  tagFiles.app.worker -> tagFiles.app.store 'claims and fences jobs'
+  tagFiles.app.ingestion -> tagFiles.app.mediaProc 'probes and normalizes uploads'
+  tagFiles.app.ingestion -> tagFiles.app.objects 'writes incoming and candidate objects'
+  tagFiles.app.ingestion -> tagFiles.app.store 'records sessions, assets and jobs'
+  tagFiles.app.derived -> tagFiles.app.mediaProc 'renders posters'
+  tagFiles.app.derived -> tagFiles.app.objects 'writes posters and deletes objects'
+  tagFiles.app.derived -> tagFiles.app.store 'records receipts and inventories'
+  tagFiles.app.library -> tagFiles.app.store 'reads and writes'
+  tagFiles.app.mediaServe -> tagFiles.app.store 'resolves assets'
+  tagFiles.app.mediaServe -> tagFiles.app.objects 'streams objects'
+  tagFiles.app.capacity -> tagFiles.app.objects 'checks storage capacity'
+  tagFiles.app.capacity -> tagFiles.app.mediaProc 'checks scratch reservations'
+
+  // Application to data and storage
+  tagFiles.app.store -> tagFiles.db 'reads and writes' {
+    technology 'SQL'
+  }
+  tagFiles.app.mediaProc -> tagFiles.scratch 'runs FFmpeg attempts in' {
+    technology 'files'
+  }
+  tagFiles.app.objects -> tagFiles.storage.gateway 'stores, reads and deletes media; pairs the library; queries capacity' {
+    technology 'S3 (AWS SDK v2) and signed control, internal network'
+  }
+
+  // Inside storage
+  tagFiles.storage.supervisor -> tagFiles.storage.weed 'starts and configures'
+  tagFiles.storage.supervisor -> tagFiles.storage.gateway 'opens after the profile check'
+  tagFiles.storage.gateway -> tagFiles.storage.weed 'forwards S3 requests' {
+    technology 'S3, 127.0.0.1:8334'
+  }
+  tagFiles.storage.gateway -> tagFiles.media 'writes part proofs' {
+    technology 'files'
+  }
+  tagFiles.storage.weed -> tagFiles.media 'stores volumes and filer metadata' {
+    technology 'files'
+  }
+}

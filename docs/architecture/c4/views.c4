@@ -1,0 +1,27 @@
+// C1 and C2 always; C3 only for containers whose inside matters; deployment when known.
+views {
+  view index {
+    title 'C1 · System context'
+    include *
+  }
+
+  view containers of tagFiles {
+    title 'C2 · Containers'
+    include *
+  }
+
+  view application of tagFiles.app {
+    title 'C3 · Application components'
+    include *
+  }
+
+  view storage of tagFiles.storage {
+    title 'C3 · Storage components'
+    include *
+  }
+
+  deployment view local {
+    title 'Deployment · Local installation'
+    include local.**
+  }
+}

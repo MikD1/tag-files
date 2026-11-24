@@ -1,9 +1,11 @@
 # Tag Files
 
 A local media library: Go HTTP application, React SPA, SQLite metadata, private
-SeaweedFS object storage, and FFmpeg processing. Read [README.md](README.md) and
-[docs/architecture.md](docs/architecture.md) for the runtime and data model;
-[docs/operations.md](docs/operations.md) describes commands and configuration.
+SeaweedFS object storage, and FFmpeg processing. Read [README.md](README.md),
+[docs/product](docs/product/README.md) for user-facing rules, and
+[docs/architecture](docs/architecture/README.md) for the runtime and data model;
+[docs/operations](docs/operations/README.md) describes deployment and configuration,
+and [development](docs/operations/development.md) the build and check commands.
 
 ## Source layout
 
@@ -50,11 +52,51 @@ Install pinned dependencies with `npm ci --prefix web` and
 race tests, tool tests, and frontend checks. `scripts/check-web` runs frontend
 checks alone; `npm --prefix web run test:browser` runs the disposable API/browser
 suite. Use the focused media/storage/container commands in
-[operations](docs/operations.md) when those boundaries change.
+[development](docs/operations/development.md) when those boundaries change.
 
 Run checks relevant to the change and report actual results. Keep tests,
 fixture provenance, lockfiles, and schema history.
 Keep documentation in English, concise, and about implemented behavior. Place
-human guides in `docs/` and draw diagrams with Mermaid. Keep local libraries,
-credentials, build output, test reports, screenshots, and planning artifacts
-outside version control.
+human guides in `docs/`. Architecture diagrams come from the LikeC4 model in
+`docs/architecture/c4/`; draw other diagrams with Mermaid. Keep local libraries,
+credentials, build output, test reports, screenshots, mockups, and other planning
+drafts outside version control; backlog tasks in `backlog/` are versioned.
+
+<!-- agent-flow:start -->
+## Project docs and workflow (agent-flow)
+
+The developer steers this project through short docs, not by reading code. Keep the docs true.
+
+- `README.md`: what the product is, how to run it, links.
+- `docs/product/`: detailed product behaviour and business rules (if present).
+- `docs/architecture/`: overview, C4 model (`c4/`, LikeC4), data model, decisions.
+- `docs/operations/`: environments, deploy, configuration and secrets, backups, monitoring.
+- `backlog/`: tasks, one Markdown file each (af-backlog skill and its `bk` tool).
+
+Rules:
+
+- When a change affects product behaviour, architecture, the data model or operations, update the matching doc in the same branch.
+- Docs describe the current state. Rewrite and shorten them instead of appending history.
+- Diagrams come from the LikeC4 model. Regenerate them with af-architecture; never edit `docs/architecture/c4/README.md` by hand.
+- Record decisions that are costly to reverse in `docs/architecture/decisions.md`.
+- Work outside the current task goes to the backlog as a new task.
+- Language: write every artifact (code, comments, docs, backlog tasks, commit messages, PR descriptions) in the artifacts language below. Talk to the developer in the language of their request, unless they ask otherwise.
+- Skills:
+  - af-brainstorm: idea to task;
+  - af-work: task to branch and report;
+  - af-backlog;
+  - af-architecture;
+  - af-setup.
+
+### Project settings
+
+- Artifacts language: English
+- Main branch: main
+- Test command: `scripts/check`; frontend only: `scripts/check-web`; browser suite:
+  `npm --prefix web run test:browser`; focused media/storage/container checks are
+  listed in `docs/operations/development.md`.
+- Pushing: this machine has no push rights. Never push branches or tags; commit
+  locally and leave pushing to the developer, who pushes from the host machine.
+  A pushed `v*` tag publishes images and a GitHub release.
+- Merging: merge into `main` only after the developer approves.
+<!-- agent-flow:end -->

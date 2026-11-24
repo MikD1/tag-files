@@ -20,7 +20,8 @@ sh "$HOME/Downloads/setup.sh"
 
 The installer pulls both ready-to-run images, creates `$HOME/tag-files` with the
 Compose file, settings, and private credentials, and starts the service.
-Open **http://localhost:8080**.
+Open **http://localhost:8080**. The service listens on this machine's loopback
+address only.
 
 After installation, start and stop from that directory:
 
@@ -65,22 +66,27 @@ Media uses SeaweedFS's native storage format inside `data/media/`.
 
 Back up **`data/`, `secrets/`, `compose.yml`, `.env`, and installation/update
 receipts together**, using the documented
-[cold backup and restore procedure](docs/operations.md#cold-backup-and-restore).
-Both services must be stopped for a consistent backup. `scratch/` can be excluded.
-Stopping or removing containers preserves these host directories.
+[cold backup and restore procedure](docs/operations/README.md#backups-and-restore).
+It needs a source checkout of the installed version. Both services must be
+stopped for a consistent backup. `scratch/` can be excluded. Stopping or removing
+containers preserves these host directories, but backups and updates need the
+stopped containers: use `docker compose stop`, not `down`.
 
 ## Documentation
 
-- [Architecture, data model, technologies, and media pipeline](docs/architecture.md)
-- [Configuration, development, updates, and backup/restore](docs/operations.md)
-- [Data migration](docs/migration.md)
+- [Product](docs/product/README.md): pages, rules, and the search language
+- [Architecture](docs/architecture/README.md): C4 views, data model, media pipeline, decisions
+- [Operations](docs/operations/README.md): installation, configuration, updates, backup/restore, releases
+- [Development and checks](docs/operations/development.md)
+- [Data migration](docs/operations/migration.md)
 - [HTTP API contract](api/openapi.yaml)
 - [Agent guide](AGENTS.md)
+- [Backlog](backlog/): tasks, one file each
 
 ## Development checks
 
-Source builds and native checks are described in [operations](docs/operations.md#development-and-checks).
-Native checks require Go 1.27.4, a C compiler, Node.js 26, Python 3, and FFmpeg 8.
+Source builds and native checks are described in [development](docs/operations/development.md).
+Native checks require Go 1.27.4, a C compiler, Node.js 26, Python 3, and FFmpeg 8.0.1.
 Docker is required for storage and container integration checks.
 
 ```sh

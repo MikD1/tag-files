@@ -1,0 +1,55 @@
+// Element kinds and styles. Rarely changes.
+specification {
+  element person {
+    notation "Person"
+    style {
+      shape person
+      color green
+    }
+  }
+  element system {
+    notation "Our system"
+  }
+  element external {
+    notation "External system"
+    style {
+      color gray
+    }
+  }
+  element container {
+    notation "Container"
+  }
+  element webapp {
+    notation "Web app"
+    style {
+      shape browser
+    }
+  }
+  element mobile {
+    notation "Mobile app"
+    style {
+      shape mobile
+    }
+  }
+  element component {
+    notation "Component"
+    style {
+      color sky
+    }
+  }
+  element database {
+    notation "Database"
+    style {
+      shape storage
+    }
+  }
+  element queue {
+    notation "Queue"
+    style {
+      shape queue
+    }
+  }
+
+  deploymentNode environment
+  deploymentNode node
+}

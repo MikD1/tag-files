@@ -1,0 +1,23 @@
+// Environments and what runs where.
+deployment {
+  environment local 'Local installation' {
+    node host 'Owner machine' 'Linux amd64/arm64 or macOS with Docker Desktop' {
+      node browser 'Browser' 'Opens http://localhost:8080 (installer --port)' {
+        instanceOf tagFiles.spa
+      }
+      node compose 'Docker Compose project' 'Default project tag-files; images pinned by ID in .env' {
+        node appService 'app service' 'Published only on 127.0.0.1; networks frontend and internal library; read-only root filesystem; host UID/GID' {
+          instanceOf tagFiles.app
+        }
+        node storageService 'storage service' 'Internal library network only; read-only root filesystem; host UID/GID' {
+          instanceOf tagFiles.storage
+        }
+      }
+      node deploymentDir 'Deployment directory' '$HOME/tag-files by default: compose.yml, .env, secrets/, receipts, bind-mounted data' {
+        instanceOf tagFiles.db
+        instanceOf tagFiles.media
+        instanceOf tagFiles.scratch
+      }
+    }
+  }
+}
